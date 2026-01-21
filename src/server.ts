@@ -55,7 +55,6 @@ app.get('/movie/:id', async (c) => {
     return c.text('Movie not found', 404);
   }
 
-  // Get all screenings for this movie
   const screenings = await db
     .selectFrom('screening')
     .select([
