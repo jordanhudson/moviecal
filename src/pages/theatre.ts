@@ -119,12 +119,20 @@ export function renderTheatrePage(theatreName: string, screenings: TheatreScreen
     }
 
     @media (max-width: 800px) {
+      body {
+        padding: 12px;
+      }
+
+      .theatre-container {
+        padding: 16px;
+      }
+
       .screening-date {
         width: auto;
         min-width: 100px;
         text-align: left;
         line-height: 1.3;
-        margin-right: 20px;
+        margin-right: 15px;
       }
 
       .screening-date .date-part {

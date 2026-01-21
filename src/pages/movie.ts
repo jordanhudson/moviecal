@@ -185,6 +185,14 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
     }
 
     @media (max-width: 800px) {
+      body {
+        padding: 12px;
+      }
+
+      .movie-container {
+        padding: 16px;
+      }
+
       .screening-date {
         width: auto;
         min-width: 100px;
