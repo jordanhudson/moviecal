@@ -1,0 +1,175 @@
+import 'dotenv/config';
+import { Hono } from 'hono';
+import { serve } from '@hono/node-server';
+import { db } from './db/connection.js';
+import cron from 'node-cron';
+import { runScrapeJob } from './scrape.js';
+import { renderIndexPage, ScreeningWithMovie, TheatreRow } from './pages/index.js';
+import { renderMoviePage } from './pages/movie.js';
+import { renderTheatrePage } from './pages/theatre.js';
+
+const app = new Hono();
+
+// Helper to get start and end of a day
+function getDayBounds(dateStr?: string) {
+  let date: Date;
+
+  if (dateStr) {
+    // Parse YYYY-MM-DD directly to avoid timezone issues
+    const [year, month, day] = dateStr.split('-').map(Number);
+    date = new Date(year, month - 1, day);
+  } else {
+    date = new Date();
+  }
+
+  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0);
+  const end = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59);
+  return { start, end, date };
+}
+
+// Movie detail page
+app.get('/movie/:id', async (c) => {
+  const movieId = parseInt(c.req.param('id'), 10);
+
+  if (isNaN(movieId)) {
+    return c.text('Invalid movie ID', 400);
+  }
+
+  // Get movie details
+  const movie = await db
+    .selectFrom('movie')
+    .select([
+      'id',
+      'title',
+      'year',
+      'director',
+      'runtime',
+      'tmdb_id',
+      'tmdb_url',
+      'poster_url',
+    ])
+    .where('id', '=', movieId)
+    .executeTakeFirst();
+
+  if (!movie) {
+    return c.text('Movie not found', 404);
+  }
+
+  // Get all screenings for this movie
+  const screenings = await db
+    .selectFrom('screening')
+    .select([
+      'id',
+      'datetime',
+      'theatre_name',
+      'booking_url',
+    ])
+    .where('movie_id', '=', movieId)
+    .orderBy('datetime', 'asc')
+    .execute();
+
+  const html = renderMoviePage(movie, screenings);
+  return c.html(html);
+});
+
+// Theatre detail page
+app.get('/theatre/:name', async (c) => {
+  const theatreName = decodeURIComponent(c.req.param('name'));
+
+  // Get all screenings for this theatre
+  const screenings = await db
+    .selectFrom('screening')
+    .innerJoin('movie', 'screening.movie_id', 'movie.id')
+    .select([
+      'screening.id',
+      'screening.datetime',
+      'screening.booking_url',
+      'movie.id as movie_id',
+      'movie.title as movie_title',
+    ])
+    .where('screening.theatre_name', '=', theatreName)
+    .orderBy('screening.datetime', 'asc')
+    .execute();
+
+  const html = renderTheatrePage(theatreName, screenings);
+  return c.html(html);
+});
+
+// Home page - Timeline view
+app.get('/', async (c) => {
+  const dateParam = c.req.query('date');
+  const { start, end, date } = getDayBounds(dateParam);
+
+  // Query screenings for this date
+  const results = await db
+    .selectFrom('screening')
+    .innerJoin('movie', 'screening.movie_id', 'movie.id')
+    .select([
+      'screening.id as screening_id',
+      'screening.datetime',
+      'screening.theatre_name',
+      'screening.booking_url',
+      'movie.id as movie_id',
+      'movie.title as movie_title',
+      'movie.year as movie_year',
+      'movie.runtime as movie_runtime',
+      'movie.poster_url',
+      'movie.tmdb_url',
+    ])
+    .where('screening.datetime', '>=', start)
+    .where('screening.datetime', '<=', end)
+    .orderBy('screening.datetime', 'asc')
+    .execute();
+
+  // Hardcoded theatre list in display order
+  const THEATRE_ORDER = [
+    'VIFF Cinema',
+    'VIFF Lochmaddy Studio',
+    'The Cinematheque',
+    'The Park',
+    'The Rio'
+  ];
+
+  // Group screenings by theatre
+  const theatreMap = new Map<string, ScreeningWithMovie[]>();
+  for (const row of results) {
+    if (!theatreMap.has(row.theatre_name)) {
+      theatreMap.set(row.theatre_name, []);
+    }
+    theatreMap.get(row.theatre_name)!.push(row);
+  }
+
+  // Build theatre list in fixed order, including theatres with no screenings
+  const theatres: TheatreRow[] = THEATRE_ORDER.map(theatre => ({
+    theatre,
+    screenings: theatreMap.get(theatre) || [],
+  }));
+
+  // Render HTML
+  const html = renderIndexPage(date, theatres);
+  return c.html(html);
+});
+
+// Schedule scrape job every 2 hours
+cron.schedule('0 */2 * * *', async () => {
+  console.log('[CRON] Starting scheduled scrape job...');
+  try {
+    await runScrapeJob();
+    console.log('[CRON] Scheduled scrape job completed successfully');
+  } catch (error) {
+    console.error('[CRON] Scheduled scrape job failed:', error);
+  }
+}, {
+  timezone: 'UTC'
+});
+
+const port = 3000;
+const hostname = '0.0.0.0';
+console.log(`Server is running on http://${hostname}:${port}`);
+console.log('Scrape job scheduled to run every 2 hours');
+
+serve({
+  fetch: app.fetch,
+  port,
+  hostname
+});
