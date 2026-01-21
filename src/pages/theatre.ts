@@ -149,6 +149,10 @@ export function renderTheatrePage(theatreName: string, screenings: TheatreScreen
         display: none;
       }
 
+      .screening-movie {
+        margin-right: 5px;
+      }
+
       .screening-book .full-text {
         display: none;
       }
