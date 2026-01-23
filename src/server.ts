@@ -36,6 +36,77 @@ function getDayBounds(dateStr?: string) {
   return { start, end, date };
 }
 
+// TMDB search API for fix-match modal
+app.get('/api/movie/:id/tmdb-search', async (c) => {
+  const movieId = parseInt(c.req.param('id'), 10);
+  if (isNaN(movieId)) return c.json({ error: 'Invalid movie ID' }, 400);
+
+  const movie = await db
+    .selectFrom('movie')
+    .select(['title'])
+    .where('id', '=', movieId)
+    .executeTakeFirst();
+  if (!movie) return c.json({ error: 'Movie not found' }, 404);
+
+  const query = c.req.query('query') || movie.title;
+  const token = process.env.TMDB_API_TOKEN;
+  if (!token) return c.json({ error: 'TMDB_API_TOKEN not configured' }, 500);
+
+  const url = `https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(query)}&include_adult=false&language=en-US&page=1`;
+  const resp = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await resp.json() as { results: Array<{ id: number; title: string; release_date: string; poster_path: string | null; overview: string }> };
+
+  const results = (data.results || []).slice(0, 10).map((r: { id: number; title: string; release_date: string; poster_path: string | null; overview: string }) => ({
+    id: r.id,
+    title: r.title,
+    release_date: r.release_date,
+    poster_path: r.poster_path ? `https://image.tmdb.org/t/p/w92${r.poster_path}` : null,
+    overview: r.overview,
+  }));
+
+  return c.json(results);
+});
+
+// TMDB update API for fix-match modal
+app.post('/api/movie/:id/tmdb-update', async (c) => {
+  const movieId = parseInt(c.req.param('id'), 10);
+  if (isNaN(movieId)) return c.json({ error: 'Invalid movie ID' }, 400);
+
+  const body = await c.req.json() as { tmdbId: number };
+  const tmdbId = body.tmdbId;
+  if (!tmdbId) return c.json({ error: 'tmdbId required' }, 400);
+
+  const token = process.env.TMDB_API_TOKEN;
+  if (!token) return c.json({ error: 'TMDB_API_TOKEN not configured' }, 500);
+
+  const resp = await fetch(`https://api.themoviedb.org/3/movie/${tmdbId}?language=en-US`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!resp.ok) return c.json({ error: 'TMDB fetch failed' }, 502);
+
+  const tmdbMovie = await resp.json() as { id: number; title: string; release_date: string; runtime: number | null; poster_path: string | null };
+
+  const year = tmdbMovie.release_date ? parseInt(tmdbMovie.release_date.split('-')[0], 10) : null;
+  const posterUrl = tmdbMovie.poster_path ? `https://image.tmdb.org/t/p/w500${tmdbMovie.poster_path}` : null;
+  const tmdbUrl = `https://www.themoviedb.org/movie/${tmdbMovie.id}`;
+
+  await db
+    .updateTable('movie')
+    .set({
+      tmdb_id: tmdbMovie.id,
+      tmdb_url: tmdbUrl,
+      poster_url: posterUrl,
+      runtime: tmdbMovie.runtime,
+      year: year,
+    })
+    .where('id', '=', movieId)
+    .execute();
+
+  return c.json({ success: true });
+});
+
 // Movie detail page
 app.get('/movie/:id', async (c) => {
   const movieId = parseInt(c.req.param('id'), 10);
