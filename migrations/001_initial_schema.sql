@@ -29,6 +29,3 @@ CREATE INDEX IF NOT EXISTS idx_screening_movie_id ON screening(movie_id);
 CREATE INDEX IF NOT EXISTS idx_screening_theatre_name ON screening(theatre_name);
 CREATE INDEX IF NOT EXISTS idx_movie_title ON movie(title);
 
--- Unique constraint to prevent duplicate screening
-CREATE UNIQUE INDEX IF NOT EXISTS idx_screening_unique
-  ON screening(movie_id, datetime, theatre_name);
