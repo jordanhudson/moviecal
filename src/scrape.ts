@@ -263,45 +263,65 @@ export async function runScrapeJob() {
   console.log(`  - Already existed: ${existingMoviesCount}`);
   console.log(`  - Found on TMDB: ${tmdbFoundCount}/${newMoviesCount}`);
 
-  // Save all screenings to database
-  console.log(`\nSaving ${allScreenings.length} screenings to database...`);
-  let screeningsInserted = 0;
-  let screeningsUpdated = 0;
+  // Save screenings per scraper using delete-and-reinsert
+  console.log(`\nSaving screenings to database (delete-and-reinsert per scraper)...`);
 
-  for (const screening of allScreenings) {
-    // Look up the movie ID by title
-    const movie = await db
-      .selectFrom('movie')
-      .select('id')
-      .where('title', '=', screening.movie.title)
-      .executeTakeFirst();
+  const scraperResults: { name: string; screenings: Screening[] }[] = [
+    { name: 'VIFF', screenings: viffScreenings },
+    { name: 'Rio', screenings: rioScreenings },
+    { name: 'Cinematheque', screenings: cinemathequeScreenings },
+    { name: 'Park', screenings: parkScreenings },
+  ];
 
-    if (!movie) {
-      console.warn(`  ⚠ Movie "${screening.movie.title}" not found in database, skipping screening`);
+  for (const { name, screenings } of scraperResults) {
+    if (screenings.length === 0) {
+      console.log(`  - ${name}: skipped (no screenings returned)`);
       continue;
     }
 
-    // Insert or update screening
-    const result = await db
-      .insertInto('screening')
-      .values({
-        movie_id: movie.id,
-        datetime: screening.datetime,
-        theatre_name: screening.theatreName,
-        booking_url: screening.bookingUrl,
-      })
-      .onConflict((oc) =>
-        oc.columns(['movie_id', 'datetime', 'theatre_name']).doUpdateSet({
-          booking_url: screening.bookingUrl,
-          updated_at: new Date(),
-        })
-      )
-      .execute();
+    const theatreNames = [...new Set(screenings.map(s => s.theatreName))];
+    const now = new Date();
 
-    screeningsInserted++;
+    await db.transaction().execute(async (trx) => {
+      // Delete future screenings for this scraper's theatres
+      const deleteResult = await trx
+        .deleteFrom('screening')
+        .where('theatre_name', 'in', theatreNames)
+        .where('datetime', '>=', now)
+        .executeTakeFirst();
+
+      const deletedCount = Number(deleteResult.numDeletedRows);
+
+      // Insert fresh screenings
+      let insertedCount = 0;
+      for (const screening of screenings) {
+        const movie = await trx
+          .selectFrom('movie')
+          .select('id')
+          .where('title', '=', screening.movie.title)
+          .executeTakeFirst();
+
+        if (!movie) {
+          console.warn(`  ⚠ Movie "${screening.movie.title}" not found in database, skipping screening`);
+          continue;
+        }
+
+        await trx
+          .insertInto('screening')
+          .values({
+            movie_id: movie.id,
+            datetime: screening.datetime,
+            theatre_name: screening.theatreName,
+            booking_url: screening.bookingUrl,
+          })
+          .execute();
+
+        insertedCount++;
+      }
+
+      console.log(`  - ${name}: deleted ${deletedCount}, inserted ${insertedCount} (theatres: ${theatreNames.join(', ')})`);
+    });
   }
-
-  console.log(`  ✓ Processed ${screeningsInserted} screenings`);
 
   console.log('Scrape job completed successfully');
 }

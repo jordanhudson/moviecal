@@ -1,7 +1,7 @@
 // Simple migration runner - executes SQL migration files
 
 import pg from 'pg';
-import { readFileSync } from 'fs';
+import { readFileSync, readdirSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
@@ -26,14 +26,18 @@ async function runMigrations() {
   try {
     console.log('Running database migrations...\n');
 
-    // Read the migration file
-    const migrationPath = join(__dirname, '../../migrations/001_initial_schema.sql');
-    const sql = readFileSync(migrationPath, 'utf-8');
+    const migrationsDir = join(__dirname, '../../migrations');
+    const files = readdirSync(migrationsDir)
+      .filter(f => f.endsWith('.sql'))
+      .sort();
 
-    // Execute the entire migration file as one query
-    await pool.query(sql);
+    for (const file of files) {
+      const sql = readFileSync(join(migrationsDir, file), 'utf-8');
+      await pool.query(sql);
+      console.log(`  ✓ ${file}`);
+    }
 
-    console.log('✓ Migrations completed successfully\n');
+    console.log('\n✓ Migrations completed successfully\n');
   } catch (error) {
     console.error('Migration failed:', error);
     process.exit(1);
