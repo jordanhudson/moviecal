@@ -280,14 +280,12 @@ export async function runScrapeJob() {
     }
 
     const theatreNames = [...new Set(screenings.map(s => s.theatreName))];
-    const now = new Date();
 
     await db.transaction().execute(async (trx) => {
-      // Delete future screenings for this scraper's theatres
+      // Delete all screenings for this scraper's theatres
       const deleteResult = await trx
         .deleteFrom('screening')
         .where('theatre_name', 'in', theatreNames)
-        .where('datetime', '>=', now)
         .executeTakeFirst();
 
       const deletedCount = Number(deleteResult.numDeletedRows);
