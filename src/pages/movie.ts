@@ -447,12 +447,6 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
 
   <script>
     (function() {
-      var url = new URL(window.location.href);
-      if (url.searchParams.has('from_date')) {
-        url.searchParams.delete('from_date');
-        history.replaceState(null, '', url.pathname);
-      }
-
       const movieId = ${movie.id};
       const modal = document.getElementById('tmdbModal');
       const input = document.getElementById('tmdbSearchInput');
