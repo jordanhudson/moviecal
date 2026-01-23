@@ -463,7 +463,7 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
           modal.classList.add('active');
           doSearch(input.value);
         } else {
-          clickTimer = setTimeout(function() { clickCount = 0; }, 2000);
+          clickTimer = setTimeout(function() { clickCount = 0; }, 3000);
         }
       });
 
