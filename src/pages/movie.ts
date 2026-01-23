@@ -18,7 +18,7 @@ export interface ScreeningDetail {
   booking_url: string;
 }
 
-export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[]): string {
+export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[], fromDate?: string | null): string {
   // Get current time in Pacific (screening times are stored as naive Pacific timestamps)
   const pacificNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
   const futureScreenings = screenings.filter(s => new Date(s.datetime) >= pacificNow);
@@ -373,7 +373,7 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
   </style>
 </head>
 <body>
-  <a href="/" class="back-link">← Back to Calendar</a>
+  <a href="/${fromDate ? `?date=${fromDate}` : ''}" class="back-link">← Back to Calendar</a>
 
   <div class="movie-container">
     <div class="movie-header">
@@ -447,6 +447,12 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
 
   <script>
     (function() {
+      var url = new URL(window.location.href);
+      if (url.searchParams.has('from_date')) {
+        url.searchParams.delete('from_date');
+        history.replaceState(null, '', url.pathname);
+      }
+
       const movieId = ${movie.id};
       const modal = document.getElementById('tmdbModal');
       const input = document.getElementById('tmdbSearchInput');

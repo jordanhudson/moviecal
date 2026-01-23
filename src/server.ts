@@ -149,7 +149,8 @@ app.get('/movie/:id', async (c) => {
     .orderBy('datetime', 'asc')
     .execute();
 
-  const html = renderMoviePage(movie, screenings);
+  const fromDate = c.req.query('from_date') || null;
+  const html = renderMoviePage(movie, screenings, fromDate);
   return c.html(html);
 });
 

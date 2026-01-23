@@ -78,6 +78,7 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
   const nextDay = getNextDay(date);
   const displayDate = formatDate(date);
   const displayDateShort = formatDateShort(date);
+  const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
   // Check if there are any screenings at all
   const hasScreenings = theatres.some(t => t.screenings.length > 0);
@@ -458,7 +459,7 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
 
               return `
                 <div class="screening" style="left: ${left}; width: ${width};">
-                  <a href="/movie/${screening.movie_id}" class="screening-overlay" title="${screening.movie_title}"></a>
+                  <a href="/movie/${screening.movie_id}?from_date=${dateStr}" class="screening-overlay" title="${screening.movie_title}"></a>
                   <div class="screening-content">
                     <span class="screening-title">${screening.movie_title}</span>
                     <div class="screening-time">${time}</div>
@@ -492,7 +493,7 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
 
             return `
               <div class="agenda-screening">
-                <a href="/movie/${screening.movie_id}" class="agenda-screening-overlay"></a>
+                <a href="/movie/${screening.movie_id}?from_date=${dateStr}" class="agenda-screening-overlay"></a>
                 <span class="agenda-movie-time">${time}</span>
                 <span class="agenda-movie-title">${screening.movie_title}</span>
                 <a href="${screening.booking_url}" target="_blank" class="agenda-tix">Tix</a>
