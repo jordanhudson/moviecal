@@ -125,23 +125,7 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
       background: #0099c4;
     }
 
-    .fix-tmdb-btn {
-      display: inline-block;
-      padding: 8px 16px;
-      background: #4a7c7c;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      font-size: 14px;
-      cursor: pointer;
-      margin-left: 8px;
-    }
-
-    .fix-tmdb-btn:hover {
-      background: #3d6868;
-    }
-
-    .tmdb-modal-overlay {
+.tmdb-modal-overlay {
       display: none;
       position: fixed;
       top: 0;
@@ -407,7 +391,6 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
           ${movie.director ? `<span>Dir: ${movie.director}</span>` : ''}
         </div>
         ${movie.tmdb_url ? `<a href="${movie.tmdb_url}" target="_blank" class="tmdb-link">View on TMDB</a>` : ''}
-        <button class="fix-tmdb-btn" id="fixTmdbBtn">Fix TMDB match</button>
       </div>
     </div>
 
@@ -469,9 +452,19 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
       const input = document.getElementById('tmdbSearchInput');
       const results = document.getElementById('tmdbResults');
 
-      document.getElementById('fixTmdbBtn').addEventListener('click', function() {
-        modal.classList.add('active');
-        doSearch(input.value);
+      var posterEl = document.querySelector('.movie-poster');
+      var clickCount = 0;
+      var clickTimer = null;
+      posterEl.addEventListener('click', function() {
+        clickCount++;
+        clearTimeout(clickTimer);
+        if (clickCount >= 10) {
+          clickCount = 0;
+          modal.classList.add('active');
+          doSearch(input.value);
+        } else {
+          clickTimer = setTimeout(function() { clickCount = 0; }, 2000);
+        }
       });
 
       document.getElementById('tmdbModalClose').addEventListener('click', function() {
