@@ -132,10 +132,9 @@ async function getTMDBMovieDetails(tmdbId: number): Promise<TMDBMovieDetails | n
  * Does not call process.exit() so it won't kill the parent process.
  */
 export async function runScrapeJob() {
-  console.log('Starting scrape job...\n');
+  console.log('Starting scrape job...');
 
   // Run all scrapers in parallel
-  console.log('Running scrapers...');
   const [viffScreenings, rioScreenings, cinemathequeScreenings, parkScreenings] = await Promise.all([
     scrapeVIFF().catch(err => {
       console.error('VIFF scraper failed:', err.message);
@@ -177,10 +176,6 @@ export async function runScrapeJob() {
     }
   }
   const uniqueMovies = Array.from(uniqueMoviesMap.values());
-  console.log(`\nFound ${uniqueMovies.length} unique movies`);
-
-  // Process each movie: check if exists in DB, if not search TMDB and insert
-  console.log('\nProcessing movies...');
   let newMoviesCount = 0;
   let existingMoviesCount = 0;
   let tmdbFoundCount = 0;
@@ -194,8 +189,6 @@ export async function runScrapeJob() {
       .executeTakeFirst();
 
     if (existingMovie) {
-      existingMoviesCount++;
-      console.log(`  ✓ "${movie.title}" already exists in database`);
       continue;
     }
 
@@ -310,7 +303,7 @@ export async function runScrapeJob() {
 
   console.log(`  ✓ Processed ${screeningsInserted} screenings`);
 
-  console.log('\nScrape job completed successfully');
+  console.log('Scrape job completed successfully');
 }
 
 // CLI entry point - only runs when this file is executed directly (not imported)
