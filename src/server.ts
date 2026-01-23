@@ -19,7 +19,16 @@ function getDayBounds(dateStr?: string) {
     const [year, month, day] = dateStr.split('-').map(Number);
     date = new Date(year, month - 1, day);
   } else {
-    date = new Date();
+    const now = new Date();
+    // Get current date in Pacific time
+    const pacificDateStr = now.toLocaleDateString('en-CA', { timeZone: 'America/Vancouver' });
+    const [year, month, day] = pacificDateStr.split('-').map(Number);
+    date = new Date(year, month - 1, day);
+    // Add 2 hours: show next day's screenings starting at 10pm Pacific
+    const pacificHour = parseInt(now.toLocaleTimeString('en-GB', { timeZone: 'America/Vancouver', hour12: false }).split(':')[0]);
+    if (pacificHour >= 22) {
+      date.setDate(date.getDate() + 1);
+    }
   }
 
   const start = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0);
