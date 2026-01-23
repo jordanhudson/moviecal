@@ -116,6 +116,8 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
     .header h1 {
       font-size: 24px;
       font-weight: 600;
+      min-width: 360px;
+      text-align: center;
     }
 
     .header .date-short {
@@ -389,6 +391,8 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
 
       .header h1 {
         font-size: 18px;
+        min-width: 150px;
+        text-align: center;
       }
 
       .header .date-full {
