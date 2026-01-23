@@ -7,6 +7,7 @@ import { runScrapeJob } from './scrape.js';
 import { renderIndexPage, ScreeningWithMovie, TheatreRow } from './pages/index.js';
 import { renderMoviePage } from './pages/movie.js';
 import { renderTheatrePage } from './pages/theatre.js';
+import { renderAllMoviesPage } from './pages/all-movies.js';
 
 const app = new Hono();
 
@@ -172,6 +173,27 @@ app.get('/theatre/:name', async (c) => {
     .execute();
 
   const html = renderTheatrePage(theatreName, screenings);
+  return c.html(html);
+});
+
+// All movies page
+app.get('/movies', async (c) => {
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+  const movies = await db
+    .selectFrom('movie')
+    .select(['movie.id', 'movie.title', 'movie.year', 'movie.runtime', 'movie.poster_url', 'movie.tmdb_id'])
+    .where((eb) =>
+      eb.exists(
+        eb.selectFrom('screening')
+          .select('screening.id')
+          .whereRef('screening.movie_id', '=', 'movie.id')
+          .where('screening.datetime', '>=', now)
+      )
+    )
+    .orderBy('title', 'asc')
+    .execute();
+
+  const html = renderAllMoviesPage(movies);
   return c.html(html);
 });
 
