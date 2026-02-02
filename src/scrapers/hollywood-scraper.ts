@@ -2,18 +2,6 @@ import puppeteer from 'puppeteer';
 import { Movie, Screening } from '../models.js';
 import { cleanMovieTitle } from '../utils/title-cleaner.js';
 
-// Hollywood-specific internal models (not exported)
-interface HollywoodMovieCard {
-  title: string;
-  eventUrl: string;
-  ticketUrl: string;
-}
-
-interface HollywoodEventDetails {
-  datetime: Date;
-  ticketUrl: string;
-}
-
 export async function scrapeHollywood(): Promise<Screening[]> {
   const browser = await puppeteer.launch({
     headless: true,
@@ -22,6 +10,12 @@ export async function scrapeHollywood(): Promise<Screening[]> {
 
   try {
     const page = await browser.newPage();
+
+    // Set a realistic user agent to avoid being blocked
+    await page.setUserAgent(
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    );
+
     await page.goto('https://www.hollywoodtheatre.ca/movies', {
       waitUntil: 'networkidle2',
       timeout: 30000,
@@ -76,7 +70,6 @@ export async function scrapeHollywood(): Promise<Screening[]> {
         if (!title) return;
 
         // Find the sibling ticket link
-        // The ticket button is usually a sibling <a> with href containing showpass or opendate
         const parent = link.parentElement;
         let ticketUrl = '';
 
@@ -105,12 +98,16 @@ export async function scrapeHollywood(): Promise<Screening[]> {
       const eventUrl = `https://www.hollywoodtheatre.ca${card.eventUrl}`;
 
       try {
+        // Small delay between requests to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 500));
+
         await page.goto(eventUrl, {
-          waitUntil: 'networkidle2',
-          timeout: 30000,
+          waitUntil: 'domcontentloaded',  // Faster than networkidle2
+          timeout: 60000,  // Longer timeout
         });
 
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Wait for content to render
+        await new Promise(resolve => setTimeout(resolve, 2000));
 
         // Extract the datetime from the event page
         const eventDetails = await page.evaluate(() => {
@@ -125,12 +122,24 @@ export async function scrapeHollywood(): Promise<Screening[]> {
 
           if (dateTimeMatch) {
             return {
-              dayOfWeek: dateTimeMatch[1],
               month: dateTimeMatch[2],
               day: parseInt(dateTimeMatch[3], 10),
               year: parseInt(dateTimeMatch[4], 10),
-              doorsTime: dateTimeMatch[5],
               showTime: dateTimeMatch[6],
+            };
+          }
+
+          // Fallback: try to find just the date with doors time only
+          const doorsOnlyMatch = bodyText.match(
+            /(\w+day),?\s+(\w+)\s+(\d{1,2}),?\s+(\d{4})\s*\|\s*Doors\s+(\d{1,2}(?::\d{2})?\s*[ap]m)/i
+          );
+
+          if (doorsOnlyMatch) {
+            return {
+              month: doorsOnlyMatch[2],
+              day: parseInt(doorsOnlyMatch[3], 10),
+              year: parseInt(doorsOnlyMatch[4], 10),
+              showTime: doorsOnlyMatch[5],  // Use doors time as fallback
             };
           }
 
@@ -141,12 +150,10 @@ export async function scrapeHollywood(): Promise<Screening[]> {
 
           if (dateMatch) {
             return {
-              dayOfWeek: dateMatch[1],
               month: dateMatch[2],
               day: parseInt(dateMatch[3], 10),
               year: parseInt(dateMatch[4], 10),
-              doorsTime: null,
-              showTime: null,
+              showTime: '7pm',  // Default fallback
             };
           }
 
@@ -162,7 +169,7 @@ export async function scrapeHollywood(): Promise<Screening[]> {
           eventDetails.month,
           eventDetails.day,
           eventDetails.year,
-          eventDetails.showTime || eventDetails.doorsTime || '7pm'
+          eventDetails.showTime
         );
 
         const movie: Movie = {
@@ -183,7 +190,7 @@ export async function scrapeHollywood(): Promise<Screening[]> {
 
         screenings.push(screening);
       } catch (error) {
-        console.warn(`Failed to scrape event page ${eventUrl}:`, error);
+        console.warn(`Failed to scrape event page ${eventUrl}:`, (error as Error).message);
         continue;
       }
     }
