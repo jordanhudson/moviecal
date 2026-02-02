@@ -98,8 +98,8 @@ export async function scrapeHollywood(): Promise<Screening[]> {
       const eventUrl = `https://www.hollywoodtheatre.ca${card.eventUrl}`;
 
       try {
-        // Small delay between requests to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Delay between requests to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 2000));
 
         await page.goto(eventUrl, {
           waitUntil: 'domcontentloaded',  // Faster than networkidle2
