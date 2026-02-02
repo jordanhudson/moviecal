@@ -3,6 +3,7 @@ import { scrapeVIFF } from './scrapers/viff-scraper.js';
 import { scrapeCinematheque } from './scrapers/cinematheque-scraper.js';
 import { scrapePark } from './scrapers/park-scraper.js';
 import { scrapeRio } from './scrapers/rio-scraper.js';
+import { scrapeHollywood } from './scrapers/hollywood-scraper.js';
 import type { Screening, Movie } from './models.js';
 import { db, closeDb } from './db/connection.js';
 
@@ -127,46 +128,62 @@ async function getTMDBMovieDetails(tmdbId: number): Promise<TMDBMovieDetails | n
   }
 }
 
+// Scraper registry mapping names to scraper functions
+const scrapers: Record<string, () => Promise<Screening[]>> = {
+  viff: scrapeVIFF,
+  rio: scrapeRio,
+  cinematheque: scrapeCinematheque,
+  park: scrapePark,
+  hollywood: scrapeHollywood,
+};
+
 /**
  * Exported scrape job function that can be called from other modules (e.g., cron scheduler).
  * Does not call process.exit() so it won't kill the parent process.
+ * @param scraperName Optional scraper name to run only that scraper (e.g., "hollywood")
  */
-export async function runScrapeJob() {
-  console.log('Starting scrape job...');
+export async function runScrapeJob(scraperName?: string) {
+  // Determine which scrapers to run
+  const scrapersToRun = scraperName
+    ? { [scraperName]: scrapers[scraperName] }
+    : scrapers;
 
-  // Run all scrapers in parallel
-  const [viffScreenings, rioScreenings, cinemathequeScreenings, parkScreenings] = await Promise.all([
-    scrapeVIFF().catch(err => {
-      console.error('VIFF scraper failed:', err.message);
-      return [] as Screening[];
-    }),
-    scrapeRio().catch(err => {
-      console.error('Rio scraper failed:', err.message);
-      return [] as Screening[];
-    }),
-    scrapeCinematheque().catch(err => {
-      console.error('Cinematheque scraper failed:', err.message);
-      return [] as Screening[];
-    }),
-    scrapePark().catch(err => {
-      console.error('Park scraper failed:', err.message);
-      return [] as Screening[];
+  if (scraperName && !scrapers[scraperName]) {
+    const validNames = Object.keys(scrapers).join(', ');
+    throw new Error(`Unknown scraper: "${scraperName}". Valid scrapers: ${validNames}`);
+  }
+
+  console.log(scraperName
+    ? `Starting scrape job for ${scraperName}...`
+    : 'Starting scrape job...');
+
+  // Run selected scrapers in parallel
+  const scraperEntries = Object.entries(scrapersToRun);
+  const results = await Promise.all(
+    scraperEntries.map(async ([name, scrapeFn]) => {
+      try {
+        const screenings = await scrapeFn();
+        return { name, screenings };
+      } catch (err) {
+        console.error(`${name} scraper failed:`, (err as Error).message);
+        return { name, screenings: [] as Screening[] };
+      }
     })
-  ]);
+  );
+
+  // Build results map
+  const scraperResults: Record<string, Screening[]> = {};
+  for (const { name, screenings } of results) {
+    scraperResults[name] = screenings;
+  }
 
   // Combine all screenings
-  const allScreenings = [
-    ...viffScreenings,
-    ...rioScreenings,
-    ...cinemathequeScreenings,
-    ...parkScreenings
-  ];
+  const allScreenings = results.flatMap(r => r.screenings);
 
   console.log(`\nCollected ${allScreenings.length} total screenings:`);
-  console.log(`  - VIFF: ${viffScreenings.length}`);
-  console.log(`  - Rio: ${rioScreenings.length}`);
-  console.log(`  - Cinematheque: ${cinemathequeScreenings.length}`);
-  console.log(`  - Park: ${parkScreenings.length}`);
+  for (const { name, screenings } of results) {
+    console.log(`  - ${name}: ${screenings.length}`);
+  }
 
   // Extract unique movies (dedupe on title)
   const uniqueMoviesMap = new Map<string, Movie>();
@@ -266,14 +283,7 @@ export async function runScrapeJob() {
   // Save screenings per scraper using delete-and-reinsert
   console.log(`\nSaving screenings to database (delete-and-reinsert per scraper)...`);
 
-  const scraperResults: { name: string; screenings: Screening[] }[] = [
-    { name: 'VIFF', screenings: viffScreenings },
-    { name: 'Rio', screenings: rioScreenings },
-    { name: 'Cinematheque', screenings: cinemathequeScreenings },
-    { name: 'Park', screenings: parkScreenings },
-  ];
-
-  for (const { name, screenings } of scraperResults) {
+  for (const { name, screenings } of results) {
     if (screenings.length === 0) {
       console.log(`  - ${name}: skipped (no screenings returned)`);
       continue;
@@ -325,10 +335,13 @@ export async function runScrapeJob() {
 }
 
 // CLI entry point - only runs when this file is executed directly (not imported)
+// Usage: npm run scrape [scraper-name]
+// Example: npm run scrape hollywood
 if (import.meta.url === `file://${process.argv[1]}`) {
   (async () => {
     try {
-      await runScrapeJob();
+      const scraperName = process.argv[2]?.toLowerCase();
+      await runScrapeJob(scraperName);
     } catch (error) {
       console.error('Fatal error in scrape job:', error);
       process.exit(1);

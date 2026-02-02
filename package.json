@@ -7,7 +7,7 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "scrape": "tsx src/scrape.ts",
+    "scrape": "node dist/scrape.js",
     "migrate": "tsx src/db/migrate.ts",
     "clear": "tsx src/db/clear.ts",
     "drop": "tsx src/db/drop.ts",

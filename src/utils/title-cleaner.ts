@@ -10,6 +10,7 @@
 export function cleanMovieTitle(title: string): string {
   return title
     .replace(/\s*\(Final Screening\)\s*/gi, '')
+    .replace(/\s*\(Film Screening\)\s*/gi, '')
     .replace(/\s*\(.+?\s+Anniversary\s+Edition\)\s*/gi, '')
     .replace(/\s*\(.+?\s+Restoration\)\s*/gi, '')
     .trim();
