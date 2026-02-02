@@ -1,208 +1,178 @@
-import puppeteer from 'puppeteer';
 import { Movie, Screening } from '../models.js';
 import { cleanMovieTitle } from '../utils/title-cleaner.js';
 
-export async function scrapeHollywood(): Promise<Screening[]> {
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
-  });
-
-  try {
-    const page = await browser.newPage();
-
-    // Set a realistic user agent to avoid being blocked
-    await page.setUserAgent(
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-    );
-
-    await page.goto('https://www.hollywoodtheatre.ca/movies', {
-      waitUntil: 'networkidle2',
-      timeout: 30000,
-    });
-
-    // Wait for dynamic content
-    await new Promise(resolve => setTimeout(resolve, 3000));
-
-    // Extract all movie cards from the /movies page
-    const movieCards = await page.evaluate(() => {
-      // Helper to convert "IRON LUNG" to "Iron Lung"
-      function toTitleCase(str: string): string {
-        return str.toLowerCase().replace(/\b\w/g, (c: string) => c.toUpperCase());
-      }
-
-      const results: { title: string; eventUrl: string; ticketUrl: string }[] = [];
-
-      // Find all links that go to /events/ pages
-      const allLinks = document.querySelectorAll('a[href^="/events/"]');
-      const seenUrls = new Set<string>();
-
-      allLinks.forEach((link) => {
-        const href = link.getAttribute('href') || '';
-        if (!href || seenUrls.has(href)) return;
-
-        let title = '';
-
-        // Try to find the title by looking at text content of children
-        const textNodes = Array.from(link.querySelectorAll('div'));
-        for (const node of textNodes) {
-          const text = node.textContent?.trim() || '';
-          // Skip short strings (like "Feb", "02") and look for longer title text
-          if (text.length > 5 && !text.match(/^[A-Za-z]{3}$/)) {
-            // Check if this is likely the title (not just a month/day combo)
-            if (!text.match(/^[A-Za-z]{3}\s+\d{2}$/)) {
-              title = text;
-              break;
-            }
-          }
-        }
-
-        // If no title found in divs, try the link text itself
-        if (!title) {
-          const linkText = link.textContent?.trim() || '';
-          // Remove date patterns and get the remaining text
-          const withoutDate = linkText.replace(/[A-Za-z]{3}\s*\d{1,2}/g, '').trim();
-          if (withoutDate.length > 2) {
-            title = withoutDate;
-          }
-        }
-
-        if (!title) return;
-
-        // Find the sibling ticket link
-        const parent = link.parentElement;
-        let ticketUrl = '';
-
-        if (parent) {
-          const ticketLink = parent.querySelector('a[href*="showpass.com"], a[href*="opendate.io"]');
-          if (ticketLink) {
-            ticketUrl = ticketLink.getAttribute('href') || '';
-          }
-        }
-
-        seenUrls.add(href);
-        results.push({
-          title: title.toUpperCase() === title ? toTitleCase(title) : title,
-          eventUrl: href,
-          ticketUrl: ticketUrl,
-        });
-      });
-
-      return results;
-    });
-
-    // Now visit each event page to get the full datetime
-    const screenings: Screening[] = [];
-
-    for (const card of movieCards) {
-      const eventUrl = `https://www.hollywoodtheatre.ca${card.eventUrl}`;
-
-      try {
-        // Delay between requests to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 2000));
-
-        await page.goto(eventUrl, {
-          waitUntil: 'domcontentloaded',  // Faster than networkidle2
-          timeout: 60000,  // Longer timeout
-        });
-
-        // Wait for content to render
-        await new Promise(resolve => setTimeout(resolve, 2000));
-
-        // Extract the datetime from the event page
-        const eventDetails = await page.evaluate(() => {
-          // Look for text matching "DAY, MONTH DAY, YEAR | Doors Xpm, Show Xpm"
-          // Example: "Monday, February 2, 2026 | Doors 6pm, Show 7pm"
-          const bodyText = document.body.innerText;
-
-          // Pattern for full date with doors/show times
-          const dateTimeMatch = bodyText.match(
-            /(\w+day),?\s+(\w+)\s+(\d{1,2}),?\s+(\d{4})\s*\|\s*Doors\s+(\d{1,2}(?::\d{2})?\s*[ap]m),?\s*Show\s+(\d{1,2}(?::\d{2})?\s*[ap]m)/i
-          );
-
-          if (dateTimeMatch) {
-            return {
-              month: dateTimeMatch[2],
-              day: parseInt(dateTimeMatch[3], 10),
-              year: parseInt(dateTimeMatch[4], 10),
-              showTime: dateTimeMatch[6],
-            };
-          }
-
-          // Fallback: try to find just the date with doors time only
-          const doorsOnlyMatch = bodyText.match(
-            /(\w+day),?\s+(\w+)\s+(\d{1,2}),?\s+(\d{4})\s*\|\s*Doors\s+(\d{1,2}(?::\d{2})?\s*[ap]m)/i
-          );
-
-          if (doorsOnlyMatch) {
-            return {
-              month: doorsOnlyMatch[2],
-              day: parseInt(doorsOnlyMatch[3], 10),
-              year: parseInt(doorsOnlyMatch[4], 10),
-              showTime: doorsOnlyMatch[5],  // Use doors time as fallback
-            };
-          }
-
-          // Fallback: try to find just the date
-          const dateMatch = bodyText.match(
-            /(\w+day),?\s+(\w+)\s+(\d{1,2}),?\s+(\d{4})/i
-          );
-
-          if (dateMatch) {
-            return {
-              month: dateMatch[2],
-              day: parseInt(dateMatch[3], 10),
-              year: parseInt(dateMatch[4], 10),
-              showTime: '7pm',  // Default fallback
-            };
-          }
-
-          return null;
-        });
-
-        if (!eventDetails) {
-          console.warn(`Could not extract datetime from ${eventUrl}`);
-          continue;
-        }
-
-        const datetime = parseDateTime(
-          eventDetails.month,
-          eventDetails.day,
-          eventDetails.year,
-          eventDetails.showTime
-        );
-
-        const movie: Movie = {
-          id: null,
-          title: cleanMovieTitle(card.title),
-          year: null,
-          director: null,
-          runtime: null,
-        };
-
-        const screening: Screening = {
-          id: null,
-          datetime: datetime,
-          theatreName: 'Hollywood Theatre',
-          bookingUrl: card.ticketUrl || eventUrl,
-          movie: movie,
-        };
-
-        screenings.push(screening);
-      } catch (error) {
-        console.warn(`Failed to scrape event page ${eventUrl}:`, (error as Error).message);
-        continue;
-      }
-    }
-
-    return screenings;
-
-  } finally {
-    await browser.close();
-  }
+interface MovieCard {
+  title: string;
+  eventUrl: string;
+  ticketUrl: string;
 }
 
-// Helper function to parse Hollywood Theatre datetime components into a Date object
+export async function scrapeHollywood(): Promise<Screening[]> {
+  // Fetch the movies page
+  const moviesResponse = await fetch('https://www.hollywoodtheatre.ca/movies', {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    },
+  });
+
+  if (!moviesResponse.ok) {
+    throw new Error(`Failed to fetch movies page: ${moviesResponse.status}`);
+  }
+
+  const moviesHtml = await moviesResponse.text();
+
+  // Extract movie cards from the HTML
+  const movieCards = parseMoviesPage(moviesHtml);
+
+  // Fetch each event page to get the full datetime
+  const screenings: Screening[] = [];
+
+  for (const card of movieCards) {
+    try {
+      // Small delay between requests
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      const eventUrl = `https://www.hollywoodtheatre.ca${card.eventUrl}`;
+      const eventResponse = await fetch(eventUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        },
+      });
+
+      if (!eventResponse.ok) {
+        console.warn(`Failed to fetch event page ${eventUrl}: ${eventResponse.status}`);
+        continue;
+      }
+
+      const eventHtml = await eventResponse.text();
+      const eventDetails = parseEventPage(eventHtml);
+
+      if (!eventDetails) {
+        console.warn(`Could not extract datetime from ${eventUrl}`);
+        continue;
+      }
+
+      const movie: Movie = {
+        id: null,
+        title: cleanMovieTitle(card.title),
+        year: null,
+        director: null,
+        runtime: null,
+      };
+
+      const screening: Screening = {
+        id: null,
+        datetime: eventDetails.datetime,
+        theatreName: 'Hollywood Theatre',
+        bookingUrl: card.ticketUrl || eventUrl,
+        movie: movie,
+      };
+
+      screenings.push(screening);
+    } catch (error) {
+      console.warn(`Failed to scrape event page ${card.eventUrl}:`, (error as Error).message);
+      continue;
+    }
+  }
+
+  return screenings;
+}
+
+// Parse the /movies page HTML to extract movie cards
+function parseMoviesPage(html: string): MovieCard[] {
+  const results: MovieCard[] = [];
+  const seenUrls = new Set<string>();
+
+  // Find all event links with their surrounding context
+  // Pattern: <a href="/events/...">...</a> followed by ticket link
+  const eventLinkRegex = /<a[^>]*href="(\/events\/[^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+
+  let match;
+  while ((match = eventLinkRegex.exec(html)) !== null) {
+    const eventUrl = match[1];
+    const linkContent = match[2];
+
+    if (seenUrls.has(eventUrl)) continue;
+
+    // Extract title from the link content
+    // Look for text that's not just a date (month abbreviation + day)
+    const textContent = linkContent.replace(/<[^>]*>/g, ' ').trim();
+    const lines = textContent.split(/\s+/).filter(s => s.length > 0);
+
+    let title = '';
+    for (let i = 0; i < lines.length; i++) {
+      const word = lines[i];
+      // Skip month abbreviations and day numbers
+      if (word.match(/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)$/i)) continue;
+      if (word.match(/^\d{1,2}$/)) continue;
+
+      // Collect remaining words as title
+      title = lines.slice(i).join(' ');
+      break;
+    }
+
+    if (!title || title.length < 3) continue;
+
+    // Convert ALL CAPS to Title Case
+    if (title === title.toUpperCase()) {
+      title = title.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+    }
+
+    // Find ticket URL near this event link
+    // Look for showpass.com or opendate.io links in the surrounding HTML
+    const eventPosition = match.index;
+    const surroundingHtml = html.substring(eventPosition, eventPosition + 2000);
+    const ticketMatch = surroundingHtml.match(/href="(https:\/\/(?:www\.)?(?:showpass\.com|app\.opendate\.io)[^"]+)"/i);
+    const ticketUrl = ticketMatch ? ticketMatch[1] : '';
+
+    seenUrls.add(eventUrl);
+    results.push({
+      title,
+      eventUrl,
+      ticketUrl,
+    });
+  }
+
+  return results;
+}
+
+// Parse an event page HTML to extract datetime
+function parseEventPage(html: string): { datetime: Date } | null {
+  // Remove HTML tags for easier text parsing
+  const textContent = html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
+
+  // Look for pattern: "Monday, February 2, 2026" ... "Doors 6pm" ... "Show 7pm"
+  // The date and times might be separated by other content
+
+  // First, find the full date
+  const dateMatch = textContent.match(/(\w+day),?\s+(\w+)\s+(\d{1,2}),?\s+(\d{4})/i);
+  if (!dateMatch) {
+    return null;
+  }
+
+  const monthName = dateMatch[2];
+  const day = parseInt(dateMatch[3], 10);
+  const year = parseInt(dateMatch[4], 10);
+
+  // Find show time (prefer "Show Xpm" over "Doors Xpm")
+  let showTime = '7pm'; // default
+
+  const showMatch = textContent.match(/Show\s+(\d{1,2}(?::\d{2})?\s*[ap]m)/i);
+  if (showMatch) {
+    showTime = showMatch[1];
+  } else {
+    // Fall back to doors time
+    const doorsMatch = textContent.match(/Doors\s+(\d{1,2}(?::\d{2})?\s*[ap]m)/i);
+    if (doorsMatch) {
+      showTime = doorsMatch[1];
+    }
+  }
+
+  const datetime = parseDateTime(monthName, day, year, showTime);
+  return { datetime };
+}
+
+// Helper function to parse datetime components into a Date object
 function parseDateTime(monthName: string, day: number, year: number, timeStr: string): Date {
   // Parse the time string (e.g., "7pm", "6:30pm")
   const timeMatch = timeStr.toLowerCase().match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)/);
