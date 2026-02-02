@@ -230,7 +230,8 @@ app.get('/', async (c) => {
     'VIFF Lochmaddy Studio',
     'The Cinematheque',
     'The Park',
-    'The Rio'
+    'The Rio',
+    'Hollywood Theatre'
   ];
 
   // Group screenings by theatre
