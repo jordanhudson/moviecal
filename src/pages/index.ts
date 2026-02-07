@@ -56,10 +56,13 @@ function calculatePosition(datetime: Date, runtime: number | null): { left: stri
   const minutes = datetime.getMinutes();
 
   const startMinutes = 10 * 60;
-  const endMinutes = 23 * 60 + 59;
+  const endMinutes = 26 * 60; // 2am next day
   const totalMinutes = endMinutes - startMinutes;
 
-  const screeningMinutes = hours * 60 + minutes;
+  let screeningMinutes = hours * 60 + minutes;
+  if (screeningMinutes < startMinutes) {
+    screeningMinutes += 24 * 60; // treat post-midnight as next-day continuation
+  }
   const minutesFromStart = screeningMinutes - startMinutes;
   const leftPercent = (minutesFromStart / totalMinutes) * 100;
 
@@ -199,7 +202,7 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
         #353535 calc(100% - 1px),
         #353535 100%
       );
-      background-size: calc(100% / 14) 100%;
+      background-size: calc(100% / 16) 100%;
     }
 
     .screening {
@@ -445,6 +448,8 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
       <div class="time-label">9pm</div>
       <div class="time-label">10pm</div>
       <div class="time-label">11pm</div>
+      <div class="time-label">12am</div>
+      <div class="time-label">1am</div>
     </div>
 
     ${!hasScreenings ? '<div class="no-screenings">No screenings for this day</div>' : ''}
