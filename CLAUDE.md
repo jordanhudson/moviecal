@@ -302,10 +302,24 @@ All scrapers run in parallel via `scrape.ts` with error handling (failed scraper
 1. Create `src/scrapers/{venue}-scraper.ts`
 2. Use **API pattern** if API found, otherwise **Puppeteer pattern**
 3. Follow patterns documented in "Scraper Patterns" section above
-4. Import in `src/scrape.ts` and add to `Promise.all()` array
-5. Run `npm run scrape` to test (all scrapers run in parallel with error handling)
+4. Import in `src/scrape.ts` and add to the `scrapers` registry object
+5. Run `npm run scrape {scraper-name}` to test the new scraper
 
 **Note**: If a venue later adds an API, refactor from Puppeteer to API-based approach for better performance.
+
+### Step 3: Add Theatre to UI
+
+Add the new theatre name(s) to `THEATRE_ORDER` in `src/server.ts`. This controls which theatres appear on the home page timeline and their display order.
+
+```typescript
+const THEATRE_ORDER = [
+  'VIFF Cinema',
+  // ... existing theatres ...
+  'New Theatre Name',  // Add new theatre here
+];
+```
+
+**Note**: If a venue has multiple screens/auditoriums with separate `theatreName` values (e.g., "Fifth Ave Aud #1", "Fifth Ave Aud #2"), add each one to the list.
 
 ## Environment Variables
 
