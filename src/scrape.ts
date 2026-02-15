@@ -4,6 +4,7 @@ import { scrapeCinematheque } from './scrapers/cinematheque-scraper.js';
 import { scrapePark } from './scrapers/park-scraper.js';
 import { scrapeRio } from './scrapers/rio-scraper.js';
 import { scrapeHollywood } from './scrapers/hollywood-scraper.js';
+import { scrapeCineplex } from './scrapers/cineplex-scraper.js';
 import type { Screening, Movie } from './models.js';
 import { db, closeDb } from './db/connection.js';
 
@@ -135,6 +136,7 @@ const scrapers: Record<string, () => Promise<Screening[]>> = {
   cinematheque: scrapeCinematheque,
   park: scrapePark,
   hollywood: scrapeHollywood,
+  cineplex: scrapeCineplex,
 };
 
 /**

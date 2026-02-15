@@ -5,6 +5,8 @@
  * - (Final Screening)
  * - (50th Anniversary Edition)
  * - (4K Restoration)
+ * - (French w/e.s.t.)
+ * - (Korean w/ e.s.t.)
  * etc.
  */
 export function cleanMovieTitle(title: string): string {
@@ -13,5 +15,6 @@ export function cleanMovieTitle(title: string): string {
     .replace(/\s*\(Film Screening\)\s*/gi, '')
     .replace(/\s*\(.+?\s+Anniversary\s+Edition\)\s*/gi, '')
     .replace(/\s*\(.+?\s+Restoration\)\s*/gi, '')
+    .replace(/\s*\([A-Za-z]+\s+w\/\s*e\.s\.t\.\)\s*/gi, '')
     .trim();
 }
