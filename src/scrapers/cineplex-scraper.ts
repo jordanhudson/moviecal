@@ -37,6 +37,7 @@ interface CineplexSession {
   showStartDateTime: string; // Local Pacific time, e.g. "2026-02-15T12:30:00"
   showStartDateTimeUtc: string;
   ticketingUrl: string;
+  deeplinkUrl: string;
   auditorium: string; // e.g. "Aud #1"
   seatsRemaining: number;
   isSoldOut: boolean;
@@ -130,7 +131,7 @@ export async function scrapeCineplex(): Promise<Screening[]> {
                       id: null,
                       datetime,
                       theatreName,
-                      bookingUrl: session.ticketingUrl,
+                      bookingUrl: session.deeplinkUrl,
                       movie: movieModel,
                     };
 
