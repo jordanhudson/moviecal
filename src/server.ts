@@ -231,7 +231,12 @@ app.get('/', async (c) => {
     'The Cinematheque',
     'The Park',
     'The Rio',
-    'Hollywood Theatre'
+    'Hollywood Theatre',
+    'Fifth Ave Aud #1',
+    'Fifth Ave Aud #2',
+    'Fifth Ave Aud #3',
+    'Fifth Ave Aud #4',
+    'Fifth Ave Aud #5',
   ];
 
   // Group screenings by theatre
