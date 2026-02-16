@@ -101,9 +101,11 @@ export async function scrapeCineplex(): Promise<Screening[]> {
 
   try {
     for (const theatre of THEATRES) {
-      // Fetch showtimes for each day
+      // Fetch showtimes for each day, starting from today in Pacific time
+      // On Fly.io the server runs in UTC, so new Date() could be a day ahead
+      const nowPacific = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Vancouver' }));
       for (let dayOffset = 0; dayOffset < DAYS_TO_FETCH; dayOffset++) {
-        const date = new Date();
+        const date = new Date(nowPacific);
         date.setDate(date.getDate() + dayOffset);
 
         try {
