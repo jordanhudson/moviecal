@@ -216,10 +216,11 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
 
     .screening {
       position: absolute;
-      height: 50px;
+      top: 6px;
+      height: 48px;
       background: #4a7c7c;
       border-radius: 4px;
-      padding: 6px;
+      padding: 5px;
       color: white;
       font-size: 12px;
       overflow: hidden;
@@ -259,6 +260,8 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
     .screening-time {
       font-size: 10px;
       opacity: 0.9;
+      position: relative;
+      top: -1px;
     }
 
     .screening-links {
