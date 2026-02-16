@@ -1,6 +1,7 @@
 import puppeteer from 'puppeteer';
 import { Movie, Screening } from '../models.js';
 import { cleanMovieTitle } from '../utils/title-cleaner.js';
+import { parseMonthName, parse12HourTime } from '../utils/time.js';
 
 // Park-specific internal models (not exported)
 interface ParkScreening {
@@ -121,36 +122,15 @@ function parseDateTime(datetimeStr: string): Date {
   const day = parseInt(match[3], 10);
   const year = parseInt(match[4], 10);
 
-  // Parse the time string
-  const timeParts = timeStr.toLowerCase().trim().split(/\s+/);
-  const [hours, minutes] = timeParts[0].split(':').map(s => parseInt(s, 10));
+  const time = parse12HourTime(timeStr);
+  const hour24 = time ? time.hour : 19;
+  const mins = time ? time.minute : 0;
 
-  // Check for am/pm
-  let isPM = false;
-  if (timeParts.length > 1) {
-    isPM = timeParts[1] === 'pm';
-  } else {
-    // Check if am/pm is attached to the time
-    isPM = timeStr.toLowerCase().includes('pm');
-  }
-
-  // Convert to 24-hour format
-  let hour24 = hours;
-  if (isPM && hours !== 12) {
-    hour24 = hours + 12;
-  } else if (!isPM && hours === 12) {
-    hour24 = 0;
-  }
-
-  // Convert month name to index
-  const monthIndex = ['jan', 'feb', 'mar', 'apr', 'may', 'jun',
-                      'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
-    .indexOf(monthName.toLowerCase().substring(0, 3));
-
+  const monthIndex = parseMonthName(monthName);
   if (monthIndex === -1) {
     console.warn(`Could not parse month: ${monthName}`);
     return new Date();
   }
 
-  return new Date(year, monthIndex, day, hour24, minutes);
+  return new Date(year, monthIndex, day, hour24, mins);
 }

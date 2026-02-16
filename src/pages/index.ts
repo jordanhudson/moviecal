@@ -1,4 +1,5 @@
-import { footer } from './layout.js';
+import { renderPage } from './layout.js';
+import { escapeHtml, safeHref } from '../utils/html.js';
 
 // Home page - Timeline view (desktop) and Agenda view (mobile)
 
@@ -86,38 +87,7 @@ function displayName(theatre: string): string {
   return THEATRE_DISPLAY_NAMES[theatre] || theatre;
 }
 
-export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
-  const prevDay = getPrevDay(date);
-  const nextDay = getNextDay(date);
-  const displayDate = formatDate(date);
-  const displayDateShort = formatDateShort(date);
-  const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-
-  // Check if there are any screenings at all
-  const hasScreenings = theatres.some(t => t.screenings.length > 0);
-
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='32' fill='%23555'/%3E%3Cpath d='M8 12Q8 40 12 44L12 12Z' fill='%23ccc'/%3E%3Cpath d='M56 12Q56 40 52 44L52 12Z' fill='%23ccc'/%3E%3Crect x='14' y='14' width='36' height='22' rx='1' fill='%23fff'/%3E%3Ccircle cx='19' cy='42' r='4' fill='%23ddd'/%3E%3Crect x='15' y='46' width='8' height='8' rx='2' fill='%23ddd'/%3E%3Ccircle cx='32' cy='42' r='4' fill='%23ddd'/%3E%3Crect x='28' y='46' width='8' height='8' rx='2' fill='%23ddd'/%3E%3Ccircle cx='45' cy='42' r='4' fill='%23ddd'/%3E%3Crect x='41' y='46' width='8' height='8' rx='2' fill='%23ddd'/%3E%3C/svg%3E">
-  <title>MovieCal - ${displayDate}</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      padding: 20px;
-      background: #1e1e1e;
-      color: #c5c5c5;
-    }
-
+const PAGE_STYLES = `
     /* Header */
     .header {
       margin-bottom: 20px;
@@ -297,7 +267,6 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
     .no-screenings {
       text-align: center;
       padding: 40px;
-      color: #606060;
     }
 
     /* Mobile Agenda Styles */
@@ -440,13 +409,8 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
       text-align: left;
     }
 
-
     /* Mobile breakpoint */
     @media (max-width: 800px) {
-      body {
-        padding: 12px;
-      }
-
       .header {
         gap: 12px;
         margin-bottom: 16px;
@@ -478,17 +442,29 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
       .agenda-container {
         display: block;
       }
-    }
-  </style>
-</head>
-<body>
+    }`;
+
+export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
+  const prevDay = getPrevDay(date);
+  const nextDay = getNextDay(date);
+  const displayDate = formatDate(date);
+  const displayDateShort = formatDateShort(date);
+  const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+  // Check if there are any screenings at all
+  const hasScreenings = theatres.some(t => t.screenings.length > 0);
+
+  return renderPage({
+    title: `MovieCal - ${escapeHtml(displayDate)}`,
+    styles: PAGE_STYLES,
+    body: `
   <div class="header">
-    <a href="/?date=${prevDay}" class="nav-button">←</a>
+    <a href="/?date=${prevDay}" class="nav-button">\u2190</a>
     <h1>
       <span class="date-full">${displayDate}</span>
       <span class="date-short">${displayDateShort}</span>
     </h1>
-    <a href="/?date=${nextDay}" class="nav-button">→</a>
+    <a href="/?date=${nextDay}" class="nav-button">\u2192</a>
   </div>
 
   <!-- Desktop Timeline View -->
@@ -516,8 +492,8 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
 
     ${theatres.map(({ theatre, screenings }) => {
       return `
-        <div class="theatre-row" data-theatre="${theatre}">
-          <div class="theatre-label"><a href="/theatre/${encodeURIComponent(theatre)}">${displayName(theatre)}</a><span class="hide-link" onclick="hideTheatre('${theatre.replace(/'/g, "\\'")}')">Hide</span></div>
+        <div class="theatre-row" data-theatre="${escapeHtml(theatre)}">
+          <div class="theatre-label"><a href="/theatre/${encodeURIComponent(theatre)}">${escapeHtml(displayName(theatre))}</a><span class="hide-link" onclick="hideTheatre('${theatre.replace(/'/g, "\\'")}')">Hide</span></div>
           <div class="timeline">
             ${screenings.map(screening => {
               const { left, width } = calculatePosition(new Date(screening.datetime), screening.movie_runtime);
@@ -528,13 +504,13 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
 
               return `
                 <div class="screening" style="left: ${left}; width: ${width};">
-                  <a href="/movie/${screening.movie_id}?from_date=${dateStr}" class="screening-overlay" title="${screening.movie_title}"></a>
-                  <span class="screening-title">${screening.movie_title}</span>
+                  <a href="/movie/${screening.movie_id}?from_date=${dateStr}" class="screening-overlay" title="${escapeHtml(screening.movie_title)}"></a>
+                  <span class="screening-title">${escapeHtml(screening.movie_title)}</span>
                   <div class="screening-bottom">
                     <div class="screening-time">${time}</div>
                     <div class="screening-links">
-                      <a href="${screening.booking_url}" target="_blank" class="screening-link" title="Book tickets">🎟️</a>
-                      ${screening.tmdb_url ? `<a href="${screening.tmdb_url}" target="_blank" class="screening-link" title="View on TMDB">🔍</a>` : ''}
+                      <a href="${safeHref(screening.booking_url)}" target="_blank" class="screening-link" title="Book tickets">\uD83C\uDF9F\uFE0F</a>
+                      ${screening.tmdb_url ? `<a href="${safeHref(screening.tmdb_url)}" target="_blank" class="screening-link" title="View on TMDB">\uD83D\uDD0D</a>` : ''}
                     </div>
                   </div>
                 </div>
@@ -552,8 +528,8 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
 
     ${theatres.filter(t => t.screenings.length > 0).map(({ theatre, screenings }) => {
       return `
-        <div class="agenda-theatre" data-theatre="${theatre}">
-          <div class="agenda-theatre-name"><a href="/theatre/${encodeURIComponent(theatre)}">${displayName(theatre)}</a> <span class="hide-link" onclick="hideTheatre('${theatre.replace(/'/g, "\\'")}')">Hide</span></div>
+        <div class="agenda-theatre" data-theatre="${escapeHtml(theatre)}">
+          <div class="agenda-theatre-name"><a href="/theatre/${encodeURIComponent(theatre)}">${escapeHtml(displayName(theatre))}</a> <span class="hide-link" onclick="hideTheatre('${theatre.replace(/'/g, "\\'")}')">Hide</span></div>
           ${screenings.map(screening => {
             const time = new Date(screening.datetime).toLocaleTimeString('en-US', {
               hour: 'numeric',
@@ -564,8 +540,8 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
               <div class="agenda-screening">
                 <a href="/movie/${screening.movie_id}?from_date=${dateStr}" class="agenda-screening-overlay"></a>
                 <span class="agenda-movie-time">${time}</span>
-                <span class="agenda-movie-title">${screening.movie_title}</span>
-                <a href="${screening.booking_url}" target="_blank" class="agenda-tix">Tix</a>
+                <span class="agenda-movie-title">${escapeHtml(screening.movie_title)}</span>
+                <a href="${safeHref(screening.booking_url)}" target="_blank" class="agenda-tix">Tix</a>
               </div>
             `;
           }).join('')}
@@ -676,9 +652,6 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
     }
 
     applyHidden();
-  </script>
-  ${footer()}
-</body>
-</html>
-  `;
+  </script>`,
+  });
 }

@@ -1,5 +1,6 @@
-import { footer } from './layout.js';
+import { renderPage } from './layout.js';
 import { tmdbModalStyles, tmdbModalHtml, tmdbModalScript } from './tmdb-modal.js';
+import { escapeHtml, safeHref } from '../utils/html.js';
 
 // All movies listing page
 
@@ -12,40 +13,7 @@ export interface MovieRow {
   tmdb_id: number | null;
 }
 
-export function renderAllMoviesPage(movies: MovieRow[]): string {
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='32' fill='%23555'/%3E%3Cpath d='M8 12Q8 40 12 44L12 12Z' fill='%23ccc'/%3E%3Cpath d='M56 12Q56 40 52 44L52 12Z' fill='%23ccc'/%3E%3Crect x='14' y='14' width='36' height='22' rx='1' fill='%23fff'/%3E%3Ccircle cx='19' cy='42' r='4' fill='%23ddd'/%3E%3Crect x='15' y='46' width='8' height='8' rx='2' fill='%23ddd'/%3E%3Ccircle cx='32' cy='42' r='4' fill='%23ddd'/%3E%3Crect x='28' y='46' width='8' height='8' rx='2' fill='%23ddd'/%3E%3Ccircle cx='45' cy='42' r='4' fill='%23ddd'/%3E%3Crect x='41' y='46' width='8' height='8' rx='2' fill='%23ddd'/%3E%3C/svg%3E">
-  <title>All Movies - MovieCal</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      padding: 20px;
-      background: #1e1e1e;
-      color: #c5c5c5;
-    }
-
-    .back-link {
-      display: inline-block;
-      margin-bottom: 20px;
-      color: #6a9a9a;
-      text-decoration: none;
-    }
-
-    .back-link:hover {
-      text-decoration: underline;
-    }
-
+const PAGE_STYLES = `
     .page-title {
       font-size: 24px;
       margin-bottom: 20px;
@@ -120,17 +88,16 @@ export function renderAllMoviesPage(movies: MovieRow[]): string {
     ${tmdbModalStyles()}
 
     @media (max-width: 800px) {
-      body {
-        padding: 12px;
-      }
-
       .movie-row-meta span {
         display: inline;
       }
-    }
-  </style>
-</head>
-<body>
+    }`;
+
+export function renderAllMoviesPage(movies: MovieRow[]): string {
+  return renderPage({
+    title: 'All Movies - MovieCal',
+    styles: PAGE_STYLES,
+    body: `
   <a href="/" class="back-link">\u2190 Back to Calendar</a>
   <h1 class="page-title">All Movies</h1>
 
@@ -139,19 +106,19 @@ export function renderAllMoviesPage(movies: MovieRow[]): string {
       <div class="movie-row">
         <div class="movie-row-poster">
           ${movie.poster_url
-            ? `<img src="${movie.poster_url.replace('/w500/', '/w92/')}" alt="">`
+            ? `<img src="${safeHref(movie.poster_url.replace('/w500/', '/w92/'))}" alt="">`
             : '<div class="movie-row-poster-placeholder"></div>'
           }
         </div>
         <div class="movie-row-info">
-          <div class="movie-row-title"><a href="/movie/${movie.id}">${movie.title}</a></div>
+          <div class="movie-row-title"><a href="/movie/${movie.id}">${escapeHtml(movie.title)}</a></div>
           <div class="movie-row-meta">
             ${movie.year ? `<span>${movie.year}</span>` : ''}
             ${movie.runtime ? `<span>${movie.year ? ' \u00b7 ' : ''}${movie.runtime} min</span>` : ''}
             ${movie.tmdb_id ? `<span>${movie.year || movie.runtime ? ' \u00b7 ' : ''}TMDB: ${movie.tmdb_id}</span>` : ''}
           </div>
         </div>
-        <button class="fix-btn" data-movie-id="${movie.id}" data-movie-title="${movie.title.replace(/"/g, '&quot;')}">Fix TMDB</button>
+        <button class="fix-btn" data-movie-id="${movie.id}" data-movie-title="${escapeHtml(movie.title)}">Fix TMDB</button>
       </div>
     `).join('')}
   </div>
@@ -166,9 +133,6 @@ export function renderAllMoviesPage(movies: MovieRow[]): string {
       var title = btn.getAttribute('data-movie-title');
       TmdbModal.open(movieId, title);
     });
-  </script>
-  ${footer()}
-</body>
-</html>
-  `;
+  </script>`,
+  });
 }

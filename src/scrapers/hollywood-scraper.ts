@@ -1,5 +1,6 @@
 import { Movie, Screening } from '../models.js';
 import { cleanMovieTitle } from '../utils/title-cleaner.js';
+import { parseMonthName, parse12HourTime } from '../utils/time.js';
 
 interface MovieCard {
   title: string;
@@ -174,30 +175,11 @@ function parseEventPage(html: string): { datetime: Date } | null {
 
 // Helper function to parse datetime components into a Date object
 function parseDateTime(monthName: string, day: number, year: number, timeStr: string): Date {
-  // Parse the time string (e.g., "7pm", "6:30pm")
-  const timeMatch = timeStr.toLowerCase().match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)/);
+  const time = parse12HourTime(timeStr);
+  const hour = time ? time.hour : 19; // Default to 7pm
+  const minute = time ? time.minute : 0;
 
-  let hour = 19; // Default to 7pm
-  let minute = 0;
-
-  if (timeMatch) {
-    hour = parseInt(timeMatch[1], 10);
-    minute = timeMatch[2] ? parseInt(timeMatch[2], 10) : 0;
-    const isPM = timeMatch[3] === 'pm';
-
-    // Convert to 24-hour format
-    if (isPM && hour !== 12) {
-      hour += 12;
-    } else if (!isPM && hour === 12) {
-      hour = 0;
-    }
-  }
-
-  // Convert month name to index
-  const monthIndex = ['january', 'february', 'march', 'april', 'may', 'june',
-                      'july', 'august', 'september', 'october', 'november', 'december']
-    .indexOf(monthName.toLowerCase());
-
+  const monthIndex = parseMonthName(monthName);
   if (monthIndex === -1) {
     console.warn(`Could not parse month: ${monthName}, defaulting to January`);
     return new Date(year, 0, day, hour, minute);

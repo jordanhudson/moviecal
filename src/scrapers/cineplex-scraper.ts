@@ -1,5 +1,6 @@
 import { Movie, Screening } from '../models.js';
 import { cleanMovieTitle } from '../utils/title-cleaner.js';
+import { pacificNow } from '../utils/time.js';
 
 /**
  * Parse a local Pacific time string into a "naive" Date object.
@@ -102,8 +103,7 @@ export async function scrapeCineplex(): Promise<Screening[]> {
   try {
     for (const theatre of THEATRES) {
       // Fetch showtimes for each day, starting from today in Pacific time
-      // On Fly.io the server runs in UTC, so new Date() could be a day ahead
-      const nowPacific = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Vancouver' }));
+      const nowPacific = pacificNow();
       for (let dayOffset = 0; dayOffset < DAYS_TO_FETCH; dayOffset++) {
         const date = new Date(nowPacific);
         date.setDate(date.getDate() + dayOffset);

@@ -58,12 +58,16 @@ async function searchTMDB(title: string, year?: number | null, runtime?: number 
       return null;
     }
 
-    // Filter out shorts (< 60 minutes) from all results
+    // Fetch details once per result and filter out shorts (< 60 minutes)
+    const detailsMap = new Map<number, TMDBMovieDetails>();
     const filteredResults: TMDBMovieResult[] = [];
     for (const result of data.results) {
       const details = await getTMDBMovieDetails(result.id);
-      if (details && details.runtime && details.runtime >= 60) {
-        filteredResults.push(result);
+      if (details) {
+        detailsMap.set(result.id, details);
+        if (details.runtime && details.runtime >= 60) {
+          filteredResults.push(result);
+        }
       }
     }
 
@@ -78,12 +82,12 @@ async function searchTMDB(title: string, year?: number | null, runtime?: number 
     }
 
     // If runtime is provided, find best match from filtered results
-    const topResults = filteredResults.slice(0, 5); // Check top 5 filtered results
+    const topResults = filteredResults.slice(0, 5);
     let bestMatch: TMDBMovieResult | null = null;
     let smallestDiff = Infinity;
 
     for (const result of topResults) {
-      const details = await getTMDBMovieDetails(result.id);
+      const details = detailsMap.get(result.id);
       if (details && details.runtime) {
         const diff = Math.abs(details.runtime - runtime);
         if (diff < smallestDiff) {
@@ -208,6 +212,7 @@ export async function runScrapeJob(scraperName?: string) {
       .executeTakeFirst();
 
     if (existingMovie) {
+      existingMoviesCount++;
       continue;
     }
 

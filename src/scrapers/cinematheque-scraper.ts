@@ -1,6 +1,7 @@
 import puppeteer from 'puppeteer';
 import { Movie, Screening } from '../models.js';
 import { cleanMovieTitle } from '../utils/title-cleaner.js';
+import { parseMonthName, parse12HourTime } from '../utils/time.js';
 
 // Cinematheque-specific internal models (not exported)
 interface CinemathequeScreening {
@@ -165,28 +166,14 @@ function parseDateTime(dateStr: string, timeStr: string): Date {
     return new Date();
   }
 
-  // Parse the time string (12-hour format with am/pm)
-  const timeParts = timeStr.toLowerCase().trim().split(' ');
-  const [hours, minutes] = timeParts[0].split(':').map(s => parseInt(s, 10));
-  const isPM = timeParts.length > 1 && timeParts[1] === 'pm';
+  const time = parse12HourTime(timeStr);
+  const hour24 = time ? time.hour : 0;
+  const mins = time ? time.minute : 0;
 
-  // Convert to 24-hour format
-  let hour24 = hours;
-  if (isPM && hours !== 12) {
-    hour24 = hours + 12;
-  } else if (!isPM && hours === 12) {
-    hour24 = 0;
-  }
-
-  // Convert month name to index
-  const monthIndex = ['january', 'february', 'march', 'april', 'may', 'june',
-                      'july', 'august', 'september', 'october', 'november', 'december']
-    .indexOf(monthName.toLowerCase());
-
+  const monthIndex = parseMonthName(monthName);
   if (monthIndex === -1) {
-    // Fallback to current date if month not found
     return new Date();
   }
 
-  return new Date(year, monthIndex, day, hour24, minutes);
+  return new Date(year, monthIndex, day, hour24, mins);
 }

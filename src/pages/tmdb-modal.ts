@@ -218,7 +218,9 @@ export function tmdbModalScript(): string {
 
       function doSearch(query) {
         results.innerHTML = '<div class="tmdb-loading">Searching...</div>';
-        fetch('/api/movie/' + currentMovieId + '/tmdb-search?query=' + encodeURIComponent(query) + '&token=' + encodeURIComponent(getToken()))
+        fetch('/api/movie/' + currentMovieId + '/tmdb-search?query=' + encodeURIComponent(query), {
+          headers: { 'Authorization': 'Bearer ' + getToken() }
+        })
           .then(function(r) { return r.json(); })
           .then(function(data) {
             if (data.error) {
@@ -248,9 +250,9 @@ export function tmdbModalScript(): string {
 
       function applyTmdbId(tmdbId) {
         results.innerHTML = '<div class="tmdb-loading">Updating...</div>';
-        fetch('/api/movie/' + currentMovieId + '/tmdb-update?token=' + encodeURIComponent(getToken()), {
+        fetch('/api/movie/' + currentMovieId + '/tmdb-update', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getToken() },
           body: JSON.stringify({ tmdbId: tmdbId })
         }).then(function(r) { return r.json(); })
           .then(function(data) {

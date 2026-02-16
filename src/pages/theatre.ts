@@ -1,4 +1,6 @@
-import { footer } from './layout.js';
+import { renderPage } from './layout.js';
+import { escapeHtml, safeHref } from '../utils/html.js';
+import { pacificNow } from '../utils/time.js';
 
 // Theatre detail page
 
@@ -10,44 +12,7 @@ export interface TheatreScreening {
   movie_title: string;
 }
 
-export function renderTheatrePage(theatreName: string, screenings: TheatreScreening[]): string {
-  // Get current time in Pacific (screening times are stored as naive Pacific timestamps)
-  const pacificNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
-  const futureScreenings = screenings.filter(s => new Date(s.datetime) >= pacificNow);
-
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='32' fill='%23555'/%3E%3Cpath d='M8 12Q8 40 12 44L12 12Z' fill='%23ccc'/%3E%3Cpath d='M56 12Q56 40 52 44L52 12Z' fill='%23ccc'/%3E%3Crect x='14' y='14' width='36' height='22' rx='1' fill='%23fff'/%3E%3Ccircle cx='19' cy='42' r='4' fill='%23ddd'/%3E%3Crect x='15' y='46' width='8' height='8' rx='2' fill='%23ddd'/%3E%3Ccircle cx='32' cy='42' r='4' fill='%23ddd'/%3E%3Crect x='28' y='46' width='8' height='8' rx='2' fill='%23ddd'/%3E%3Ccircle cx='45' cy='42' r='4' fill='%23ddd'/%3E%3Crect x='41' y='46' width='8' height='8' rx='2' fill='%23ddd'/%3E%3C/svg%3E">
-  <title>${theatreName} - MovieCal</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      padding: 20px;
-      background: #1e1e1e;
-      color: #c5c5c5;
-    }
-
-    .back-link {
-      display: inline-block;
-      margin-bottom: 20px;
-      color: #6a9a9a;
-      text-decoration: none;
-    }
-
-    .back-link:hover {
-      text-decoration: underline;
-    }
-
+const PAGE_STYLES = `
     .theatre-container {
       background: #262626;
       border-radius: 8px;
@@ -111,21 +76,12 @@ export function renderTheatrePage(theatreName: string, screenings: TheatreScreen
       background: #3d6868;
     }
 
-    .no-screenings {
-      color: #606060;
-      font-style: italic;
-    }
-
     /* Mobile: hide full button text, show short text */
     .screening-book .short-text {
       display: none;
     }
 
     @media (max-width: 800px) {
-      body {
-        padding: 12px;
-      }
-
       .theatre-container {
         padding: 16px;
       }
@@ -163,14 +119,20 @@ export function renderTheatrePage(theatreName: string, screenings: TheatreScreen
       .screening-book .short-text {
         display: inline;
       }
-    }
-  </style>
-</head>
-<body>
-  <a href="/" class="back-link">← Back to Calendar</a>
+    }`;
+
+export function renderTheatrePage(theatreName: string, screenings: TheatreScreening[]): string {
+  const now = pacificNow();
+  const futureScreenings = screenings.filter(s => new Date(s.datetime) >= now);
+
+  return renderPage({
+    title: `${escapeHtml(theatreName)} - MovieCal`,
+    styles: PAGE_STYLES,
+    body: `
+  <a href="/" class="back-link">\u2190 Back to Calendar</a>
 
   <div class="theatre-container">
-    <h1 class="theatre-title">${theatreName}</h1>
+    <h1 class="theatre-title">${escapeHtml(theatreName)}</h1>
 
     ${futureScreenings.length === 0
       ? '<p class="no-screenings">No upcoming screenings</p>'
@@ -190,16 +152,13 @@ export function renderTheatrePage(theatreName: string, screenings: TheatreScreen
             return `
               <li class="screening-item">
                 <div class="screening-date"><span class="date-part">${dateStr}</span><span class="at-separator"> at </span><span class="time-part">${timeStr}</span></div>
-                <div class="screening-movie"><a href="/movie/${screening.movie_id}">${screening.movie_title}</a></div>
-                <a href="${screening.booking_url}" target="_blank" class="screening-book"><span class="full-text">Book Tickets</span><span class="short-text">Tix</span></a>
+                <div class="screening-movie"><a href="/movie/${screening.movie_id}">${escapeHtml(screening.movie_title)}</a></div>
+                <a href="${safeHref(screening.booking_url)}" target="_blank" class="screening-book"><span class="full-text">Book Tickets</span><span class="short-text">Tix</span></a>
               </li>
             `;
           }).join('')}
         </ul>`
     }
-  </div>
-  ${footer()}
-</body>
-</html>
-  `;
+  </div>`,
+  });
 }

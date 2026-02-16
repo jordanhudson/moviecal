@@ -8,6 +8,7 @@ import { renderIndexPage, ScreeningWithMovie, TheatreRow } from './pages/index.j
 import { renderMoviePage } from './pages/movie.js';
 import { renderTheatrePage } from './pages/theatre.js';
 import { renderAllMoviesPage } from './pages/all-movies.js';
+import { pacificNow, pacificToday, pacificHour as getPacificHour } from './utils/time.js';
 
 const app = new Hono();
 
@@ -20,14 +21,10 @@ function getDayBounds(dateStr?: string) {
     const [year, month, day] = dateStr.split('-').map(Number);
     date = new Date(year, month - 1, day);
   } else {
-    const now = new Date();
-    // Get current date in Pacific time
-    const pacificDateStr = now.toLocaleDateString('en-CA', { timeZone: 'America/Vancouver' });
-    const [year, month, day] = pacificDateStr.split('-').map(Number);
+    const [year, month, day] = pacificToday().split('-').map(Number);
     date = new Date(year, month - 1, day);
-    // Add 2 hours: show next day's screenings starting at 10pm Pacific
-    const pacificHour = parseInt(now.toLocaleTimeString('en-GB', { timeZone: 'America/Vancouver', hour12: false }).split(':')[0]);
-    if (pacificHour >= 22) {
+    // Show next day's screenings starting at 10pm Pacific
+    if (getPacificHour() >= 22) {
       date.setDate(date.getDate() + 1);
     }
   }
@@ -40,7 +37,7 @@ function getDayBounds(dateStr?: string) {
 // TMDB search API for fix-match modal
 app.get('/api/movie/:id/tmdb-search', async (c) => {
   const adminToken = process.env.ADMIN_TOKEN;
-  if (!adminToken || c.req.query('token') !== adminToken) return c.json({ error: 'Unauthorized' }, 401);
+  if (!adminToken || c.req.header('authorization') !== `Bearer ${adminToken}`) return c.json({ error: 'Unauthorized' }, 401);
 
   const movieId = parseInt(c.req.param('id'), 10);
   if (isNaN(movieId)) return c.json({ error: 'Invalid movie ID' }, 400);
@@ -76,7 +73,7 @@ app.get('/api/movie/:id/tmdb-search', async (c) => {
 // TMDB update API for fix-match modal
 app.post('/api/movie/:id/tmdb-update', async (c) => {
   const adminToken = process.env.ADMIN_TOKEN;
-  if (!adminToken || c.req.query('token') !== adminToken) return c.json({ error: 'Unauthorized' }, 401);
+  if (!adminToken || c.req.header('authorization') !== `Bearer ${adminToken}`) return c.json({ error: 'Unauthorized' }, 401);
 
   const movieId = parseInt(c.req.param('id'), 10);
   if (isNaN(movieId)) return c.json({ error: 'Invalid movie ID' }, 400);
@@ -185,7 +182,7 @@ app.get('/theatre/:name', async (c) => {
 
 // All movies page
 app.get('/movies', async (c) => {
-  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+  const now = pacificNow();
   const movies = await db
     .selectFrom('movie')
     .select(['movie.id', 'movie.title', 'movie.year', 'movie.runtime', 'movie.poster_url', 'movie.tmdb_id'])

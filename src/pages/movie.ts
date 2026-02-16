@@ -1,5 +1,7 @@
-import { footer } from './layout.js';
+import { renderPage } from './layout.js';
 import { tmdbModalStyles, tmdbModalHtml, tmdbModalScript } from './tmdb-modal.js';
+import { escapeHtml, safeHref } from '../utils/html.js';
+import { pacificNow } from '../utils/time.js';
 
 // Movie detail page
 
@@ -21,44 +23,7 @@ export interface ScreeningDetail {
   booking_url: string;
 }
 
-export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[], fromDate?: string | null): string {
-  // Get current time in Pacific (screening times are stored as naive Pacific timestamps)
-  const pacificNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
-  const futureScreenings = screenings.filter(s => new Date(s.datetime) >= pacificNow);
-
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='32' fill='%23555'/%3E%3Cpath d='M8 12Q8 40 12 44L12 12Z' fill='%23ccc'/%3E%3Cpath d='M56 12Q56 40 52 44L52 12Z' fill='%23ccc'/%3E%3Crect x='14' y='14' width='36' height='22' rx='1' fill='%23fff'/%3E%3Ccircle cx='19' cy='42' r='4' fill='%23ddd'/%3E%3Crect x='15' y='46' width='8' height='8' rx='2' fill='%23ddd'/%3E%3Ccircle cx='32' cy='42' r='4' fill='%23ddd'/%3E%3Crect x='28' y='46' width='8' height='8' rx='2' fill='%23ddd'/%3E%3Ccircle cx='45' cy='42' r='4' fill='%23ddd'/%3E%3Crect x='41' y='46' width='8' height='8' rx='2' fill='%23ddd'/%3E%3C/svg%3E">
-  <title>${movie.title} - MovieCal</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      padding: 20px;
-      background: #1e1e1e;
-      color: #c5c5c5;
-    }
-
-    .back-link {
-      display: inline-block;
-      margin-bottom: 20px;
-      color: #6a9a9a;
-      text-decoration: none;
-    }
-
-    .back-link:hover {
-      text-decoration: underline;
-    }
-
+const PAGE_STYLES = `
     .movie-container {
       background: #262626;
       border-radius: 8px;
@@ -180,21 +145,12 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
       background: #3d6868;
     }
 
-    .no-screenings {
-      color: #606060;
-      font-style: italic;
-    }
-
     /* Mobile: hide full button text, show short text */
     .screening-book .short-text {
       display: none;
     }
 
     @media (max-width: 800px) {
-      body {
-        padding: 12px;
-      }
-
       .movie-container {
         padding: 16px;
       }
@@ -228,28 +184,34 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
       .screening-book .short-text {
         display: inline;
       }
-    }
-  </style>
-</head>
-<body>
-  <a href="/${fromDate ? `?date=${fromDate}` : ''}" class="back-link">← Back to Calendar</a>
+    }`;
+
+export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[], fromDate?: string | null): string {
+  const now = pacificNow();
+  const futureScreenings = screenings.filter(s => new Date(s.datetime) >= now);
+
+  return renderPage({
+    title: `${escapeHtml(movie.title)} - MovieCal`,
+    styles: PAGE_STYLES,
+    body: `
+  <a href="/${fromDate ? `?date=${fromDate}` : ''}" class="back-link">\u2190 Back to Calendar</a>
 
   <div class="movie-container">
     <div class="movie-header">
       <div class="movie-poster">
         ${movie.poster_url
-          ? `<img src="${movie.poster_url}" alt="${movie.title} poster">`
+          ? `<img src="${safeHref(movie.poster_url)}" alt="${escapeHtml(movie.title)} poster">`
           : `<div class="movie-poster-placeholder">No poster</div>`
         }
       </div>
       <div class="movie-info">
-        <h1 class="movie-title">${movie.title}</h1>
+        <h1 class="movie-title">${escapeHtml(movie.title)}</h1>
         <div class="movie-meta">
           ${movie.year ? `<span>${movie.year}</span>` : ''}
           ${movie.runtime ? `<span>${movie.runtime} min</span>` : ''}
           ${movie.director ? `<span>Dir: ${movie.director}</span>` : ''}
         </div>
-        ${movie.tmdb_url ? `<a href="${movie.tmdb_url}" target="_blank" class="tmdb-link">View on TMDB</a>` : ''}
+        ${movie.tmdb_url ? `<a href="${safeHref(movie.tmdb_url)}" target="_blank" class="tmdb-link">View on TMDB</a>` : ''}
       </div>
     </div>
 
@@ -273,8 +235,8 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
               return `
                 <li class="screening-item">
                   <div class="screening-date"><span class="date-part">${dateStr}</span><span class="at-separator"> at </span><span class="time-part">${timeStr}</span></div>
-                  <div class="screening-theatre">${screening.theatre_name}</div>
-                  <a href="${screening.booking_url}" target="_blank" class="screening-book"><span class="full-text">Book Tickets</span><span class="short-text">Tix</span></a>
+                  <div class="screening-theatre">${escapeHtml(screening.theatre_name)}</div>
+                  <a href="${safeHref(screening.booking_url)}" target="_blank" class="screening-book"><span class="full-text">Book Tickets</span><span class="short-text">Tix</span></a>
                 </li>
               `;
             }).join('')}
@@ -301,9 +263,6 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
         }
       });
     })();
-  </script>
-  ${footer()}
-</body>
-</html>
-  `;
+  </script>`,
+  });
 }
