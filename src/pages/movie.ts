@@ -430,9 +430,12 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
   <div class="tmdb-modal-overlay" id="tmdbModal">
     <div class="tmdb-modal">
       <h3>Fix TMDB Match</h3>
-      <div class="tmdb-search-row">
-        <input type="password" id="tmdbTokenInput" placeholder="Admin token" style="flex: 1;">
-      </div>
+      <form onsubmit="return false">
+        <input type="hidden" autocomplete="username" value="admin">
+        <div class="tmdb-search-row">
+          <input type="password" id="tmdbTokenInput" placeholder="Admin token" autocomplete="current-password" style="flex: 1;">
+        </div>
+      </form>
       <div class="tmdb-search-row">
         <input type="text" id="tmdbSearchInput" value="${movie.title.replace(/"/g, '&quot;')}">
         <button id="tmdbSearchBtn">Search</button>
