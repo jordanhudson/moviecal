@@ -1,3 +1,5 @@
+import { footer } from './layout.js';
+
 // Theatre detail page
 
 export interface TheatreScreening {
@@ -196,6 +198,7 @@ export function renderTheatrePage(theatreName: string, screenings: TheatreScreen
         </ul>`
     }
   </div>
+  ${footer()}
 </body>
 </html>
   `;

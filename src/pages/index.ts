@@ -1,3 +1,5 @@
+import { footer } from './layout.js';
+
 // Home page - Timeline view (desktop) and Agenda view (mobile)
 
 export interface ScreeningWithMovie {
@@ -675,6 +677,7 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
 
     applyHidden();
   </script>
+  ${footer()}
 </body>
 </html>
   `;

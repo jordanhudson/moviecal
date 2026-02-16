@@ -39,6 +39,9 @@ function getDayBounds(dateStr?: string) {
 
 // TMDB search API for fix-match modal
 app.get('/api/movie/:id/tmdb-search', async (c) => {
+  const adminToken = process.env.ADMIN_TOKEN;
+  if (!adminToken || c.req.query('token') !== adminToken) return c.json({ error: 'Unauthorized' }, 401);
+
   const movieId = parseInt(c.req.param('id'), 10);
   if (isNaN(movieId)) return c.json({ error: 'Invalid movie ID' }, 400);
 
@@ -72,6 +75,9 @@ app.get('/api/movie/:id/tmdb-search', async (c) => {
 
 // TMDB update API for fix-match modal
 app.post('/api/movie/:id/tmdb-update', async (c) => {
+  const adminToken = process.env.ADMIN_TOKEN;
+  if (!adminToken || c.req.query('token') !== adminToken) return c.json({ error: 'Unauthorized' }, 401);
+
   const movieId = parseInt(c.req.param('id'), 10);
   if (isNaN(movieId)) return c.json({ error: 'Invalid movie ID' }, 400);
 

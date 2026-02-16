@@ -1,3 +1,5 @@
+import { footer } from './layout.js';
+
 // Movie detail page
 
 export interface MovieDetail {
@@ -429,12 +431,13 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
     <div class="tmdb-modal">
       <h3>Fix TMDB Match</h3>
       <div class="tmdb-search-row">
+        <input type="password" id="tmdbTokenInput" placeholder="Admin token" style="flex: 1;">
+      </div>
+      <div class="tmdb-search-row">
         <input type="text" id="tmdbSearchInput" value="${movie.title.replace(/"/g, '&quot;')}">
         <button id="tmdbSearchBtn">Search</button>
       </div>
-      <div class="tmdb-results" id="tmdbResults">
-        <div class="tmdb-loading">Loading...</div>
-      </div>
+      <div class="tmdb-results" id="tmdbResults"></div>
       <div class="tmdb-id-section">
         <div class="tmdb-id-label">Or enter TMDB ID directly:</div>
         <div class="tmdb-search-row">
@@ -451,7 +454,10 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
       const movieId = ${movie.id};
       const modal = document.getElementById('tmdbModal');
       const input = document.getElementById('tmdbSearchInput');
+      const tokenInput = document.getElementById('tmdbTokenInput');
       const results = document.getElementById('tmdbResults');
+
+      function getToken() { return tokenInput.value; }
 
       var posterEl = document.querySelector('.movie-poster');
       var clickCount = 0;
@@ -462,7 +468,6 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
         if (clickCount >= 10) {
           clickCount = 0;
           modal.classList.add('active');
-          doSearch(input.value);
         } else {
           clickTimer = setTimeout(function() { clickCount = 0; }, 3000);
         }
@@ -486,9 +491,13 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
 
       function doSearch(query) {
         results.innerHTML = '<div class="tmdb-loading">Searching...</div>';
-        fetch('/api/movie/' + movieId + '/tmdb-search?query=' + encodeURIComponent(query))
+        fetch('/api/movie/' + movieId + '/tmdb-search?query=' + encodeURIComponent(query) + '&token=' + encodeURIComponent(getToken()))
           .then(function(r) { return r.json(); })
           .then(function(data) {
+            if (data.error) {
+              results.innerHTML = '<div class="tmdb-loading">' + data.error + '</div>';
+              return;
+            }
             if (!data.length) {
               results.innerHTML = '<div class="tmdb-loading">No results found</div>';
               return;
@@ -514,13 +523,7 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
         var idInput = document.getElementById('tmdbIdInput');
         var tmdbId = parseInt(idInput.value, 10);
         if (!tmdbId) return;
-        results.innerHTML = '<div class="tmdb-loading">Updating...</div>';
-        fetch('/api/movie/' + movieId + '/tmdb-update', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tmdbId: tmdbId })
-        }).then(function(r) { return r.json(); })
-          .then(function() { window.location.reload(); });
+        applyTmdbId(tmdbId);
       });
 
       document.getElementById('tmdbIdInput').addEventListener('keydown', function(e) {
@@ -531,16 +534,27 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
         var item = e.target.closest('.tmdb-result-item');
         if (!item) return;
         var tmdbId = parseInt(item.getAttribute('data-tmdb-id'), 10);
+        applyTmdbId(tmdbId);
+      });
+
+      function applyTmdbId(tmdbId) {
         results.innerHTML = '<div class="tmdb-loading">Updating...</div>';
-        fetch('/api/movie/' + movieId + '/tmdb-update', {
+        fetch('/api/movie/' + movieId + '/tmdb-update?token=' + encodeURIComponent(getToken()), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ tmdbId: tmdbId })
         }).then(function(r) { return r.json(); })
-          .then(function() { window.location.reload(); });
-      });
+          .then(function(data) {
+            if (data.error) {
+              results.innerHTML = '<div class="tmdb-loading">' + data.error + '</div>';
+              return;
+            }
+            window.location.reload();
+          });
+      }
     })();
   </script>
+  ${footer()}
 </body>
 </html>
   `;

@@ -1,3 +1,5 @@
+import { footer } from './layout.js';
+
 // All movies listing page
 
 export interface MovieRow {
@@ -406,6 +408,7 @@ export function renderAllMoviesPage(movies: MovieRow[]): string {
       });
     })();
   </script>
+  ${footer()}
 </body>
 </html>
   `;
