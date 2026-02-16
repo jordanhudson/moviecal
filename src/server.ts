@@ -299,7 +299,6 @@ cron.schedule('0 */2 * * *', async () => {
 const port = 3000;
 const hostname = '0.0.0.0';
 console.log(`Server is running on http://${hostname}:${port}`);
-console.log('Scrape job scheduled to run every 2 hours');
 
 serve({
   fetch: app.fetch,
