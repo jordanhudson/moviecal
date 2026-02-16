@@ -76,6 +76,14 @@ function calculatePosition(datetime: Date, runtime: number | null): { left: stri
   };
 }
 
+const THEATRE_DISPLAY_NAMES: Record<string, string> = {
+  'VIFF Lochmaddy Studio': 'VIFF Lochmaddy',
+};
+
+function displayName(theatre: string): string {
+  return THEATRE_DISPLAY_NAMES[theatre] || theatre;
+}
+
 export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
   const prevDay = getPrevDay(date);
   const nextDay = getNextDay(date);
@@ -153,7 +161,7 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
     .time-labels {
       display: flex;
       margin-bottom: 10px;
-      padding-left: 150px;
+      padding-left: 170px;
       position: relative;
     }
 
@@ -177,7 +185,7 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
     }
 
     .theatre-label {
-      width: 150px;
+      width: 170px;
       font-weight: 600;
       padding-right: 20px;
       flex-shrink: 0;
@@ -216,9 +224,8 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
       font-size: 12px;
       overflow: hidden;
       display: flex;
-      flex-direction: row;
-      align-items: center;
-      gap: 8px;
+      flex-direction: column;
+      justify-content: space-between;
     }
 
     .screening:hover {
@@ -234,31 +241,29 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
       z-index: 1;
     }
 
-    .screening-content {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      min-width: 0;
-    }
-
     .screening-title {
       font-weight: 600;
+      font-stretch: condensed;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
       color: white;
     }
 
+    .screening-bottom {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
     .screening-time {
       font-size: 10px;
       opacity: 0.9;
-      margin-top: 2px;
     }
 
     .screening-links {
       display: flex;
-      flex-direction: column;
+      flex-direction: row;
       gap: 4px;
       flex-shrink: 0;
       position: relative;
@@ -382,6 +387,47 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
       text-align: center;
     }
 
+    /* Hide theatre feature */
+    .hide-link {
+      font-size: 10px;
+      color: #555555;
+      cursor: pointer;
+      display: block;
+      margin-top: 2px;
+    }
+
+    .hide-link:hover {
+      color: #6a9a9a;
+    }
+
+    .hidden-theatres-footer {
+      display: none;
+      margin-top: 24px;
+      text-align: center;
+    }
+
+    .hidden-theatres-toggle {
+      background: none;
+      border: 1px solid #353535;
+      color: #777;
+      padding: 6px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .hidden-theatres-toggle:hover {
+      color: #999;
+      border-color: #555;
+    }
+
+    .hidden-theatres-section {
+      display: none;
+      margin-top: 16px;
+      text-align: left;
+    }
+
+
     /* Mobile breakpoint */
     @media (max-width: 800px) {
       body {
@@ -457,26 +503,26 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
 
     ${theatres.map(({ theatre, screenings }) => {
       return `
-        <div class="theatre-row">
-          <div class="theatre-label"><a href="/theatre/${encodeURIComponent(theatre)}">${theatre}</a></div>
+        <div class="theatre-row" data-theatre="${theatre}">
+          <div class="theatre-label"><a href="/theatre/${encodeURIComponent(theatre)}">${displayName(theatre)}</a><span class="hide-link" onclick="hideTheatre('${theatre.replace(/'/g, "\\'")}')">Hide</span></div>
           <div class="timeline">
             ${screenings.map(screening => {
               const { left, width } = calculatePosition(new Date(screening.datetime), screening.movie_runtime);
-              const time = new Date(screening.datetime).toLocaleTimeString('en-US', {
-                hour: 'numeric',
-                minute: '2-digit'
-              });
+              const timeDate = new Date(screening.datetime);
+              const h = timeDate.getHours() % 12 || 12;
+              const m = String(timeDate.getMinutes()).padStart(2, '0');
+              const time = `${h}:${m}`;
 
               return `
                 <div class="screening" style="left: ${left}; width: ${width};">
                   <a href="/movie/${screening.movie_id}?from_date=${dateStr}" class="screening-overlay" title="${screening.movie_title}"></a>
-                  <div class="screening-content">
-                    <span class="screening-title">${screening.movie_title}</span>
+                  <span class="screening-title">${screening.movie_title}</span>
+                  <div class="screening-bottom">
                     <div class="screening-time">${time}</div>
-                  </div>
-                  <div class="screening-links">
-                    <a href="${screening.booking_url}" target="_blank" class="screening-link" title="Book tickets">🎟️</a>
-                    ${screening.tmdb_url ? `<a href="${screening.tmdb_url}" target="_blank" class="screening-link" title="View on TMDB">🔍</a>` : ''}
+                    <div class="screening-links">
+                      <a href="${screening.booking_url}" target="_blank" class="screening-link" title="Book tickets">🎟️</a>
+                      ${screening.tmdb_url ? `<a href="${screening.tmdb_url}" target="_blank" class="screening-link" title="View on TMDB">🔍</a>` : ''}
+                    </div>
                   </div>
                 </div>
               `;
@@ -493,8 +539,8 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
 
     ${theatres.filter(t => t.screenings.length > 0).map(({ theatre, screenings }) => {
       return `
-        <div class="agenda-theatre">
-          <div class="agenda-theatre-name"><a href="/theatre/${encodeURIComponent(theatre)}">${theatre}</a></div>
+        <div class="agenda-theatre" data-theatre="${theatre}">
+          <div class="agenda-theatre-name"><a href="/theatre/${encodeURIComponent(theatre)}">${displayName(theatre)}</a> <span class="hide-link" onclick="hideTheatre('${theatre.replace(/'/g, "\\'")}')">Hide</span></div>
           ${screenings.map(screening => {
             const time = new Date(screening.datetime).toLocaleTimeString('en-US', {
               hour: 'numeric',
@@ -514,6 +560,110 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
       `;
     }).join('')}
   </div>
+
+  <!-- Hidden Theatres -->
+  <div class="hidden-theatres-footer" id="hiddenFooter">
+    <button class="hidden-theatres-toggle" id="hiddenToggle" onclick="toggleHidden()"></button>
+    <div class="hidden-theatres-section" id="hiddenSection"></div>
+  </div>
+
+  <script>
+    function getHidden() {
+      try { return JSON.parse(localStorage.getItem('hiddenTheatres') || '[]'); }
+      catch { return []; }
+    }
+
+    function saveHidden(list) {
+      localStorage.setItem('hiddenTheatres', JSON.stringify(list));
+    }
+
+    function hideTheatre(name) {
+      var list = getHidden();
+      if (list.indexOf(name) === -1) list.push(name);
+      saveHidden(list);
+      applyHidden();
+    }
+
+    function unhideTheatre(name) {
+      var list = getHidden().filter(function(n) { return n !== name; });
+      saveHidden(list);
+      applyHidden();
+    }
+
+    function toggleHidden() {
+      var section = document.getElementById('hiddenSection');
+      var btn = document.getElementById('hiddenToggle');
+      if (section.style.display === 'block') {
+        section.style.display = 'none';
+        btn.textContent = 'Show Hidden Theatres';
+      } else {
+        section.style.display = 'block';
+        btn.textContent = "Don't Show Hidden Theatres";
+      }
+    }
+
+    function applyHidden() {
+      var hidden = getHidden();
+      var footer = document.getElementById('hiddenFooter');
+      var section = document.getElementById('hiddenSection');
+      var btn = document.getElementById('hiddenToggle');
+
+      // Show/hide theatre rows in main views
+      document.querySelectorAll('[data-theatre]').forEach(function(el) {
+        if (el.closest('#hiddenSection')) return;
+        el.style.display = hidden.indexOf(el.dataset.theatre) !== -1 ? 'none' : '';
+      });
+
+      // Build hidden section content
+      if (hidden.length === 0) {
+        footer.style.display = 'none';
+        section.style.display = 'none';
+        return;
+      }
+
+      footer.style.display = 'block';
+      if (section.style.display !== 'block') {
+        btn.textContent = 'Show Hidden Theatres';
+      }
+
+      // Clone hidden rows for desktop
+      var desktopRows = '';
+      var agendaRows = '';
+      hidden.forEach(function(name) {
+        // Desktop
+        var row = document.querySelector('.timeline-container > [data-theatre="' + CSS.escape(name) + '"]');
+        if (row) {
+          var clone = row.cloneNode(true);
+          clone.style.display = '';
+          // Replace Hide with Unhide
+          var link = clone.querySelector('.hide-link');
+          if (link) {
+            link.textContent = 'Unhide';
+            link.setAttribute('onclick', "unhideTheatre('" + name.replace(/'/g, "\\\\'") + "')");
+          }
+          desktopRows += clone.outerHTML;
+        }
+        // Mobile
+        var agenda = document.querySelector('.agenda-container > [data-theatre="' + CSS.escape(name) + '"]');
+        if (agenda) {
+          var clone2 = agenda.cloneNode(true);
+          clone2.style.display = '';
+          var link2 = clone2.querySelector('.hide-link');
+          if (link2) {
+            link2.textContent = 'Unhide';
+            link2.setAttribute('onclick', "unhideTheatre('" + name.replace(/'/g, "\\\\'") + "')");
+          }
+          agendaRows += clone2.outerHTML;
+        }
+      });
+
+      section.innerHTML =
+        '<div class="timeline-container">' + desktopRows + '</div>' +
+        '<div class="agenda-container">' + agendaRows + '</div>';
+    }
+
+    applyHidden();
+  </script>
 </body>
 </html>
   `;
