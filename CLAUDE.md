@@ -251,6 +251,15 @@ The scraping job (`scrape.ts`) enriches movies with data from The Movie Database
   - Date range: 1 month back, 2 months forward
   - **Note**: Uses `utcToPacificNaive()` to convert UTC times to Pacific-naive format
 
+- **`cineplex-scraper.ts`** - Cineplex Theatres (currently Fifth Avenue only)
+  - API: `https://apis.cineplex.com/prod/cpx/theatrical/api/v1/showtimes?language=en&locationId={theatreId}&date={M/D/YYYY}`
+  - Azure API Management endpoint, requires header: `ocp-apim-subscription-key: 477f072109904a55927ba2c3bf9f77e3` (public key embedded in cineplex.com frontend)
+  - Returns movies with sessions (showtimes) per theatre per day; fetches 7 days
+  - `showStartDateTime` is local Pacific time — parsed with `parsePacificNaive()`
+  - Theatre name format: `"Fifth Ave {auditorium}"` e.g. `"Fifth Ave Aud #3"`
+  - Uses `deeplinkUrl` for booking URLs
+  - **To find theatre IDs**: `GET https://apis.cineplex.com/prod/cpx/theatrical/api/v1/theatres?language=en&city=Vancouver&latitude=49.2514&longitude=-123.0972` (same API key header). Returns `theatreId` and `theatreName` for nearby theatres. This is not used by the scraper but is useful for adding new Cineplex locations.
+
 **Puppeteer-Based** (slower, more brittle):
 - **`cinematheque-scraper.ts`** - Cinematheque
   - URL: `https://thecinematheque.ca/films/calendar`

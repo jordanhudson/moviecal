@@ -24,9 +24,11 @@ function parsePacificNaive(dateTimeStr: string): Date {
 const API_BASE = 'https://apis.cineplex.com/prod/cpx/theatrical/api/v1';
 const API_KEY = '477f072109904a55927ba2c3bf9f77e3';
 
-// Theatre configuration - just Fifth Avenue for now
+// Theatre configuration
 const THEATRES = [
+  { id: 1147, name: 'Intl Village' },
   { id: 1149, name: 'Fifth Ave' },
+  { id: 1422, name: 'Scotiabank' },
 ];
 
 // Number of days to fetch showtimes for
