@@ -315,6 +315,9 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
       color: #a0a0a0;
       text-transform: uppercase;
       letter-spacing: 0.5px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
 
     .agenda-theatre-name a {
@@ -394,6 +397,11 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
       cursor: pointer;
       display: block;
       margin-top: 2px;
+    }
+
+    .agenda-theatre-name .hide-link {
+      font-size: 14px;
+      margin-top: 0;
     }
 
     .hide-link:hover {
