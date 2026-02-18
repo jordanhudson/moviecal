@@ -12,6 +12,8 @@ import { pacificNow, pacificToday, pacificHour as getPacificHour } from './utils
 
 const app = new Hono();
 
+const NEXT_DAY_FLIP_HOUR = 22; // Show tomorrow's screenings starting at 10pm
+
 // Helper to get start and end of a day
 function getDayBounds(dateStr?: string) {
   let date: Date;
@@ -24,7 +26,7 @@ function getDayBounds(dateStr?: string) {
     const [year, month, day] = pacificToday().split('-').map(Number);
     date = new Date(year, month - 1, day);
     // Show next day's screenings starting at 10pm Pacific
-    if (getPacificHour() >= 22) {
+    if (getPacificHour() >= NEXT_DAY_FLIP_HOUR) {
       date.setDate(date.getDate() + 1);
     }
   }
@@ -56,7 +58,9 @@ app.get('/api/movie/:id/tmdb-search', async (c) => {
   const url = `https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(query)}&include_adult=false&language=en-US&page=1`;
   const resp = await fetch(url, {
     headers: { Authorization: `Bearer ${token}` },
+    signal: AbortSignal.timeout(10_000),
   });
+  if (!resp.ok) return c.json({ error: 'TMDB search failed' }, 502);
   const data = await resp.json() as { results: Array<{ id: number; title: string; release_date: string; poster_path: string | null; overview: string }> };
 
   const results = (data.results || []).slice(0, 10).map((r: { id: number; title: string; release_date: string; poster_path: string | null; overview: string }) => ({
@@ -87,6 +91,7 @@ app.post('/api/movie/:id/tmdb-update', async (c) => {
 
   const resp = await fetch(`https://api.themoviedb.org/3/movie/${tmdbId}?language=en-US`, {
     headers: { Authorization: `Bearer ${token}` },
+    signal: AbortSignal.timeout(10_000),
   });
   if (!resp.ok) return c.json({ error: 'TMDB fetch failed' }, 502);
 

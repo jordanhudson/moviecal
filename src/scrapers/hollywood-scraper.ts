@@ -3,6 +3,8 @@ import { Movie, Screening } from '../models.js';
 import { cleanMovieTitle } from '../utils/title-cleaner.js';
 import { parseMonthName, parse12HourTime } from '../utils/time.js';
 
+const CRAWL_DELAY_MS = 500;
+
 interface MovieCard {
   title: string;
   eventUrl: string;
@@ -15,6 +17,7 @@ export async function scrapeHollywood(): Promise<Screening[]> {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     },
+    signal: AbortSignal.timeout(30_000),
   });
 
   if (!moviesResponse.ok) {
@@ -32,13 +35,14 @@ export async function scrapeHollywood(): Promise<Screening[]> {
   for (const card of movieCards) {
     try {
       // Small delay between requests
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, CRAWL_DELAY_MS));
 
       const eventUrl = `https://www.hollywoodtheatre.ca${card.eventUrl}`;
       const eventResponse = await fetch(eventUrl, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         },
+        signal: AbortSignal.timeout(30_000),
       });
 
       if (!eventResponse.ok) {

@@ -29,7 +29,9 @@ function formatVenueName(venueId: string): string {
 export async function scrapeVIFF(): Promise<Screening[]> {
   try {
     // Fetch calendar events from VIFF API
-    const response = await fetch('https://viff.org/wp-json/v1/attendable/calendar/instances');
+    const response = await fetch('https://viff.org/wp-json/v1/attendable/calendar/instances', {
+      signal: AbortSignal.timeout(30_000),
+    });
 
     if (!response.ok) {
       throw new Error(`API request failed: ${response.status} ${response.statusText}`);

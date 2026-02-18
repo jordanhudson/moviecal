@@ -82,6 +82,7 @@ async function fetchShowtimes(theatreId: number, date: Date): Promise<CineplexTh
       'Accept': 'application/json',
       'ocp-apim-subscription-key': API_KEY,
     },
+    signal: AbortSignal.timeout(30_000),
   });
 
   if (!response.ok) {

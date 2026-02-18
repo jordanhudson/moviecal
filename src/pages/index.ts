@@ -1,6 +1,11 @@
 import { renderPage } from './layout.js';
 import { escapeHtml, safeHref } from '../utils/html.js';
 
+const DEFAULT_RUNTIME_MINUTES = 105;
+const MIN_DISPLAY_RUNTIME_MINUTES = 90;
+const TIMELINE_START_HOUR = 10; // 10am
+const TIMELINE_END_HOUR = 26;   // 2am next day (24 + 2)
+
 // Home page - Timeline view (desktop) and Agenda view (mobile)
 
 export interface ScreeningWithMovie {
@@ -58,8 +63,8 @@ function calculatePosition(datetime: Date, runtime: number | null): { left: stri
   const hours = datetime.getHours();
   const minutes = datetime.getMinutes();
 
-  const startMinutes = 10 * 60;
-  const endMinutes = 26 * 60; // 2am next day
+  const startMinutes = TIMELINE_START_HOUR * 60;
+  const endMinutes = TIMELINE_END_HOUR * 60;
   const totalMinutes = endMinutes - startMinutes;
 
   let screeningMinutes = hours * 60 + minutes;
@@ -69,8 +74,8 @@ function calculatePosition(datetime: Date, runtime: number | null): { left: stri
   const minutesFromStart = screeningMinutes - startMinutes;
   const leftPercent = (minutesFromStart / totalMinutes) * 100;
 
-  const movieRuntime = runtime || 105;
-  const effectiveRuntime = Math.max(movieRuntime, 90);
+  const movieRuntime = runtime || DEFAULT_RUNTIME_MINUTES;
+  const effectiveRuntime = Math.max(movieRuntime, MIN_DISPLAY_RUNTIME_MINUTES);
   const widthPercent = (effectiveRuntime / totalMinutes) * 100;
 
   return {
@@ -493,7 +498,7 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
     ${theatres.map(({ theatre, screenings }) => {
       return `
         <div class="theatre-row" data-theatre="${escapeHtml(theatre)}">
-          <div class="theatre-label"><a href="/theatre/${encodeURIComponent(theatre)}">${escapeHtml(displayName(theatre))}</a><span class="hide-link" onclick="hideTheatre('${theatre.replace(/'/g, "\\'")}')">Hide</span></div>
+          <div class="theatre-label"><a href="/theatre/${encodeURIComponent(theatre)}">${escapeHtml(displayName(theatre))}</a><span class="hide-link">Hide</span></div>
           <div class="timeline">
             ${screenings.map(screening => {
               const { left, width } = calculatePosition(new Date(screening.datetime), screening.movie_runtime);
@@ -529,7 +534,7 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
     ${theatres.filter(t => t.screenings.length > 0).map(({ theatre, screenings }) => {
       return `
         <div class="agenda-theatre" data-theatre="${escapeHtml(theatre)}">
-          <div class="agenda-theatre-name"><a href="/theatre/${encodeURIComponent(theatre)}">${escapeHtml(displayName(theatre))}</a> <span class="hide-link" onclick="hideTheatre('${theatre.replace(/'/g, "\\'")}')">Hide</span></div>
+          <div class="agenda-theatre-name"><a href="/theatre/${encodeURIComponent(theatre)}">${escapeHtml(displayName(theatre))}</a> <span class="hide-link">Hide</span></div>
           ${screenings.map(screening => {
             const time = new Date(screening.datetime).toLocaleTimeString('en-US', {
               hour: 'numeric',
@@ -552,7 +557,7 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
 
   <!-- Hidden Theatres -->
   <div class="hidden-theatres-footer" id="hiddenFooter">
-    <button class="hidden-theatres-toggle" id="hiddenToggle" onclick="toggleHidden()"></button>
+    <button class="hidden-theatres-toggle" id="hiddenToggle"></button>
     <div class="hidden-theatres-section" id="hiddenSection"></div>
   </div>
 
@@ -591,6 +596,22 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
       }
     }
 
+    document.getElementById('hiddenToggle').addEventListener('click', toggleHidden);
+
+    // Event delegation for hide/unhide links
+    document.addEventListener('click', function(e) {
+      var link = e.target.closest('.hide-link');
+      if (!link) return;
+      var theatreEl = link.closest('[data-theatre]');
+      if (!theatreEl) return;
+      var name = theatreEl.dataset.theatre;
+      if (link.textContent === 'Unhide') {
+        unhideTheatre(name);
+      } else {
+        hideTheatre(name);
+      }
+    });
+
     function applyHidden() {
       var hidden = getHidden();
       var footer = document.getElementById('hiddenFooter');
@@ -628,7 +649,6 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
           var link = clone.querySelector('.hide-link');
           if (link) {
             link.textContent = 'Unhide';
-            link.setAttribute('onclick', "unhideTheatre('" + name.replace(/'/g, "\\\\'") + "')");
           }
           desktopRows += clone.outerHTML;
         }
@@ -640,7 +660,6 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
           var link2 = clone2.querySelector('.hide-link');
           if (link2) {
             link2.textContent = 'Unhide';
-            link2.setAttribute('onclick', "unhideTheatre('" + name.replace(/'/g, "\\\\'") + "')");
           }
           agendaRows += clone2.outerHTML;
         }

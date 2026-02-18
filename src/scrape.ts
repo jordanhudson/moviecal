@@ -44,7 +44,8 @@ async function searchTMDB(title: string, year?: number | null, runtime?: number 
       headers: {
         'Authorization': `Bearer ${apiToken}`,
         'Accept': 'application/json'
-      }
+      },
+      signal: AbortSignal.timeout(10_000),
     });
 
     if (!response.ok) {
@@ -117,7 +118,8 @@ async function getTMDBMovieDetails(tmdbId: number): Promise<TMDBMovieDetails | n
       headers: {
         'Authorization': `Bearer ${apiToken}`,
         'Accept': 'application/json'
-      }
+      },
+      signal: AbortSignal.timeout(10_000),
     });
 
     if (!response.ok) {

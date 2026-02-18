@@ -71,7 +71,9 @@ export async function scrapeRio(): Promise<Screening[]> {
     apiUrl.searchParams.set('end_date', endDate.toISOString());
 
     // Fetch events from API
-    const response = await fetch(apiUrl.toString());
+    const response = await fetch(apiUrl.toString(), {
+      signal: AbortSignal.timeout(30_000),
+    });
     if (!response.ok) {
       throw new Error(`API request failed: ${response.status} ${response.statusText}`);
     }
