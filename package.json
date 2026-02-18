@@ -29,6 +29,7 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.19.8",
+    "cheerio": "^1.2.0",
     "dotenv": "^17.2.3",
     "hono": "^4.11.3",
     "kysely": "^0.28.9",

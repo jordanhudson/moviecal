@@ -1,3 +1,4 @@
+import * as cheerio from 'cheerio';
 import { Movie, Screening } from '../models.js';
 import { cleanMovieTitle } from '../utils/title-cleaner.js';
 import { parseMonthName, parse12HourTime } from '../utils/time.js';
@@ -81,71 +82,54 @@ export async function scrapeHollywood(): Promise<Screening[]> {
 
 // Parse the /movies page HTML to extract movie cards
 function parseMoviesPage(html: string): MovieCard[] {
+  const $ = cheerio.load(html);
   const results: MovieCard[] = [];
   const seenUrls = new Set<string>();
 
-  // Find all event links with their surrounding context
-  // Pattern: <a href="/events/...">...</a> followed by ticket link
-  const eventLinkRegex = /<a[^>]*href="(\/events\/[^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+  $('a[href^="/events/"]').each((_, el) => {
+    const $link = $(el);
+    const eventUrl = $link.attr('href')!;
 
-  let match;
-  while ((match = eventLinkRegex.exec(html)) !== null) {
-    const eventUrl = match[1];
-    const linkContent = match[2];
+    if (seenUrls.has(eventUrl)) return;
 
-    if (seenUrls.has(eventUrl)) continue;
+    // Extract title from the dedicated name element within the link
+    let title = $link.find('[fs-cmsfilter-field="name"]').text().trim();
 
-    // Extract title from the link content
-    // Look for text that's not just a date (month abbreviation + day)
-    const textContent = linkContent.replace(/<[^>]*>/g, ' ').trim();
-    const lines = textContent.split(/\s+/).filter(s => s.length > 0);
-
-    let title = '';
-    for (let i = 0; i < lines.length; i++) {
-      const word = lines[i];
-      // Skip month abbreviations and day numbers
-      if (word.match(/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)$/i)) continue;
-      if (word.match(/^\d{1,2}$/)) continue;
-
-      // Collect remaining words as title
-      title = lines.slice(i).join(' ');
-      break;
-    }
-
-    if (!title || title.length < 3) continue;
+    if (!title || title.length < 3) return;
 
     // Convert ALL CAPS to Title Case
     if (title === title.toUpperCase()) {
       title = title.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
     }
 
-    // Find ticket URL near this event link
-    // Look for showpass.com or opendate.io links in the surrounding HTML
-    const eventPosition = match.index;
-    const surroundingHtml = html.substring(eventPosition, eventPosition + 2000);
-    const ticketMatch = surroundingHtml.match(/href="(https:\/\/(?:www\.)?(?:showpass\.com|app\.opendate\.io)[^"]+)"/i);
-    const ticketUrl = ticketMatch ? ticketMatch[1] : '';
+    // Find ticket URL: look for a sibling or nearby link to showpass.com or opendate.io
+    // Walk up to the parent container, then search within it
+    const $parent = $link.parent();
+    let ticketUrl = '';
+    const $ticketLink = $parent.find('a[href*="showpass.com"], a[href*="opendate.io"]');
+    if ($ticketLink.length) {
+      ticketUrl = $ticketLink.first().attr('href') || '';
+    } else {
+      // Try the next siblings at the parent level
+      const $nextTicket = $parent.nextAll().find('a[href*="showpass.com"], a[href*="opendate.io"]').first();
+      if ($nextTicket.length) {
+        ticketUrl = $nextTicket.attr('href') || '';
+      }
+    }
 
     seenUrls.add(eventUrl);
-    results.push({
-      title,
-      eventUrl,
-      ticketUrl,
-    });
-  }
+    results.push({ title, eventUrl, ticketUrl });
+  });
 
   return results;
 }
 
 // Parse an event page HTML to extract datetime
 function parseEventPage(html: string): { datetime: Date } | null {
-  // Remove HTML tags for easier text parsing
-  const textContent = html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
+  const $ = cheerio.load(html);
+  const textContent = $('body').text().replace(/\s+/g, ' ');
 
-  // Look for pattern: "Monday, February 2, 2026" ... "Doors 6pm" ... "Show 7pm"
-  // The date and times might be separated by other content
-
-  // First, find the full date
+  // Find the full date (e.g., "Monday, February 2, 2026")
   const dateMatch = textContent.match(/(\w+day),?\s+(\w+)\s+(\d{1,2}),?\s+(\d{4})/i);
   if (!dateMatch) {
     return null;
@@ -162,7 +146,6 @@ function parseEventPage(html: string): { datetime: Date } | null {
   if (showMatch) {
     showTime = showMatch[1];
   } else {
-    // Fall back to doors time
     const doorsMatch = textContent.match(/Doors\s+(\d{1,2}(?::\d{2})?\s*[ap]m)/i);
     if (doorsMatch) {
       showTime = doorsMatch[1];
