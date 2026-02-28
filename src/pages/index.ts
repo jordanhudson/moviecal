@@ -107,6 +107,39 @@ const PAGE_STYLES = `
       font-weight: 600;
       min-width: 360px;
       text-align: center;
+      position: relative;
+      cursor: pointer;
+    }
+
+    .header h1:hover {
+      color: #6a9a9a;
+    }
+
+    .date-picker-input {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      cursor: pointer;
+      border: none;
+      font-size: 24px;
+      z-index: 10;
+    }
+
+    .date-picker-input::-webkit-calendar-picker-indicator {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+    }
+
+    .header .date-full,
+    .header .date-short {
+      pointer-events: none;
     }
 
     .header .date-short {
@@ -468,6 +501,7 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
     <h1>
       <span class="date-full">${displayDate}</span>
       <span class="date-short">${displayDateShort}</span>
+      <input type="date" id="datePicker" value="${dateStr}" class="date-picker-input" title="Pick a date">
     </h1>
     <a href="/?date=${nextDay}" class="nav-button">\u2192</a>
   </div>
@@ -671,6 +705,15 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
     }
 
     applyHidden();
+
+    var picker = document.getElementById('datePicker');
+    picker.addEventListener('click', function(e) {
+      e.preventDefault();
+      try { picker.showPicker(); } catch(err) { console.log('showPicker failed:', err); }
+    });
+    picker.addEventListener('change', function() {
+      window.location.href = '/?date=' + this.value;
+    });
   </script>`,
   });
 }
