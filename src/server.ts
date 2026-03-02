@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
+import { serveStatic } from '@hono/node-server/serve-static';
 import { db } from './db/connection.js';
 import cron from 'node-cron';
 import { runScrapeJob } from './scrape.js';
@@ -11,6 +12,8 @@ import { renderAllMoviesPage } from './pages/all-movies.js';
 import { pacificNow, pacificToday, pacificHour as getPacificHour } from './utils/time.js';
 
 const app = new Hono();
+
+app.use('/favicon.png', serveStatic({ root: './public' }));
 
 const NEXT_DAY_FLIP_HOUR = 22; // Show tomorrow's screenings starting at 10pm
 
