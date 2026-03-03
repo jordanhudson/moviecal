@@ -1,0 +1,1 @@
+ALTER TABLE movie ADD COLUMN IF NOT EXISTS letterboxd_url TEXT;

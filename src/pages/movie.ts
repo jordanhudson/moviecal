@@ -14,6 +14,7 @@ export interface MovieDetail {
   tmdb_id: number | null;
   tmdb_url: string | null;
   poster_url: string | null;
+  letterboxd_url: string | null;
 }
 
 export interface ScreeningDetail {
@@ -92,6 +93,21 @@ const PAGE_STYLES = `
 
     .tmdb-link:hover {
       background: #0099c4;
+    }
+
+    .letterboxd-link {
+      display: inline-block;
+      padding: 8px 16px;
+      background: #00c030;
+      color: white;
+      text-decoration: none;
+      border-radius: 4px;
+      font-size: 14px;
+      margin-left: 8px;
+    }
+
+    .letterboxd-link:hover {
+      background: #00a028;
     }
 
     ${tmdbModalStyles()}
@@ -212,6 +228,7 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
           ${movie.director ? `<span>Dir: ${movie.director}</span>` : ''}
         </div>
         ${movie.tmdb_url ? `<a href="${safeHref(movie.tmdb_url)}" target="_blank" class="tmdb-link">View on TMDB</a>` : ''}
+        ${movie.letterboxd_url ? `<a href="${safeHref(movie.letterboxd_url)}" target="_blank" class="letterboxd-link">View on Letterboxd</a>` : ''}
       </div>
     </div>
 

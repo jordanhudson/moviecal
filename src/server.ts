@@ -139,6 +139,7 @@ app.get('/movie/:id', async (c) => {
       'tmdb_id',
       'tmdb_url',
       'poster_url',
+      'letterboxd_url',
     ])
     .where('id', '=', movieId)
     .executeTakeFirst();

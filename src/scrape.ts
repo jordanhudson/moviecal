@@ -135,6 +135,67 @@ async function getTMDBMovieDetails(tmdbId: number): Promise<TMDBMovieDetails | n
   }
 }
 
+function decodeHtmlEntities(str: string): string {
+  const named: Record<string, string> = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#039;': "'", '&apos;': "'" };
+  return str
+    .replace(/&(?:amp|lt|gt|quot|apos|#039);/g, m => named[m])
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(parseInt(n, 10)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, n) => String.fromCharCode(parseInt(n, 16)));
+}
+
+function slugify(title: string): string {
+  return decodeHtmlEntities(title)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function extractYearFromLetterboxd(html: string): number | null {
+  const match = html.match(/<title>[^<]*\((\d{4})\)/);
+  return match ? parseInt(match[1], 10) : null;
+}
+
+async function searchLetterboxd(title: string, year: number | null): Promise<string | null> {
+  const slug = slugify(title);
+
+  try {
+    const url = `https://letterboxd.com/film/${slug}/`;
+    const response = await fetch(url, {
+      signal: AbortSignal.timeout(10_000),
+      redirect: 'follow',
+    });
+
+    if (response.ok) {
+      const html = await response.text();
+      const pageYear = extractYearFromLetterboxd(html);
+
+      if (year && pageYear && pageYear !== year) {
+        // Year mismatch — likely a different film with same title, try slug-year
+      } else {
+        return response.url;
+      }
+    }
+
+    // Try slug-year if we have a year
+    if (year) {
+      const yearUrl = `https://letterboxd.com/film/${slug}-${year}/`;
+      const yearResponse = await fetch(yearUrl, {
+        signal: AbortSignal.timeout(10_000),
+        redirect: 'follow',
+      });
+
+      if (yearResponse.ok) {
+        return yearResponse.url;
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.warn(`Error searching Letterboxd for "${title}":`, error);
+    return null;
+  }
+}
+
 // Scraper registry mapping names to scraper functions
 const scrapers: Record<string, () => Promise<Screening[]>> = {
   viff: scrapeVIFF,
@@ -266,7 +327,16 @@ export async function runScrapeJob(scraperName?: string) {
       console.log(`    ✗ Not found on TMDB${runtime ? ` (using scraped runtime: ${runtime} min)` : ''}`);
     }
 
-    // Insert movie into database (with or without TMDB data)
+    // Search Letterboxd (use year which may have been enriched by TMDB)
+    console.log(`  → Searching Letterboxd for "${movie.title}"...`);
+    const letterboxdUrl = await searchLetterboxd(movie.title, year);
+    if (letterboxdUrl) {
+      console.log(`    ✓ Found on Letterboxd: ${letterboxdUrl}`);
+    } else {
+      console.log(`    ✗ Not found on Letterboxd`);
+    }
+
+    // Insert movie into database (with or without TMDB/Letterboxd data)
     await db
       .insertInto('movie')
       .values({
@@ -277,6 +347,7 @@ export async function runScrapeJob(scraperName?: string) {
         tmdb_id: tmdbId,
         tmdb_url: tmdbUrl,
         poster_url: posterUrl,
+        letterboxd_url: letterboxdUrl,
       })
       .execute();
 
