@@ -347,7 +347,7 @@ export async function runScrapeJob(scraperName?: string) {
         tmdb_id: tmdbId,
         tmdb_url: tmdbUrl,
         poster_url: posterUrl,
-        letterboxd_url: letterboxdUrl,
+        letterboxd_url: letterboxdUrl ?? 'MISS',
       })
       .execute();
 
@@ -359,6 +359,32 @@ export async function runScrapeJob(scraperName?: string) {
   console.log(`  - New movies added: ${newMoviesCount}`);
   console.log(`  - Already existed: ${existingMoviesCount}`);
   console.log(`  - Found on TMDB: ${tmdbFoundCount}/${newMoviesCount}`);
+
+  // Backfill Letterboxd URLs for existing movies that haven't been checked
+  const uncheckedMovies = await db
+    .selectFrom('movie')
+    .select(['id', 'title', 'year'])
+    .where('letterboxd_url', 'is', null)
+    .limit(10)
+    .execute();
+
+  if (uncheckedMovies.length > 0) {
+    console.log(`\nBackfilling Letterboxd URLs for ${uncheckedMovies.length} unchecked movies...`);
+    for (const movie of uncheckedMovies) {
+      console.log(`  → Searching Letterboxd for "${movie.title}"...`);
+      const letterboxdUrl = await searchLetterboxd(movie.title, movie.year);
+      if (letterboxdUrl) {
+        console.log(`    ✓ Found on Letterboxd: ${letterboxdUrl}`);
+      } else {
+        console.log(`    ✗ Not found on Letterboxd`);
+      }
+      await db
+        .updateTable('movie')
+        .set({ letterboxd_url: letterboxdUrl ?? 'MISS' })
+        .where('id', '=', movie.id)
+        .execute();
+    }
+  }
 
   // Save screenings per scraper using delete-and-reinsert
   console.log(`\nSaving screenings to database (delete-and-reinsert per scraper)...`);

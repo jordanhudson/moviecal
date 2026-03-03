@@ -228,7 +228,7 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
           ${movie.director ? `<span>Dir: ${movie.director}</span>` : ''}
         </div>
         ${movie.tmdb_url ? `<a href="${safeHref(movie.tmdb_url)}" target="_blank" class="tmdb-link">View on TMDB</a>` : ''}
-        ${movie.letterboxd_url ? `<a href="${safeHref(movie.letterboxd_url)}" target="_blank" class="letterboxd-link">View on Letterboxd</a>` : ''}
+        ${movie.letterboxd_url && movie.letterboxd_url !== 'MISS' ? `<a href="${safeHref(movie.letterboxd_url)}" target="_blank" class="letterboxd-link">View on Letterboxd</a>` : ''}
       </div>
     </div>
 
