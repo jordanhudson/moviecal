@@ -19,6 +19,7 @@ export interface ScreeningWithMovie {
   movie_runtime: number | null;
   poster_url: string | null;
   tmdb_url: string | null;
+  letterboxd_url: string | null;
 }
 
 export interface TheatreRow {
@@ -549,7 +550,7 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
                     <div class="screening-time">${time}</div>
                     <div class="screening-links">
                       <a href="${safeHref(screening.booking_url)}" target="_blank" class="screening-link" title="Book tickets">\uD83C\uDF9F\uFE0F</a>
-                      ${screening.tmdb_url ? `<a href="${safeHref(screening.tmdb_url)}" target="_blank" class="screening-link" title="View on TMDB">\uD83D\uDD0D</a>` : ''}
+                      ${screening.letterboxd_url ? `<a href="${safeHref(screening.letterboxd_url)}" target="_blank" class="screening-link" title="View on Letterboxd">\uD83D\uDD0D</a>` : screening.tmdb_url ? `<a href="${safeHref(screening.tmdb_url)}" target="_blank" class="screening-link" title="View on TMDB">\uD83D\uDD0D</a>` : ''}
                     </div>
                   </div>
                 </div>

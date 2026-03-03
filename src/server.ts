@@ -230,6 +230,7 @@ app.get('/', async (c) => {
       'movie.runtime as movie_runtime',
       'movie.poster_url',
       'movie.tmdb_url',
+      'movie.letterboxd_url',
     ])
     .where('screening.datetime', '>=', start)
     .where('screening.datetime', '<=', end)
