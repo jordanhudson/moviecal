@@ -212,7 +212,9 @@ app.get('/theatre/:name', async (c) => {
 // All movies page
 app.get('/movies', async (c) => {
   const now = pacificNow();
-  const movies = await db
+  const sort = c.req.query('sort') || 'added';
+
+  let query = db
     .selectFrom('movie')
     .select(['movie.id', 'movie.title', 'movie.year', 'movie.runtime', 'movie.poster_url', 'movie.tmdb_id'])
     .where((eb) =>
@@ -222,11 +224,19 @@ app.get('/movies', async (c) => {
           .whereRef('screening.movie_id', '=', 'movie.id')
           .where('screening.datetime', '>=', now)
       )
-    )
-    .orderBy('title', 'asc')
-    .execute();
+    );
 
-  const html = renderAllMoviesPage(movies);
+  if (sort === 'title') {
+    query = query.orderBy('title', 'asc');
+  } else if (sort === 'year') {
+    query = query.orderBy('year', 'desc');
+  } else {
+    query = query.orderBy('movie.created_at', 'desc');
+  }
+
+  const movies = await query.execute();
+
+  const html = renderAllMoviesPage(movies, sort);
   return c.html(html);
 });
 

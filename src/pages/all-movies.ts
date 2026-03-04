@@ -14,9 +14,29 @@ export interface MovieRow {
 }
 
 const PAGE_STYLES = `
+    .page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      max-width: 900px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
     .page-title {
       font-size: 24px;
-      margin-bottom: 20px;
+      margin: 0;
+    }
+
+    .sort-select {
+      padding: 6px 10px;
+      background: #353535;
+      color: #c5c5c5;
+      border: 1px solid #454545;
+      border-radius: 4px;
+      font-size: 14px;
+      cursor: pointer;
     }
 
     .movie-list {
@@ -93,13 +113,20 @@ const PAGE_STYLES = `
       }
     }`;
 
-export function renderAllMoviesPage(movies: MovieRow[]): string {
+export function renderAllMoviesPage(movies: MovieRow[], sort: string = 'added'): string {
   return renderPage({
     title: 'All Movies - MovieCal',
     styles: PAGE_STYLES,
     body: `
   <a href="/" class="back-link">\u2190 Back to Calendar</a>
-  <h1 class="page-title">All Movies</h1>
+  <div class="page-header">
+    <h1 class="page-title">All Movies</h1>
+    <select class="sort-select" onchange="window.location.href='/movies?sort='+this.value">
+      <option value="added"${sort === 'added' ? ' selected' : ''}>Recently Added</option>
+      <option value="title"${sort === 'title' ? ' selected' : ''}>Title</option>
+      <option value="year"${sort === 'year' ? ' selected' : ''}>Year</option>
+    </select>
+  </div>
 
   <div class="movie-list">
     ${movies.map(movie => `
