@@ -216,7 +216,7 @@ app.get('/movies', async (c) => {
 
   let query = db
     .selectFrom('movie')
-    .select(['movie.id', 'movie.title', 'movie.year', 'movie.runtime', 'movie.poster_url', 'movie.tmdb_id'])
+    .select(['movie.id', 'movie.title', 'movie.year', 'movie.runtime', 'movie.poster_url', 'movie.tmdb_id', 'movie.letterboxd_url'])
     .where((eb) =>
       eb.exists(
         eb.selectFrom('screening')

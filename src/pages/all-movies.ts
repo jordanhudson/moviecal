@@ -11,6 +11,7 @@ export interface MovieRow {
   runtime: number | null;
   poster_url: string | null;
   tmdb_id: number | null;
+  letterboxd_url: string | null;
 }
 
 const PAGE_STYLES = `
@@ -143,6 +144,7 @@ export function renderAllMoviesPage(movies: MovieRow[], sort: string = 'added'):
             ${movie.year ? `<span>${movie.year}</span>` : ''}
             ${movie.runtime ? `<span>${movie.year ? ' \u00b7 ' : ''}${movie.runtime} min</span>` : ''}
             ${movie.tmdb_id ? `<span>${movie.year || movie.runtime ? ' \u00b7 ' : ''}TMDB: ${movie.tmdb_id}</span>` : ''}
+            <span> \u00b7 LB: ${movie.letterboxd_url === null ? 'null' : movie.letterboxd_url === 'MISS' ? 'MISS' : escapeHtml(movie.letterboxd_url)}</span>
           </div>
         </div>
         <button class="fix-btn" data-movie-id="${movie.id}" data-movie-title="${escapeHtml(movie.title)}">Fix TMDB</button>
