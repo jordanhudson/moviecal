@@ -119,6 +119,26 @@ app.post('/api/movie/:id/tmdb-update', async (c) => {
   return c.json({ success: true });
 });
 
+// Letterboxd update API for fix-match modal
+app.post('/api/movie/:id/letterboxd-update', async (c) => {
+  const adminToken = process.env.ADMIN_TOKEN;
+  if (!adminToken || c.req.header('authorization') !== `Bearer ${adminToken}`) return c.json({ error: 'Unauthorized' }, 401);
+
+  const movieId = parseInt(c.req.param('id'), 10);
+  if (isNaN(movieId)) return c.json({ error: 'Invalid movie ID' }, 400);
+
+  const body = await c.req.json() as { url: string | null };
+  const url = body.url;
+
+  await db
+    .updateTable('movie')
+    .set({ letterboxd_url: url })
+    .where('id', '=', movieId)
+    .execute();
+
+  return c.json({ success: true });
+});
+
 // Movie detail page
 app.get('/movie/:id', async (c) => {
   const movieId = parseInt(c.req.param('id'), 10);

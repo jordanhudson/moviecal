@@ -274,7 +274,7 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
         clearTimeout(clickTimer);
         if (clickCount >= 10) {
           clickCount = 0;
-          TmdbModal.open(${movie.id}, ${JSON.stringify(movie.title)});
+          TmdbModal.open(${movie.id}, ${JSON.stringify(movie.title)}, ${JSON.stringify(movie.letterboxd_url)});
         } else {
           clickTimer = setTimeout(function() { clickCount = 0; }, 3000);
         }

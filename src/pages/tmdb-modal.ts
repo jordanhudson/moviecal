@@ -148,6 +148,18 @@ export function tmdbModalStyles(): string {
       color: #888;
       font-size: 13px;
       margin-bottom: 8px;
+    }
+
+    .letterboxd-section {
+      border-top: 1px solid #353535;
+      margin-top: 12px;
+      padding-top: 12px;
+    }
+
+    .letterboxd-status {
+      color: #888;
+      font-size: 13px;
+      margin-bottom: 8px;
     }`;
 }
 
@@ -162,6 +174,8 @@ export function tmdbModalHtml(): string {
           <input type="password" id="tmdbTokenInput" placeholder="Admin token" autocomplete="current-password" style="flex: 1;">
         </div>
       </form>
+      <div style="border-top: 1px solid #353535; margin-bottom: 12px;"></div>
+      <div class="tmdb-id-label">Fix TMDB Match - Search:</div>
       <div class="tmdb-search-row">
         <input type="text" id="tmdbSearchInput">
         <button id="tmdbSearchBtn">Search</button>
@@ -172,6 +186,14 @@ export function tmdbModalHtml(): string {
         <div class="tmdb-search-row">
           <input type="number" id="tmdbIdInput" placeholder="e.g. 550">
           <button id="tmdbIdBtn">Apply</button>
+        </div>
+      </div>
+      <div class="letterboxd-section">
+        <div class="tmdb-id-label" id="letterboxdStatus"></div>
+        <div class="tmdb-search-row">
+          <input type="text" id="letterboxdUrlInput" placeholder="https://letterboxd.com/film/...">
+          <button id="letterboxdApplyBtn">Apply</button>
+          <button id="letterboxdClearBtn" style="background:#353535;color:#c5c5c5;">Clear</button>
         </div>
       </div>
       <button class="tmdb-modal-close" id="tmdbModalClose">Cancel</button>
@@ -191,10 +213,21 @@ export function tmdbModalScript(): string {
 
       function getToken() { return tokenInput.value; }
 
-      function open(movieId, title) {
+      var letterboxdStatus = document.getElementById('letterboxdStatus');
+      var letterboxdUrlInput = document.getElementById('letterboxdUrlInput');
+
+      function open(movieId, title, letterboxdUrl) {
         currentMovieId = movieId;
         input.value = title;
         results.innerHTML = '';
+        letterboxdUrlInput.value = '';
+        if (letterboxdUrl === 'MISS') {
+          letterboxdStatus.textContent = 'Fix Letterboxd - Current: not found (MISS)';
+        } else if (letterboxdUrl) {
+          letterboxdStatus.textContent = 'Fix Letterboxd - Current: ' + letterboxdUrl;
+        } else {
+          letterboxdStatus.textContent = 'Fix Letterboxd - Current: not checked';
+        }
         modal.classList.add('active');
       }
 
@@ -278,6 +311,32 @@ export function tmdbModalScript(): string {
         var item = e.target.closest('.tmdb-result-item');
         if (!item) return;
         applyTmdbId(parseInt(item.getAttribute('data-tmdb-id'), 10));
+      });
+
+      function updateLetterboxd(url) {
+        letterboxdStatus.textContent = 'Updating...';
+        fetch('/api/movie/' + currentMovieId + '/letterboxd-update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getToken() },
+          body: JSON.stringify({ url: url })
+        }).then(function(r) { return r.json(); })
+          .then(function(data) {
+            if (data.error) {
+              letterboxdStatus.textContent = 'Error: ' + data.error;
+              return;
+            }
+            window.location.reload();
+          });
+      }
+
+      document.getElementById('letterboxdApplyBtn').addEventListener('click', function() {
+        var url = letterboxdUrlInput.value.trim();
+        if (!url) return;
+        updateLetterboxd(url);
+      });
+
+      document.getElementById('letterboxdClearBtn').addEventListener('click', function() {
+        updateLetterboxd(null);
       });
 
       return { open: open, close: close };
