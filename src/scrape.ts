@@ -365,7 +365,7 @@ export async function runScrapeJob(scraperName?: string) {
     .selectFrom('movie')
     .select(['id', 'title', 'year'])
     .where('letterboxd_url', 'is', null)
-    .limit(10)
+    .limit(30)
     .execute();
 
   if (uncheckedMovies.length > 0) {
