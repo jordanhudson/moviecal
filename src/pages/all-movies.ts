@@ -147,7 +147,7 @@ export function renderAllMoviesPage(movies: MovieRow[], sort: string = 'added'):
             <span> \u00b7 LB: ${movie.letterboxd_url === null ? 'null' : movie.letterboxd_url === 'MISS' ? 'MISS' : escapeHtml(movie.letterboxd_url)}</span>
           </div>
         </div>
-        <button class="fix-btn" data-movie-id="${movie.id}" data-movie-title="${escapeHtml(movie.title)}">Fix TMDB</button>
+        <button class="fix-btn" data-movie-id="${movie.id}" data-movie-title="${escapeHtml(movie.title)}">Fix Match</button>
       </div>
     `).join('')}
   </div>
