@@ -30,6 +30,7 @@ const THEATRES = [
   { id: 1147, name: 'Intl Village' },
   { id: 1149, name: 'Fifth Ave' },
   { id: 1422, name: 'Scotiabank' },
+  { id: 1405, name: 'Langley' },
 ];
 
 // Number of days to fetch showtimes for
