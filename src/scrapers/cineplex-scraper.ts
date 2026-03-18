@@ -34,7 +34,7 @@ const THEATRES = [
 ];
 
 // Number of days to fetch showtimes for
-const DAYS_TO_FETCH = 7;
+const DAYS_TO_FETCH = 12;
 
 // Cineplex API response types
 interface CineplexSession {
