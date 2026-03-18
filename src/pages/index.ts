@@ -482,10 +482,6 @@ const PAGE_STYLES = `
         display: block;
       }
 
-      .movie-card-poster {
-        width: 40px;
-      }
-
       .movie-card-info {
         padding: 10px 12px;
       }
@@ -562,19 +558,6 @@ const PAGE_STYLES = `
       border-radius: 8px;
       margin-bottom: 8px;
       overflow: hidden;
-    }
-
-    .movie-card-poster {
-      width: 50px;
-      flex-shrink: 0;
-      background: #1a1a1a;
-    }
-
-    .movie-card-poster img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
     }
 
     .movie-card-info {
@@ -799,7 +782,6 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
       const movie = screenings[0];
       return `
         <div class="movie-card">
-          ${movie.poster_url ? `<a href="/movie/${movie.movie_id}?from_date=${dateStr}" class="movie-card-poster"><img src="${escapeHtml(movie.poster_url)}" alt="" loading="lazy"></a>` : ''}
           <div class="movie-card-info">
             <div class="movie-card-header">
               <div class="movie-card-title"><a href="/movie/${movie.movie_id}?from_date=${dateStr}">${escapeHtml(movie.movie_title)}</a></div>

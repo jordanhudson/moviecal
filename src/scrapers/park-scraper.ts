@@ -6,7 +6,7 @@ import { parseMonthName, parse12HourTime } from '../utils/time.js';
 // Park-specific internal models (not exported)
 interface ParkScreening {
   title: string;
-  datetime: string; // e.g., "6:20pm - Thursday, Jan 8, 2026"
+  datetime: string; // e.g., "Wed, Mar 18, 6:30 pm" or "6:20pm - Thursday, Jan 8, 2026"
   url: string;
 }
 
@@ -105,32 +105,49 @@ export async function scrapePark(): Promise<Screening[]> {
 
 // Helper function to parse Park Theatre datetime strings into a Date object
 function parseDateTime(datetimeStr: string): Date {
-  // datetimeStr format: "6:20pm - Thursday, Jan 8, 2026" or similar
+  // Old format: "6:20pm - Thursday, Jan 8, 2026"
+  const oldMatch = datetimeStr.match(/(\d{1,2}:\d{2}\s*(?:am|pm)?)\s*-\s*\w+,?\s*([A-Za-z]+)\s+(\d{1,2}),?\s*(\d{4})/i);
 
-  // Extract time and date parts
-  // Pattern: "TIME - DAY, MONTH DAY, YEAR"
-  const match = datetimeStr.match(/(\d{1,2}:\d{2}\s*(?:am|pm)?)\s*-\s*\w+,?\s*([A-Za-z]+)\s+(\d{1,2}),?\s*(\d{4})/i);
+  // New format: "Wed, Mar 18, 6:30 pm"
+  const newMatch = datetimeStr.match(/\w+,\s*([A-Za-z]+)\s+(\d{1,2}),\s*(\d{1,2}:\d{2}\s*(?:am|pm))/i);
 
-  if (!match) {
-    // Fallback to current date if parsing fails
-    console.warn(`Could not parse datetime: ${datetimeStr}`);
-    return new Date();
+  if (oldMatch) {
+    const timeStr = oldMatch[1];
+    const monthName = oldMatch[2];
+    const day = parseInt(oldMatch[3], 10);
+    const year = parseInt(oldMatch[4], 10);
+
+    const time = parse12HourTime(timeStr);
+    const monthIndex = parseMonthName(monthName);
+    if (monthIndex === -1) return new Date();
+
+    return new Date(year, monthIndex, day, time ? time.hour : 19, time ? time.minute : 0);
   }
 
-  const timeStr = match[1];
-  const monthName = match[2];
-  const day = parseInt(match[3], 10);
-  const year = parseInt(match[4], 10);
+  if (newMatch) {
+    const monthName = newMatch[1];
+    const day = parseInt(newMatch[2], 10);
+    const timeStr = newMatch[3];
 
-  const time = parse12HourTime(timeStr);
-  const hour24 = time ? time.hour : 19;
-  const mins = time ? time.minute : 0;
+    const time = parse12HourTime(timeStr);
+    const monthIndex = parseMonthName(monthName);
+    if (monthIndex === -1) {
+      console.warn(`Could not parse month: ${monthName}`);
+      return new Date();
+    }
 
-  const monthIndex = parseMonthName(monthName);
-  if (monthIndex === -1) {
-    console.warn(`Could not parse month: ${monthName}`);
-    return new Date();
+    // No year in new format — infer from current date
+    const now = new Date();
+    let year = now.getFullYear();
+    const candidate = new Date(year, monthIndex, day);
+    // If the date is more than 2 months in the past, assume next year
+    if (candidate.getTime() < now.getTime() - 60 * 24 * 60 * 60 * 1000) {
+      year++;
+    }
+
+    return new Date(year, monthIndex, day, time ? time.hour : 19, time ? time.minute : 0);
   }
 
-  return new Date(year, monthIndex, day, hour24, mins);
+  console.warn(`Could not parse datetime: ${datetimeStr}`);
+  return new Date();
 }
