@@ -791,7 +791,7 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
               ${screenings.map(s => {
                 const time = new Date(s.datetime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
                 return `
-                  <div class="movie-screening-row">
+                  <div class="movie-screening-row" data-theatre="${escapeHtml(s.theatre_name)}">
                     <span class="movie-screening-time">${time}</span>
                     <span class="movie-screening-theatre"><a href="/theatre/${encodeURIComponent(s.theatre_name)}">${escapeHtml(displayName(s.theatre_name))}</a></span>
                     <a href="${safeHref(s.booking_url)}" target="_blank" class="movie-screening-tix">Tix</a>
@@ -874,6 +874,15 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
       document.querySelectorAll('[data-theatre]').forEach(function(el) {
         if (el.closest('#hiddenSection')) return;
         el.style.display = hidden.indexOf(el.dataset.theatre) !== -1 ? 'none' : '';
+      });
+
+      // Hide movie cards where all screening rows are hidden
+      document.querySelectorAll('.movie-card').forEach(function(card) {
+        var rows = card.querySelectorAll('.movie-screening-row');
+        var allHidden = rows.length > 0 && Array.prototype.every.call(rows, function(row) {
+          return row.style.display === 'none';
+        });
+        card.style.display = allHidden ? 'none' : '';
       });
 
       // Build hidden section content
