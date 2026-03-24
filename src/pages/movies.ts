@@ -202,7 +202,7 @@ export function renderMoviesPage(screenings: ScreeningWithMovie[]): string {
                 const date = formatShortDate(dt);
                 const time = dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
                 return `
-                  <div class="movie-screening-row">
+                  <div class="movie-screening-row" data-theatre="${escapeHtml(s.theatre_name)}">
                     <span class="movie-screening-date">${date}</span>
                     <span class="movie-screening-time">${time}</span>
                     <span class="movie-screening-theatre"><a href="/theatre/${encodeURIComponent(s.theatre_name)}">${escapeHtml(displayName(s.theatre_name))}</a></span>
@@ -215,6 +215,21 @@ export function renderMoviesPage(screenings: ScreeningWithMovie[]): string {
         </div>
       `;
     }).join('')}
-  </div>`,
+  </div>
+  <script>
+    (function() {
+      try {
+        var hidden = JSON.parse(localStorage.getItem('hiddenTheatres') || '[]');
+        if (!hidden.length) return;
+        document.querySelectorAll('.movie-screening-row[data-theatre]').forEach(function(row) {
+          if (hidden.indexOf(row.dataset.theatre) !== -1) row.style.display = 'none';
+        });
+        document.querySelectorAll('.movie-card').forEach(function(card) {
+          var visible = card.querySelectorAll('.movie-screening-row:not([style*="display: none"])');
+          if (visible.length === 0) card.style.display = 'none';
+        });
+      } catch(e) {}
+    })();
+  </script>`,
   });
 }
