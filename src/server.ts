@@ -182,8 +182,7 @@ app.get('/movie/:id', async (c) => {
     .orderBy('datetime', 'asc')
     .execute();
 
-  const fromDate = c.req.query('from_date') || null;
-  const html = renderMoviePage(movie, screenings, fromDate);
+  const html = renderMoviePage(movie, screenings);
   return c.html(html);
 });
 
@@ -243,8 +242,7 @@ app.get('/internal-movies', async (c) => {
 
 // Movies page (by movie view)
 app.get('/movies', async (c) => {
-  const dateParam = c.req.query('date');
-  const { start, end, date } = getDayBounds(dateParam);
+  const now = pacificNow();
 
   const results = await db
     .selectFrom('screening')
@@ -262,12 +260,11 @@ app.get('/movies', async (c) => {
       'movie.tmdb_url',
       'movie.letterboxd_url',
     ])
-    .where('screening.datetime', '>=', start)
-    .where('screening.datetime', '<=', end)
+    .where('screening.datetime', '>=', now)
     .orderBy('screening.datetime', 'asc')
     .execute();
 
-  const html = renderMoviesPage(date, results);
+  const html = renderMoviesPage(results);
   return c.html(html);
 });
 
@@ -388,7 +385,7 @@ cron.schedule('0 */2 * * *', async () => {
 
 const port = 3000;
 const hostname = '0.0.0.0';
-console.log(`Server is running on http://${hostname}:${port}`);
+console.log(`Server started at ${new Date().toLocaleTimeString()} on http://${hostname}:${port}`);
 
 serve({
   fetch: app.fetch,

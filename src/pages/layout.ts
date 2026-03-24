@@ -21,7 +21,7 @@ const BASE_STYLES = `
     }
 
     .top-bar-inner {
-      max-width: 1040px;
+      max-width: 1284px;
       margin: 0 auto;
       padding: 0 20px;
     }
@@ -34,9 +34,9 @@ const BASE_STYLES = `
     }
 
     .top-bar-logo {
-      font-size: 22px;
+      font-size: 28px;
       font-weight: 700;
-      color: #c5c5c5;
+      color: #e5e5e5;
       text-decoration: none;
       letter-spacing: -0.5px;
     }
@@ -46,7 +46,7 @@ const BASE_STYLES = `
     }
 
     .top-bar-logo span {
-      color: #4a7c7c;
+      color: #6a9a9a;
     }
 
     .top-bar-search {
@@ -81,7 +81,7 @@ const BASE_STYLES = `
     }
 
     .top-bar-nav a {
-      color: #aaa;
+      color: #ccc;
       text-decoration: none;
       font-size: 15px;
     }

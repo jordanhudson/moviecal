@@ -2,38 +2,6 @@ import { renderPage } from './layout.js';
 import { escapeHtml, safeHref } from '../utils/html.js';
 import { ScreeningWithMovie } from './index.js';
 
-// Helper to format date for display
-function formatDate(date: Date): string {
-  return date.toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  });
-}
-
-// Shorter date format for mobile
-function formatDateShort(date: Date): string {
-  return date.toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric'
-  });
-}
-
-// Helper to get prev/next day
-function getPrevDay(date: Date): string {
-  const prev = new Date(date);
-  prev.setDate(prev.getDate() - 1);
-  return prev.toISOString().split('T')[0];
-}
-
-function getNextDay(date: Date): string {
-  const next = new Date(date);
-  next.setDate(next.getDate() + 1);
-  return next.toISOString().split('T')[0];
-}
-
 const THEATRE_DISPLAY_NAMES: Record<string, string> = {
   'VIFF Lochmaddy Studio': 'VIFF Lochmaddy',
 };
@@ -42,74 +10,15 @@ function displayName(theatre: string): string {
   return THEATRE_DISPLAY_NAMES[theatre] || theatre;
 }
 
+function formatShortDate(date: Date): string {
+  return date.toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
 const PAGE_STYLES = `
-    /* Header */
-    .header {
-      margin-bottom: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 20px;
-    }
-
-    .header h1 {
-      font-size: 24px;
-      font-weight: 600;
-      min-width: 360px;
-      text-align: center;
-      position: relative;
-      cursor: pointer;
-    }
-
-    .header h1:hover {
-      color: #6a9a9a;
-    }
-
-    .date-picker-input {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      opacity: 0;
-      cursor: pointer;
-      border: none;
-      font-size: 24px;
-      z-index: 10;
-    }
-
-    .date-picker-input::-webkit-calendar-picker-indicator {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      cursor: pointer;
-    }
-
-    .header .date-full,
-    .header .date-short {
-      pointer-events: none;
-    }
-
-    .header .date-short {
-      display: none;
-    }
-
-    .nav-button {
-      padding: 8px 16px;
-      background: #2a2a2a;
-      border: 1px solid #3a3a3a;
-      border-radius: 4px;
-      cursor: pointer;
-      text-decoration: none;
-      color: #b0b0b0;
-    }
-
-    .nav-button:hover {
-      background: #333333;
-    }
-
     /* Movie-centric view */
     .movie-view {
       max-width: 500px;
@@ -172,6 +81,12 @@ const PAGE_STYLES = `
       font-size: 14px;
     }
 
+    .movie-screening-date {
+      color: #888;
+      min-width: 100px;
+      flex-shrink: 0;
+    }
+
     .movie-screening-time {
       color: #a0a0a0;
       min-width: 75px;
@@ -218,30 +133,6 @@ const PAGE_STYLES = `
 
     /* Mobile breakpoint */
     @media (max-width: 800px) {
-      .header {
-        gap: 12px;
-        margin-bottom: 16px;
-      }
-
-      .header h1 {
-        font-size: 18px;
-        min-width: 150px;
-        text-align: center;
-      }
-
-      .header .date-full {
-        display: none;
-      }
-
-      .header .date-short {
-        display: inline;
-      }
-
-      .nav-button {
-        padding: 8px 12px;
-        font-size: 14px;
-      }
-
       .movie-card-info {
         padding: 10px 12px;
       }
@@ -254,18 +145,16 @@ const PAGE_STYLES = `
         font-size: 13px;
       }
 
+      .movie-screening-date {
+        min-width: 80px;
+      }
+
       .movie-screening-time {
         min-width: 65px;
       }
     }`;
 
-export function renderMoviesPage(date: Date, screenings: ScreeningWithMovie[]): string {
-  const prevDay = getPrevDay(date);
-  const nextDay = getNextDay(date);
-  const displayDate = formatDate(date);
-  const displayDateShort = formatDateShort(date);
-  const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-
+export function renderMoviesPage(screenings: ScreeningWithMovie[]): string {
   const hasScreenings = screenings.length > 0;
 
   // Group screenings by movie
@@ -281,36 +170,30 @@ export function renderMoviesPage(date: Date, screenings: ScreeningWithMovie[]): 
     .sort((a, b) => a[0].movie_title.localeCompare(b[0].movie_title));
 
   return renderPage({
-    title: `By Movie - ${escapeHtml(displayDate)} - MovieCal`,
+    title: `By Movie - MovieCal`,
     styles: PAGE_STYLES,
     activePage: 'movies',
     body: `
-  <div class="header">
-    <a href="/movies?date=${prevDay}" class="nav-button">\u2190</a>
-    <h1>
-      <span class="date-full">${displayDate}</span>
-      <span class="date-short">${displayDateShort}</span>
-      <input type="date" id="datePicker" value="${dateStr}" class="date-picker-input" title="Pick a date">
-    </h1>
-    <a href="/movies?date=${nextDay}" class="nav-button">\u2192</a>
-  </div>
-
   <div class="movie-view">
-    ${!hasScreenings ? '<div class="no-screenings">No screenings for this day</div>' : ''}
+    ${!hasScreenings ? '<div class="no-screenings">No upcoming screenings</div>' : ''}
     ${movieGroups.map(group => {
       const movie = group[0];
+
       return `
         <div class="movie-card">
           <div class="movie-card-info">
             <div class="movie-card-header">
-              <div class="movie-card-title"><a href="/movie/${movie.movie_id}?from_date=${dateStr}">${escapeHtml(movie.movie_title)}</a></div>
+              <div class="movie-card-title"><a href="/movie/${movie.movie_id}">${escapeHtml(movie.movie_title)}</a></div>
               ${movie.movie_year ? `<span class="movie-card-year">(${movie.movie_year})</span>` : ''}
             </div>
             <div class="movie-card-screenings">
               ${group.map(s => {
-                const time = new Date(s.datetime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+                const dt = new Date(s.datetime);
+                const date = formatShortDate(dt);
+                const time = dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
                 return `
                   <div class="movie-screening-row">
+                    <span class="movie-screening-date">${date}</span>
                     <span class="movie-screening-time">${time}</span>
                     <span class="movie-screening-theatre"><a href="/theatre/${encodeURIComponent(s.theatre_name)}">${escapeHtml(displayName(s.theatre_name))}</a></span>
                     <a href="${safeHref(s.booking_url)}" target="_blank" class="movie-screening-tix">Tix</a>
@@ -322,17 +205,6 @@ export function renderMoviesPage(date: Date, screenings: ScreeningWithMovie[]): 
         </div>
       `;
     }).join('')}
-  </div>
-
-  <script>
-    var picker = document.getElementById('datePicker');
-    picker.addEventListener('click', function(e) {
-      e.preventDefault();
-      try { picker.showPicker(); } catch(err) { console.log('showPicker failed:', err); }
-    });
-    picker.addEventListener('change', function() {
-      window.location.href = '/movies?date=' + this.value;
-    });
-  </script>`,
+  </div>`,
   });
 }

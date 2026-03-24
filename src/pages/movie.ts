@@ -202,7 +202,7 @@ const PAGE_STYLES = `
       }
     }`;
 
-export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[], fromDate?: string | null): string {
+export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[]): string {
   const now = pacificNow();
   const futureScreenings = screenings.filter(s => new Date(s.datetime) >= now);
 
@@ -210,8 +210,6 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
     title: `${escapeHtml(movie.title)} - MovieCal`,
     styles: PAGE_STYLES,
     body: `
-  <a href="/${fromDate ? `?date=${fromDate}` : ''}" class="back-link">\u2190 Back to Calendar</a>
-
   <div class="movie-container">
     <div class="movie-header">
       <div class="movie-poster">

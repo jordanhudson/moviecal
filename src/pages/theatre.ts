@@ -129,8 +129,6 @@ export function renderTheatrePage(theatreName: string, screenings: TheatreScreen
     title: `${escapeHtml(theatreName)} - MovieCal`,
     styles: PAGE_STYLES,
     body: `
-  <a href="/" class="back-link">\u2190 Back to Calendar</a>
-
   <div class="theatre-container">
     <h1 class="theatre-title">${escapeHtml(theatreName)}</h1>
 

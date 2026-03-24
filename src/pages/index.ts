@@ -95,7 +95,7 @@ function displayName(theatre: string): string {
 
 const PAGE_STYLES = `
     .page-content {
-      max-width: 1345px;
+      max-width: 1295px;
       margin: 0 auto;
     }
 
@@ -109,9 +109,9 @@ const PAGE_STYLES = `
     }
 
     .header h1 {
-      font-size: 24px;
+      font-size: 20px;
       font-weight: 600;
-      min-width: 360px;
+      min-width: 320px;
       text-align: center;
       position: relative;
       cursor: pointer;
@@ -153,7 +153,8 @@ const PAGE_STYLES = `
     }
 
     .nav-button {
-      padding: 8px 16px;
+      padding: 6px 12px;
+      font-size: 14px;
       background: #2a2a2a;
       border: 1px solid #3a3a3a;
       border-radius: 4px;
@@ -569,7 +570,7 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
 
               return `
                 <div class="screening" style="left: ${left}; width: ${width};">
-                  <a href="/movie/${screening.movie_id}?from_date=${dateStr}" class="screening-overlay" title="${escapeHtml(screening.movie_title)}"></a>
+                  <a href="/movie/${screening.movie_id}" class="screening-overlay" title="${escapeHtml(screening.movie_title)}"></a>
                   <span class="screening-title">${escapeHtml(screening.movie_title)}</span>
                   <div class="screening-bottom">
                     <div class="screening-time">${time}</div>
@@ -603,7 +604,7 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
 
             return `
               <div class="agenda-screening">
-                <a href="/movie/${screening.movie_id}?from_date=${dateStr}" class="agenda-screening-overlay"></a>
+                <a href="/movie/${screening.movie_id}" class="agenda-screening-overlay"></a>
                 <span class="agenda-movie-time">${time}</span>
                 <span class="agenda-movie-title">${escapeHtml(screening.movie_title)}</span>
                 <a href="${safeHref(screening.booking_url)}" target="_blank" class="agenda-tix">Tix</a>
