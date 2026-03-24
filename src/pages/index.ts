@@ -519,7 +519,16 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
   const hasScreenings = theatres.some(t => t.screenings.length > 0);
 
   return renderPage({
-    title: `MovieCal - ${escapeHtml(displayDate)}`,
+    title: `Vancouver Movie Showtimes ${escapeHtml(displayDate)} — MovieCal`,
+    description: `Movie showtimes in Vancouver for ${escapeHtml(displayDate)} — Cinematheque, VIFF, Rio Theatre, Park Theatre, Cineplex, and more.`,
+    canonicalPath: '/',
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@type': 'WebSite',
+      name: 'MovieCal',
+      url: 'https://movieclock.fly.dev',
+      description: 'Movie showtimes for Vancouver independent and repertory cinemas.',
+    },
     styles: PAGE_STYLES,
     activePage: 'home',
     body: `

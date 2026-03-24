@@ -126,7 +126,16 @@ export function renderTheatrePage(theatreName: string, screenings: TheatreScreen
   const futureScreenings = screenings.filter(s => new Date(s.datetime) >= now);
 
   return renderPage({
-    title: `${escapeHtml(theatreName)} - MovieCal`,
+    title: `${escapeHtml(theatreName)} Showtimes Vancouver — MovieCal`,
+    description: `Upcoming movie showtimes at ${escapeHtml(theatreName)} in Vancouver.`,
+    canonicalPath: `/theatre/${encodeURIComponent(theatreName)}`,
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@type': 'MovieTheater',
+      name: theatreName,
+      address: { '@type': 'PostalAddress', addressLocality: 'Vancouver', addressRegion: 'BC', addressCountry: 'CA' },
+      url: `https://movieclock.fly.dev/theatre/${encodeURIComponent(theatreName)}`,
+    },
     styles: PAGE_STYLES,
     body: `
   <div class="theatre-container">

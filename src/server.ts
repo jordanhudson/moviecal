@@ -140,6 +140,64 @@ app.post('/api/movie/:id/letterboxd-update', async (c) => {
   return c.json({ success: true });
 });
 
+// robots.txt
+app.get('/robots.txt', (c) => {
+  const BASE_URL = process.env.BASE_URL || 'https://movieclock.fly.dev';
+  const body = `User-agent: *
+Allow: /
+
+Sitemap: ${BASE_URL}/sitemap.xml
+`;
+  return c.text(body);
+});
+
+// sitemap.xml
+app.get('/sitemap.xml', async (c) => {
+  const BASE_URL = process.env.BASE_URL || 'https://movieclock.fly.dev';
+  const now = new Date().toISOString().split('T')[0];
+
+  // Get all movies that have future screenings
+  const movies = await db
+    .selectFrom('movie')
+    .select(['movie.id'])
+    .where((eb) =>
+      eb.exists(
+        eb.selectFrom('screening')
+          .select('screening.id')
+          .whereRef('screening.movie_id', '=', 'movie.id')
+          .where('screening.datetime', '>=', new Date())
+      )
+    )
+    .execute();
+
+  // Get all theatre names that have future screenings
+  const theatres = await db
+    .selectFrom('screening')
+    .select('theatre_name')
+    .where('datetime', '>=', new Date())
+    .groupBy('theatre_name')
+    .execute();
+
+  const urls = [
+    { loc: '/', changefreq: 'hourly', priority: '1.0' },
+    { loc: '/movies', changefreq: 'hourly', priority: '0.8' },
+    ...movies.map(m => ({ loc: `/movie/${m.id}`, changefreq: 'daily', priority: '0.6' })),
+    ...theatres.map(t => ({ loc: `/theatre/${encodeURIComponent(t.theatre_name)}`, changefreq: 'daily', priority: '0.5' })),
+  ];
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urls.map(u => `  <url>
+    <loc>${BASE_URL}${u.loc}</loc>
+    <lastmod>${now}</lastmod>
+    <changefreq>${u.changefreq}</changefreq>
+    <priority>${u.priority}</priority>
+  </url>`).join('\n')}
+</urlset>`;
+
+  return c.body(xml, 200, { 'Content-Type': 'application/xml' });
+});
+
 // Movie detail page
 app.get('/movie/:id', async (c) => {
   const movieId = parseInt(c.req.param('id'), 10);

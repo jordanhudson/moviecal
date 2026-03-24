@@ -25,6 +25,13 @@ const PAGE_STYLES = `
       margin: 0 auto;
     }
 
+    .movie-view-heading {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: #c5c5c5;
+    }
+
     .movie-card {
       display: flex;
       background: #262626;
@@ -170,11 +177,14 @@ export function renderMoviesPage(screenings: ScreeningWithMovie[]): string {
     .sort((a, b) => a[0].movie_title.localeCompare(b[0].movie_title));
 
   return renderPage({
-    title: `By Movie - MovieCal`,
+    title: 'Upcoming Movies in Vancouver Cinemas — MovieCal',
+    description: 'Browse all upcoming movies playing in Vancouver independent and repertory cinemas, with showtimes and ticket links.',
+    canonicalPath: '/movies',
     styles: PAGE_STYLES,
     activePage: 'movies',
     body: `
   <div class="movie-view">
+    <h1 class="movie-view-heading">Upcoming Movies in Vancouver</h1>
     ${!hasScreenings ? '<div class="no-screenings">No upcoming screenings</div>' : ''}
     ${movieGroups.map(group => {
       const movie = group[0];

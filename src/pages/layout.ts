@@ -136,25 +136,39 @@ const BASE_STYLES = `
 
 export function footer(): string {
   return `<footer style="text-align: center; padding: 24px 16px; color: #555; font-size: 12px;">
-    A better cinema clock for Vancouver &middot; Made by <a href="https://github.com/jordanhudson" target="_blank" style="color: #6a9a9a;">Jordan Hudson</a>
+    <p>Vancouver movie showtimes for independent and repertory cinemas &mdash; Cinematheque, VIFF, Rio Theatre, Park Theatre, and more.</p>
+    <p style="margin-top: 6px;">Made by <a href="https://github.com/jordanhudson" target="_blank" style="color: #6a9a9a;">Jordan Hudson</a></p>
   </footer>`;
 }
 
 export interface PageOptions {
   title: string;
+  description?: string;
+  canonicalPath?: string;
+  jsonLd?: object | object[];
   styles?: string;
   body: string;
   activePage?: string;
 }
 
-export function renderPage({ title, styles, body, activePage }: PageOptions): string {
+export function renderPage({ title, description, canonicalPath, jsonLd, styles, body, activePage }: PageOptions): string {
+  const BASE_URL = 'https://movieclock.fly.dev';
+  const metaDesc = description || 'Movie showtimes for Vancouver independent cinemas — Cinematheque, VIFF, Rio Theatre, Park Theatre, and more.';
+  const canonical = canonicalPath != null ? `\n  <link rel="canonical" href="${BASE_URL}${canonicalPath}">` : '';
+  const jsonLdItems = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
+  const jsonLdTags = jsonLdItems.map(item => `\n  <script type="application/ld+json">${JSON.stringify(item)}</script>`).join('');
   return `
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="icon" type="image/png" href="/favicon.png">
+  <meta name="google-site-verification" content="VM8EAB3B8XS6MIzpotyQjlH5WodE2q_e0NkffgF_DdI" />
+  <meta name="description" content="${metaDesc}">
+  <meta property="og:title" content="${title}">
+  <meta property="og:description" content="${metaDesc}">
+  <meta property="og:type" content="website">${canonical}
+  <link rel="icon" type="image/png" href="/favicon.png">${jsonLdTags}
   <title>${title}</title>
   <style>${BASE_STYLES}
     ${styles || ''}

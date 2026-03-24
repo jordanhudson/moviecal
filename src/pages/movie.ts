@@ -206,8 +206,43 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
   const now = pacificNow();
   const futureScreenings = screenings.filter(s => new Date(s.datetime) >= now);
 
+  const metaParts = [movie.year, movie.director, movie.runtime ? `${movie.runtime} min` : null].filter(Boolean);
+  const metaSuffix = metaParts.length ? ` (${metaParts.join(', ')})` : '';
+  const screeningCount = futureScreenings.length;
+  const movieDesc = `${escapeHtml(movie.title)}${metaSuffix} — ${screeningCount} upcoming screening${screeningCount !== 1 ? 's' : ''} in Vancouver.`;
+
+  // Schema.org Movie
+  const movieSchema: Record<string, unknown> = {
+    '@context': 'https://schema.org',
+    '@type': 'Movie',
+    name: movie.title,
+    ...(movie.year && { dateCreated: String(movie.year) }),
+    ...(movie.director && { director: { '@type': 'Person', name: movie.director } }),
+    ...(movie.runtime && { duration: `PT${movie.runtime}M` }),
+    ...(movie.poster_url && { image: movie.poster_url }),
+    url: `https://movieclock.fly.dev/movie/${movie.id}`,
+  };
+
+  // Schema.org ScreeningEvent for each future screening
+  const screeningSchemas = futureScreenings.map(s => ({
+    '@context': 'https://schema.org',
+    '@type': 'ScreeningEvent',
+    name: movie.title,
+    startDate: new Date(s.datetime).toISOString(),
+    location: {
+      '@type': 'MovieTheater',
+      name: s.theatre_name,
+      address: { '@type': 'PostalAddress', addressLocality: 'Vancouver', addressRegion: 'BC', addressCountry: 'CA' },
+    },
+    workPresented: { '@type': 'Movie', name: movie.title },
+    ...(s.booking_url && { url: s.booking_url }),
+  }));
+
   return renderPage({
-    title: `${escapeHtml(movie.title)} - MovieCal`,
+    title: `${escapeHtml(movie.title)}${movie.year ? ` (${movie.year})` : ''} Showtimes Vancouver — MovieCal`,
+    description: movieDesc,
+    canonicalPath: `/movie/${movie.id}`,
+    jsonLd: [movieSchema, ...screeningSchemas],
     styles: PAGE_STYLES,
     body: `
   <div class="movie-container">

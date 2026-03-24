@@ -116,7 +116,8 @@ const PAGE_STYLES = `
 
 export function renderAllMoviesPage(movies: MovieRow[], sort: string = 'added'): string {
   return renderPage({
-    title: 'All Movies - MovieCal',
+    title: 'All Upcoming Movies — MovieCal',
+    description: 'Complete list of all movies with upcoming screenings in Vancouver cinemas.',
     styles: PAGE_STYLES,
     activePage: 'movies',
     body: `
