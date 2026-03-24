@@ -94,6 +94,11 @@ function displayName(theatre: string): string {
 }
 
 const PAGE_STYLES = `
+    .page-content {
+      max-width: 1345px;
+      margin: 0 auto;
+    }
+
     /* Header */
     .header {
       margin-bottom: 20px;
@@ -499,153 +504,8 @@ const PAGE_STYLES = `
       }
     }
 
-    /* View toggle */
-    .view-toggle {
-      display: flex;
-      justify-content: center;
-      margin-bottom: 16px;
-    }
+`;
 
-    .view-toggle button {
-      padding: 6px 20px;
-      background: #2a2a2a;
-      border: 1px solid #3a3a3a;
-      color: #808080;
-      cursor: pointer;
-      font-size: 13px;
-      font-family: inherit;
-    }
-
-    .view-toggle button:first-child {
-      border-radius: 4px 0 0 4px;
-      border-right: none;
-    }
-
-    .view-toggle button:last-child {
-      border-radius: 0 4px 4px 0;
-    }
-
-    .view-toggle button.active {
-      background: #4a7c7c;
-      border-color: #4a7c7c;
-      color: white;
-    }
-
-    .view-toggle button:hover:not(.active) {
-      background: #333;
-    }
-
-    /* Movie-centric view */
-    .movie-view {
-      display: none;
-      max-width: 500px;
-      margin: 0 auto;
-    }
-
-    #viewContainer[data-view="movie"] .timeline-container,
-    #viewContainer[data-view="movie"] .agenda-container,
-    #viewContainer[data-view="movie"] .hidden-theatres-footer {
-      display: none !important;
-    }
-
-    #viewContainer[data-view="movie"] .movie-view {
-      display: block;
-    }
-
-    .movie-card {
-      display: flex;
-      background: #262626;
-      border-radius: 8px;
-      margin-bottom: 8px;
-      overflow: hidden;
-    }
-
-    .movie-card-info {
-      flex: 1;
-      padding: 12px 16px;
-      min-width: 0;
-    }
-
-    .movie-card-header {
-      display: flex;
-      align-items: baseline;
-      gap: 8px;
-      margin-bottom: 8px;
-    }
-
-    .movie-card-title {
-      font-weight: 600;
-      min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .movie-card-title a {
-      color: #d0d0d0;
-      text-decoration: none;
-    }
-
-    .movie-card-title a:hover {
-      color: #6a9a9a;
-    }
-
-    .movie-card-year {
-      color: #707070;
-      font-size: 13px;
-      flex-shrink: 0;
-    }
-
-    .movie-card-screenings {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .movie-screening-row {
-      display: flex;
-      align-items: center;
-      font-size: 14px;
-    }
-
-    .movie-screening-time {
-      color: #a0a0a0;
-      min-width: 75px;
-      flex-shrink: 0;
-    }
-
-    .movie-screening-theatre {
-      flex: 1;
-      color: #707070;
-      min-width: 0;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .movie-screening-theatre a {
-      color: #707070;
-      text-decoration: none;
-    }
-
-    .movie-screening-theatre a:hover {
-      color: #6a9a9a;
-    }
-
-    .movie-screening-tix {
-      padding: 3px 10px;
-      background: #4a7c7c;
-      color: white;
-      text-decoration: none;
-      border-radius: 3px;
-      font-size: 12px;
-      margin-left: 8px;
-      flex-shrink: 0;
-    }
-
-    .movie-screening-tix:hover {
-      background: #5a8c8c;
-    }`;
 
 export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
   const prevDay = getPrevDay(date);
@@ -657,23 +517,10 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
   // Check if there are any screenings at all
   const hasScreenings = theatres.some(t => t.screenings.length > 0);
 
-  // Group screenings by movie for movie-centric view
-  const movieMap = new Map<number, ScreeningWithMovie[]>();
-  for (const { screenings } of theatres) {
-    for (const s of screenings) {
-      if (!movieMap.has(s.movie_id)) {
-        movieMap.set(s.movie_id, []);
-      }
-      movieMap.get(s.movie_id)!.push(s);
-    }
-  }
-  const movieGroups = Array.from(movieMap.values())
-    .map(screenings => screenings.sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime()))
-    .sort((a, b) => a[0].movie_title.localeCompare(b[0].movie_title));
-
   return renderPage({
     title: `MovieCal - ${escapeHtml(displayDate)}`,
     styles: PAGE_STYLES,
+    activePage: 'home',
     body: `
   <div class="header">
     <a href="/?date=${prevDay}" class="nav-button">\u2190</a>
@@ -684,13 +531,6 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
     </h1>
     <a href="/?date=${nextDay}" class="nav-button">\u2192</a>
   </div>
-
-  <div class="view-toggle">
-    <button data-mode="theatre" class="active">By Theatre</button>
-    <button data-mode="movie">By Movie</button>
-  </div>
-
-  <div id="viewContainer" data-view="theatre">
 
   <!-- Desktop Timeline View -->
   <div class="timeline-container">
@@ -775,43 +615,11 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
     }).join('')}
   </div>
 
-  <!-- Movie-Centric View -->
-  <div class="movie-view">
-    ${!hasScreenings ? '<div class="no-screenings">No screenings for this day</div>' : ''}
-    ${movieGroups.map(screenings => {
-      const movie = screenings[0];
-      return `
-        <div class="movie-card">
-          <div class="movie-card-info">
-            <div class="movie-card-header">
-              <div class="movie-card-title"><a href="/movie/${movie.movie_id}?from_date=${dateStr}">${escapeHtml(movie.movie_title)}</a></div>
-              ${movie.movie_year ? `<span class="movie-card-year">(${movie.movie_year})</span>` : ''}
-            </div>
-            <div class="movie-card-screenings">
-              ${screenings.map(s => {
-                const time = new Date(s.datetime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-                return `
-                  <div class="movie-screening-row" data-theatre="${escapeHtml(s.theatre_name)}">
-                    <span class="movie-screening-time">${time}</span>
-                    <span class="movie-screening-theatre"><a href="/theatre/${encodeURIComponent(s.theatre_name)}">${escapeHtml(displayName(s.theatre_name))}</a></span>
-                    <a href="${safeHref(s.booking_url)}" target="_blank" class="movie-screening-tix">Tix</a>
-                  </div>
-                `;
-              }).join('')}
-            </div>
-          </div>
-        </div>
-      `;
-    }).join('')}
-  </div>
-
   <!-- Hidden Theatres -->
   <div class="hidden-theatres-footer" id="hiddenFooter">
     <button class="hidden-theatres-toggle" id="hiddenToggle"></button>
     <div class="hidden-theatres-section" id="hiddenSection"></div>
   </div>
-
-  </div><!-- /viewContainer -->
 
   <script>
     function getHidden() {
@@ -876,15 +684,6 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
         el.style.display = hidden.indexOf(el.dataset.theatre) !== -1 ? 'none' : '';
       });
 
-      // Hide movie cards where all screening rows are hidden
-      document.querySelectorAll('.movie-card').forEach(function(card) {
-        var rows = card.querySelectorAll('.movie-screening-row');
-        var allHidden = rows.length > 0 && Array.prototype.every.call(rows, function(row) {
-          return row.style.display === 'none';
-        });
-        card.style.display = allHidden ? 'none' : '';
-      });
-
       // Build hidden section content
       if (hidden.length === 0) {
         footer.style.display = 'none';
@@ -942,24 +741,6 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
       window.location.href = '/?date=' + this.value;
     });
 
-    // View toggle
-    function setView(mode) {
-      localStorage.setItem('viewMode', mode);
-      document.getElementById('viewContainer').dataset.view = mode;
-      document.querySelectorAll('.view-toggle button').forEach(function(btn) {
-        btn.classList.toggle('active', btn.dataset.mode === mode);
-      });
-    }
-
-    document.querySelectorAll('.view-toggle button').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        setView(this.dataset.mode);
-      });
-    });
-
-    // Initialize view from localStorage
-    var savedView = localStorage.getItem('viewMode') || 'theatre';
-    setView(savedView);
   </script>`,
   });
 }

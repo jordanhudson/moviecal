@@ -9,6 +9,7 @@ import { renderIndexPage, ScreeningWithMovie, TheatreRow } from './pages/index.j
 import { renderMoviePage } from './pages/movie.js';
 import { renderTheatrePage } from './pages/theatre.js';
 import { renderAllMoviesPage } from './pages/all-movies.js';
+import { renderMoviesPage } from './pages/movies.js';
 import { pacificNow, pacificToday, pacificHour as getPacificHour } from './utils/time.js';
 
 const app = new Hono();
@@ -209,8 +210,8 @@ app.get('/theatre/:name', async (c) => {
   return c.html(html);
 });
 
-// All movies page
-app.get('/movies', async (c) => {
+// All movies page (internal)
+app.get('/internal-movies', async (c) => {
   const now = pacificNow();
   const sort = c.req.query('sort') || 'added';
 
@@ -237,6 +238,36 @@ app.get('/movies', async (c) => {
   const movies = await query.execute();
 
   const html = renderAllMoviesPage(movies, sort);
+  return c.html(html);
+});
+
+// Movies page (by movie view)
+app.get('/movies', async (c) => {
+  const dateParam = c.req.query('date');
+  const { start, end, date } = getDayBounds(dateParam);
+
+  const results = await db
+    .selectFrom('screening')
+    .innerJoin('movie', 'screening.movie_id', 'movie.id')
+    .select([
+      'screening.id as screening_id',
+      'screening.datetime',
+      'screening.theatre_name',
+      'screening.booking_url',
+      'movie.id as movie_id',
+      'movie.title as movie_title',
+      'movie.year as movie_year',
+      'movie.runtime as movie_runtime',
+      'movie.poster_url',
+      'movie.tmdb_url',
+      'movie.letterboxd_url',
+    ])
+    .where('screening.datetime', '>=', start)
+    .where('screening.datetime', '<=', end)
+    .orderBy('screening.datetime', 'asc')
+    .execute();
+
+  const html = renderMoviesPage(date, results);
   return c.html(html);
 });
 

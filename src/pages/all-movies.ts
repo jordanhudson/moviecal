@@ -118,11 +118,12 @@ export function renderAllMoviesPage(movies: MovieRow[], sort: string = 'added'):
   return renderPage({
     title: 'All Movies - MovieCal',
     styles: PAGE_STYLES,
+    activePage: 'movies',
     body: `
   <a href="/" class="back-link">\u2190 Back to Calendar</a>
   <div class="page-header">
     <h1 class="page-title">All Movies</h1>
-    <select class="sort-select" onchange="window.location.href='/movies?sort='+this.value">
+    <select class="sort-select" onchange="window.location.href='/internal-movies?sort='+this.value">
       <option value="added"${sort === 'added' ? ' selected' : ''}>Recently Added</option>
       <option value="title"${sort === 'title' ? ' selected' : ''}>Title</option>
       <option value="year"${sort === 'year' ? ' selected' : ''}>Year</option>
