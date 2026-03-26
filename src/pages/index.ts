@@ -549,6 +549,7 @@ const PAGE_STYLES = `
       flex-shrink: 0;
       font-weight: 500;
       font-size: 14px;
+      margin-right: 10px;
     }
 
     .listing-movie-title a {
@@ -684,7 +685,7 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[], listingGroup
     </h1>
     <a href="/?date=${nextDay}" class="nav-button">\u2192</a>
     <div class="view-toggle">
-      <button class="view-btn" data-view="timeline">Timeline</button>
+      <button class="view-btn active" data-view="timeline">Timeline</button>
       <button class="view-btn" data-view="listing">Listing</button>
     </div>
   </div>
