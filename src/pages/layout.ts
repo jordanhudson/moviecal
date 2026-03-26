@@ -187,6 +187,7 @@ export function renderPage({ title, description, canonicalPath, jsonLd, styles, 
     ${body}
   </div>
   ${footer()}
+<!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "7be715a2618c4f20beba95cc903eb28f"}'></script><!-- End Cloudflare Web Analytics -->
 </body>
 </html>
   `;
