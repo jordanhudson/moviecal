@@ -823,7 +823,7 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[], listingGroup
     wrapper.dataset.view = savedView;
     pageContent.dataset.view = savedView;
     document.querySelectorAll('.view-btn').forEach(function(btn) {
-      if (btn.dataset.view === savedView) btn.classList.add('active');
+      btn.classList.toggle('active', btn.dataset.view === savedView);
       btn.addEventListener('click', function() {
         var view = btn.dataset.view;
         wrapper.dataset.view = view;
