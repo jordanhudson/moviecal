@@ -27,6 +27,19 @@ export interface TheatreRow {
   screenings: ScreeningWithMovie[];
 }
 
+export interface ListingGroup {
+  venue: string;
+  theatreName?: string; // set for single-auditorium theatres to link to theatre page
+  movies: {
+    movie_id: number;
+    movie_title: string;
+    poster_url: string | null;
+    letterboxd_url: string | null;
+    tmdb_url: string | null;
+    showtimes: { datetime: Date; booking_url: string }[];
+  }[];
+}
+
 // Helper to format date for display
 function formatDate(date: Date): string {
   return date.toLocaleDateString('en-US', {
@@ -106,6 +119,7 @@ const PAGE_STYLES = `
       align-items: center;
       justify-content: center;
       gap: 20px;
+      position: relative;
     }
 
     .header h1 {
@@ -314,10 +328,48 @@ const PAGE_STYLES = `
       padding: 40px;
     }
 
-    /* Mobile Agenda Styles */
-    .agenda-container {
-      display: none;
+    /* View switching */
+    .timeline-container,
+    .agenda-container,
+    .listing-container { display: none; }
+
+    [data-view="timeline"] .timeline-container { display: block; }
+    [data-view="listing"] .listing-container { display: block; }
+
+    .page-content[data-view="listing"] {
+      max-width: 850px;
     }
+
+    /* View toggle */
+    .view-toggle {
+      position: absolute;
+      right: 0;
+      display: flex;
+      border: 1px solid #3a3a3a;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .view-btn {
+      padding: 6px 12px;
+      font-size: 12px;
+      background: #2a2a2a;
+      color: #808080;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .view-btn:hover {
+      color: #b0b0b0;
+    }
+
+    .view-btn.active {
+      background: #4a7c7c;
+      color: white;
+    }
+
+    /* Mobile Agenda Styles */
 
     .agenda-theatre {
       background: #262626;
@@ -454,11 +506,86 @@ const PAGE_STYLES = `
       text-align: left;
     }
 
+    /* Listing view styles */
+    .listing-group {
+      background: #262626;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+
+    .listing-group-header {
+      font-weight: 600;
+      padding: 12px 20px;
+      background: #2a2a2a;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .listing-group-header a {
+      color: #c5c5c5;
+      text-decoration: none;
+    }
+
+    .listing-group-header a:hover {
+      color: #6a9a9a;
+      text-decoration: underline;
+    }
+
+    .listing-movie-row {
+      display: flex;
+      align-items: center;
+      padding: 10px 20px;
+      border-bottom: 1px solid #353535;
+    }
+
+    .listing-movie-row:last-child {
+      border-bottom: none;
+    }
+
+    .listing-movie-title {
+      width: 350px;
+      flex-shrink: 0;
+      font-weight: 500;
+      font-size: 14px;
+    }
+
+    .listing-movie-title a {
+      color: #d0d0d0;
+      text-decoration: none;
+    }
+
+    .listing-movie-title a:hover {
+      color: #6a9a9a;
+    }
+
+    .listing-times {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .listing-time {
+      display: inline-block;
+      padding: 4px 10px;
+      background: #4a7c7c;
+      color: white;
+      border-radius: 4px;
+      text-decoration: none;
+      font-size: 13px;
+    }
+
+    .listing-time:hover {
+      background: #5a8c8c;
+    }
+
     /* Mobile breakpoint */
     @media (max-width: 800px) {
       .header {
         gap: 12px;
         margin-bottom: 16px;
+        flex-wrap: wrap;
       }
 
       .header h1 {
@@ -480,12 +607,17 @@ const PAGE_STYLES = `
         font-size: 14px;
       }
 
-      .timeline-container {
+      .view-toggle {
         display: none;
       }
 
+      .timeline-container,
       .agenda-container {
-        display: block;
+        display: none !important;
+      }
+
+      .listing-container {
+        display: block !important;
       }
 
       .movie-card-info {
@@ -503,12 +635,23 @@ const PAGE_STYLES = `
       .movie-screening-time {
         min-width: 65px;
       }
+
+      .listing-movie-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 12px 16px;
+      }
+
+      .listing-movie-title {
+        width: auto;
+      }
     }
 
 `;
 
 
-export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
+export function renderIndexPage(date: Date, theatres: TheatreRow[], listingGroups: ListingGroup[] = []): string {
   const prevDay = getPrevDay(date);
   const nextDay = getNextDay(date);
   const displayDate = formatDate(date);
@@ -516,7 +659,7 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
   const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
   // Check if there are any screenings at all
-  const hasScreenings = theatres.some(t => t.screenings.length > 0);
+  const hasScreenings = theatres.some(t => t.screenings.length > 0) || listingGroups.length > 0;
 
   return renderPage({
     title: `Vancouver Movie Showtimes ${escapeHtml(displayDate)} — MovieCal`,
@@ -540,7 +683,13 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
       <input type="date" id="datePicker" value="${dateStr}" class="date-picker-input" title="Pick a date">
     </h1>
     <a href="/?date=${nextDay}" class="nav-button">\u2192</a>
+    <div class="view-toggle">
+      <button class="view-btn" data-view="timeline">Timeline</button>
+      <button class="view-btn" data-view="listing">Listing</button>
+    </div>
   </div>
+
+  <div id="viewsWrapper" data-view="timeline">
 
   <!-- Desktop Timeline View -->
   <div class="timeline-container">
@@ -625,6 +774,40 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
     }).join('')}
   </div>
 
+  <!-- Listing View -->
+  <div class="listing-container">
+    ${!hasScreenings ? '<div class="no-screenings">No screenings for this day</div>' : ''}
+
+    ${listingGroups.map(group => `
+      <div class="listing-group" data-theatre="${escapeHtml(group.venue)}">
+        <div class="listing-group-header">
+          ${group.theatreName
+            ? `<a href="/theatre/${encodeURIComponent(group.theatreName)}">${escapeHtml(displayName(group.venue))}</a>`
+            : `<span>${escapeHtml(displayName(group.venue))}</span>`}
+          <span class="hide-link">Hide</span>
+        </div>
+        ${group.movies.map(movie => `
+          <div class="listing-movie-row">
+            <div class="listing-movie-title">
+              <a href="/movie/${movie.movie_id}">${escapeHtml(movie.movie_title)}</a>
+            </div>
+            <div class="listing-times">
+              ${movie.showtimes.map(st => {
+                const time = new Date(st.datetime);
+                const h = time.getHours() % 12 || 12;
+                const m = String(time.getMinutes()).padStart(2, '0');
+                const ampm = time.getHours() >= 12 ? 'pm' : 'am';
+                return `<a href="${safeHref(st.booking_url)}" target="_blank" class="listing-time">${h}:${m}${ampm}</a>`;
+              }).join('')}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `).join('')}
+  </div>
+
+  </div><!-- /viewsWrapper -->
+
   <!-- Hidden Theatres -->
   <div class="hidden-theatres-footer" id="hiddenFooter">
     <button class="hidden-theatres-toggle" id="hiddenToggle"></button>
@@ -632,6 +815,26 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
   </div>
 
   <script>
+    // View toggle
+    var wrapper = document.getElementById('viewsWrapper');
+    var pageContent = document.querySelector('.page-content');
+    var savedView = localStorage.getItem('viewMode') || 'timeline';
+    wrapper.dataset.view = savedView;
+    pageContent.dataset.view = savedView;
+    document.querySelectorAll('.view-btn').forEach(function(btn) {
+      if (btn.dataset.view === savedView) btn.classList.add('active');
+      btn.addEventListener('click', function() {
+        var view = btn.dataset.view;
+        wrapper.dataset.view = view;
+        pageContent.dataset.view = view;
+        localStorage.setItem('viewMode', view);
+        document.querySelectorAll('.view-btn').forEach(function(b) {
+          b.classList.toggle('active', b.dataset.view === view);
+        });
+      });
+    });
+
+    // Hidden theatres
     function getHidden() {
       try { return JSON.parse(localStorage.getItem('hiddenTheatres') || '[]'); }
       catch { return []; }
@@ -682,6 +885,16 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
       }
     });
 
+    function cloneForUnhide(selector, name) {
+      var el = document.querySelector(selector + ' > [data-theatre="' + CSS.escape(name) + '"]');
+      if (!el) return '';
+      var clone = el.cloneNode(true);
+      clone.style.display = '';
+      var link = clone.querySelector('.hide-link');
+      if (link) link.textContent = 'Unhide';
+      return clone.outerHTML;
+    }
+
     function applyHidden() {
       var hidden = getHidden();
       var footer = document.getElementById('hiddenFooter');
@@ -706,38 +919,19 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[]): string {
         btn.textContent = 'Show Hidden Theatres';
       }
 
-      // Clone hidden rows for desktop
       var desktopRows = '';
       var agendaRows = '';
+      var listingRows = '';
       hidden.forEach(function(name) {
-        // Desktop
-        var row = document.querySelector('.timeline-container > [data-theatre="' + CSS.escape(name) + '"]');
-        if (row) {
-          var clone = row.cloneNode(true);
-          clone.style.display = '';
-          // Replace Hide with Unhide
-          var link = clone.querySelector('.hide-link');
-          if (link) {
-            link.textContent = 'Unhide';
-          }
-          desktopRows += clone.outerHTML;
-        }
-        // Mobile
-        var agenda = document.querySelector('.agenda-container > [data-theatre="' + CSS.escape(name) + '"]');
-        if (agenda) {
-          var clone2 = agenda.cloneNode(true);
-          clone2.style.display = '';
-          var link2 = clone2.querySelector('.hide-link');
-          if (link2) {
-            link2.textContent = 'Unhide';
-          }
-          agendaRows += clone2.outerHTML;
-        }
+        desktopRows += cloneForUnhide('.timeline-container', name);
+        agendaRows += cloneForUnhide('.agenda-container', name);
+        listingRows += cloneForUnhide('.listing-container', name);
       });
 
       section.innerHTML =
         '<div class="timeline-container">' + desktopRows + '</div>' +
-        '<div class="agenda-container">' + agendaRows + '</div>';
+        '<div class="agenda-container">' + agendaRows + '</div>' +
+        '<div class="listing-container">' + listingRows + '</div>';
     }
 
     applyHidden();

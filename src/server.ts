@@ -5,7 +5,7 @@ import { serveStatic } from '@hono/node-server/serve-static';
 import { db } from './db/connection.js';
 import cron from 'node-cron';
 import { runScrapeJob } from './scrape.js';
-import { renderIndexPage, ScreeningWithMovie, TheatreRow } from './pages/index.js';
+import { renderIndexPage, ScreeningWithMovie, TheatreRow, ListingGroup } from './pages/index.js';
 import { renderMoviePage } from './pages/movie.js';
 import { renderTheatrePage } from './pages/theatre.js';
 import { renderAllMoviesPage } from './pages/all-movies.js';
@@ -17,6 +17,15 @@ const app = new Hono();
 app.use('/favicon.png', serveStatic({ root: './public' }));
 
 const NEXT_DAY_FLIP_HOUR = 22; // Show tomorrow's screenings starting at 10pm
+
+// Cineplex venues - collapsed into compact movie-list view instead of per-auditorium timelines
+const CINEPLEX_VENUES = [
+  { display: 'Fifth Avenue', prefix: 'Fifth Ave' },
+  { display: 'International Village', prefix: 'Intl Village' },
+  { display: 'Scotiabank', prefix: 'Scotiabank' },
+  { display: 'Langley', prefix: 'Langley' },
+];
+const CINEPLEX_PREFIXES = CINEPLEX_VENUES.map(v => v.prefix);
 
 // Helper to get start and end of a day
 function getDayBounds(dateStr?: string) {
@@ -326,6 +335,41 @@ app.get('/movies', async (c) => {
   return c.html(html);
 });
 
+// Build a listing group from screenings: groups by movie, deduplicates showtimes
+function buildListingGroup(venue: string, screenings: ScreeningWithMovie[], sortByTime = false): ListingGroup {
+  const movieMap = new Map<number, {
+    movie_id: number; movie_title: string; poster_url: string | null;
+    letterboxd_url: string | null; tmdb_url: string | null;
+    showtimes: Map<number, { datetime: Date; booking_url: string }>;
+  }>();
+  for (const s of screenings) {
+    let movie = movieMap.get(s.movie_id);
+    if (!movie) {
+      movie = {
+        movie_id: s.movie_id, movie_title: s.movie_title, poster_url: s.poster_url,
+        letterboxd_url: s.letterboxd_url, tmdb_url: s.tmdb_url, showtimes: new Map(),
+      };
+      movieMap.set(s.movie_id, movie);
+    }
+    const timeKey = new Date(s.datetime).getTime();
+    if (!movie.showtimes.has(timeKey)) {
+      movie.showtimes.set(timeKey, { datetime: new Date(s.datetime), booking_url: s.booking_url });
+    }
+  }
+  return {
+    venue,
+    movies: Array.from(movieMap.values())
+      .map(m => ({
+        movie_id: m.movie_id, movie_title: m.movie_title, poster_url: m.poster_url,
+        letterboxd_url: m.letterboxd_url, tmdb_url: m.tmdb_url,
+        showtimes: Array.from(m.showtimes.values()).sort((a, b) => a.datetime.getTime() - b.datetime.getTime()),
+      }))
+      .sort(sortByTime
+        ? (a, b) => a.showtimes[0].datetime.getTime() - b.showtimes[0].datetime.getTime()
+        : (a, b) => a.movie_title.localeCompare(b.movie_title)),
+  };
+}
+
 // Home page - Timeline view
 app.get('/', async (c) => {
   const dateParam = c.req.query('date');
@@ -423,8 +467,33 @@ app.get('/', async (c) => {
     screenings: theatreMap.get(theatre) || [],
   }));
 
+  // Build listing groups for all venues (movie-list view)
+  const listingGroups: ListingGroup[] = [];
+
+  // Independent theatres: each is its own listing group
+  for (const theatre of THEATRE_ORDER) {
+    if (CINEPLEX_PREFIXES.some(p => theatre.startsWith(p))) continue;
+    const screenings = theatreMap.get(theatre) || [];
+    if (screenings.length === 0) continue;
+    const group = buildListingGroup(theatre, screenings, true);
+    group.theatreName = theatre;
+    listingGroups.push(group);
+  }
+
+  // Cineplex venues: merge auditoriums into one group per venue
+  for (const venue of CINEPLEX_VENUES) {
+    const venueScreenings: ScreeningWithMovie[] = [];
+    for (const [theatreName, screenings] of theatreMap) {
+      if (theatreName.startsWith(venue.prefix)) {
+        venueScreenings.push(...screenings);
+      }
+    }
+    if (venueScreenings.length === 0) continue;
+    listingGroups.push(buildListingGroup(venue.display, venueScreenings));
+  }
+
   // Render HTML
-  const html = renderIndexPage(date, theatres);
+  const html = renderIndexPage(date, theatres, listingGroups);
   return c.html(html);
 });
 
