@@ -10,11 +10,31 @@ import { renderMoviePage } from './pages/movie.js';
 import { renderTheatrePage } from './pages/theatre.js';
 import { renderAllMoviesPage } from './pages/all-movies.js';
 import { renderMoviesPage } from './pages/movies.js';
+import { setSearchMovies } from './pages/layout.js';
 import { pacificNow, pacificToday, pacificHour as getPacificHour } from './utils/time.js';
 
 const app = new Hono();
 
 app.use('/favicon.png', serveStatic({ root: './public' }));
+
+// Load search movies for the nav bar on every HTML page request
+app.use('*', async (c, next) => {
+  const path = c.req.path;
+  if (path.startsWith('/api/') || path === '/favicon.png' || path === '/robots.txt' || path === '/sitemap.xml') {
+    return next();
+  }
+  const now = pacificNow();
+  const movies = await db
+    .selectFrom('movie')
+    .innerJoin('screening', 'screening.movie_id', 'movie.id')
+    .select(['movie.id', 'movie.title'])
+    .where('screening.datetime', '>=', now)
+    .groupBy(['movie.id', 'movie.title'])
+    .orderBy('movie.title', 'asc')
+    .execute();
+  setSearchMovies(movies);
+  return next();
+});
 
 const NEXT_DAY_FLIP_HOUR = 22; // Show tomorrow's screenings starting at 10pm
 
@@ -326,6 +346,7 @@ app.get('/movies', async (c) => {
       'movie.poster_url',
       'movie.tmdb_url',
       'movie.letterboxd_url',
+      'movie.created_at as movie_created_at',
     ])
     .where('screening.datetime', '>=', now)
     .orderBy('screening.datetime', 'asc')

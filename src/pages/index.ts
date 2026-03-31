@@ -20,6 +20,7 @@ export interface ScreeningWithMovie {
   poster_url: string | null;
   tmdb_url: string | null;
   letterboxd_url: string | null;
+  movie_created_at?: Date;
 }
 
 export interface TheatreRow {
@@ -330,14 +331,13 @@ const PAGE_STYLES = `
 
     /* View switching */
     .timeline-container,
-    .agenda-container,
     .listing-container { display: none; }
 
     [data-view="timeline"] .timeline-container { display: block; }
-    [data-view="listing"] .listing-container { display: block; }
+    [data-view="listing"] .listing-container { display: flex; flex-wrap: wrap; gap: 16px; }
 
     .page-content[data-view="listing"] {
-      max-width: 850px;
+      max-width: 1060px;
     }
 
     /* View toggle */
@@ -369,98 +369,6 @@ const PAGE_STYLES = `
       color: white;
     }
 
-    /* Mobile Agenda Styles */
-
-    .agenda-theatre {
-      background: #262626;
-      border-radius: 8px;
-      margin-bottom: 16px;
-      overflow: hidden;
-    }
-
-    .agenda-theatre-name {
-      font-weight: 600;
-      font-size: 14px;
-      padding: 12px 16px;
-      background: #2a2a2a;
-      color: #a0a0a0;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .agenda-theatre-name a {
-      color: #a0a0a0;
-      text-decoration: none;
-    }
-
-    .agenda-theatre-name a:active {
-      color: #6a9a9a;
-    }
-
-    .agenda-screening {
-      display: flex;
-      align-items: center;
-      padding: 14px 16px;
-      border-bottom: 1px solid #353535;
-      position: relative;
-    }
-
-    .agenda-screening:last-child {
-      border-bottom: none;
-    }
-
-    .agenda-screening:active {
-      background: #303030;
-    }
-
-    .agenda-screening-overlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      z-index: 1;
-    }
-
-    .agenda-movie-time {
-      color: #808080;
-      font-size: 14px;
-      min-width: 70px;
-      margin-right: 12px;
-    }
-
-    .agenda-movie-title {
-      flex: 1;
-      font-weight: 500;
-      color: #d0d0d0;
-    }
-
-    .agenda-tix {
-      padding: 6px 12px;
-      background: #4a7c7c;
-      color: white;
-      text-decoration: none;
-      border-radius: 4px;
-      font-size: 13px;
-      position: relative;
-      z-index: 2;
-      margin-left: 12px;
-    }
-
-    .agenda-tix:active {
-      background: #3d6868;
-    }
-
-    .agenda-empty {
-      padding: 16px;
-      color: #505050;
-      font-style: italic;
-      text-align: center;
-    }
-
     /* Hide theatre feature */
     .hide-link {
       font-size: 10px;
@@ -468,11 +376,6 @@ const PAGE_STYLES = `
       cursor: pointer;
       display: block;
       margin-top: 2px;
-    }
-
-    .agenda-theatre-name .hide-link {
-      font-size: 14px;
-      margin-top: 0;
     }
 
     .hide-link:hover {
@@ -510,8 +413,10 @@ const PAGE_STYLES = `
     .listing-group {
       background: #262626;
       border-radius: 8px;
-      margin-bottom: 16px;
       overflow: hidden;
+      flex: 1 1 0;
+      min-width: 350px;
+      max-width: 500px;
     }
 
     .listing-group-header {
@@ -535,8 +440,9 @@ const PAGE_STYLES = `
 
     .listing-movie-row {
       display: flex;
-      align-items: center;
-      padding: 10px 20px;
+      flex-direction: column;
+      gap: 8px;
+      padding: 12px 20px;
       border-bottom: 1px solid #353535;
     }
 
@@ -545,11 +451,8 @@ const PAGE_STYLES = `
     }
 
     .listing-movie-title {
-      width: 350px;
-      flex-shrink: 0;
       font-weight: 500;
       font-size: 14px;
-      margin-right: 10px;
     }
 
     .listing-movie-title a {
@@ -612,40 +515,18 @@ const PAGE_STYLES = `
         display: none;
       }
 
-      .timeline-container,
-      .agenda-container {
+      .timeline-container {
         display: none !important;
       }
 
       .listing-container {
-        display: block !important;
-      }
-
-      .movie-card-info {
-        padding: 10px 12px;
-      }
-
-      .movie-card-header {
-        margin-bottom: 6px;
-      }
-
-      .movie-screening-row {
-        font-size: 13px;
-      }
-
-      .movie-screening-time {
-        min-width: 65px;
+        display: flex !important;
+        flex-wrap: wrap;
+        gap: 16px;
       }
 
       .listing-movie-row {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 8px;
         padding: 12px 16px;
-      }
-
-      .listing-movie-title {
-        width: auto;
       }
     }
 
@@ -742,34 +623,6 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[], listingGroup
               `;
             }).join('')}
           </div>
-        </div>
-      `;
-    }).join('')}
-  </div>
-
-  <!-- Mobile Agenda View -->
-  <div class="agenda-container">
-    ${!hasScreenings ? '<div class="no-screenings">No screenings for this day</div>' : ''}
-
-    ${theatres.filter(t => t.screenings.length > 0).map(({ theatre, screenings }) => {
-      return `
-        <div class="agenda-theatre" data-theatre="${escapeHtml(theatre)}">
-          <div class="agenda-theatre-name"><a href="/theatre/${encodeURIComponent(theatre)}">${escapeHtml(displayName(theatre))}</a> <span class="hide-link">Hide</span></div>
-          ${screenings.map(screening => {
-            const time = new Date(screening.datetime).toLocaleTimeString('en-US', {
-              hour: 'numeric',
-              minute: '2-digit'
-            });
-
-            return `
-              <div class="agenda-screening">
-                <a href="/movie/${screening.movie_id}" class="agenda-screening-overlay"></a>
-                <span class="agenda-movie-time">${time}</span>
-                <span class="agenda-movie-title">${escapeHtml(screening.movie_title)}</span>
-                <a href="${safeHref(screening.booking_url)}" target="_blank" class="agenda-tix">Tix</a>
-              </div>
-            `;
-          }).join('')}
         </div>
       `;
     }).join('')}
@@ -921,17 +774,14 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[], listingGroup
       }
 
       var desktopRows = '';
-      var agendaRows = '';
       var listingRows = '';
       hidden.forEach(function(name) {
         desktopRows += cloneForUnhide('.timeline-container', name);
-        agendaRows += cloneForUnhide('.agenda-container', name);
         listingRows += cloneForUnhide('.listing-container', name);
       });
 
       section.innerHTML =
         '<div class="timeline-container">' + desktopRows + '</div>' +
-        '<div class="agenda-container">' + agendaRows + '</div>' +
         '<div class="listing-container">' + listingRows + '</div>';
     }
 
