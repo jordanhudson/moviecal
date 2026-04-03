@@ -250,7 +250,8 @@ const PAGE_STYLES = `
       }
 
       .movie-card-header {
-        margin-bottom: 6px;
+        margin: -10px -12px 6px;
+        padding: 10px 12px;
       }
     }`;
 
