@@ -178,12 +178,46 @@ const PAGE_STYLES = `
         padding: 16px;
       }
 
+      .movie-header {
+        gap: 16px;
+      }
+
+      .movie-poster img {
+        width: 100px;
+      }
+
+      .movie-poster-placeholder {
+        width: 100px;
+        height: 150px;
+        font-size: 12px;
+      }
+
+      .movie-title {
+        font-size: 20px;
+        margin-bottom: 6px;
+      }
+
+      .movie-meta {
+        margin-bottom: 12px;
+        font-size: 13px;
+      }
+
+      .tmdb-link,
+      .letterboxd-link {
+        padding: 6px 12px;
+        font-size: 13px;
+      }
+
+      .letterboxd-link {
+        margin-left: 6px;
+      }
+
       .screening-date {
         width: auto;
-        min-width: 100px;
+        min-width: 80px;
         text-align: left;
         line-height: 1.3;
-        margin-right: 20px;
+        margin-right: 10px;
       }
 
       .screening-date .date-part {

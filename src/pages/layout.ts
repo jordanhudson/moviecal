@@ -239,7 +239,7 @@ export function renderPage({ title, description, canonicalPath, jsonLd, styles, 
         <a href="/movies"${activePage === 'movies' ? ' class="active"' : ''}><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 256 256" style="vertical-align: -2px; margin-right: 4px;"><path fill="currentColor" d="M232,216H183.36A103.95,103.95,0,1,0,128,232H232a8,8,0,0,0,0-16ZM40,128a88,88,0,1,1,88,88A88.1,88.1,0,0,1,40,128Zm88-24a24,24,0,1,0-24-24A24,24,0,0,0,128,104Zm0-32a8,8,0,1,1-8,8A8,8,0,0,1,128,72Zm24,104a24,24,0,1,0-24,24A24,24,0,0,0,152,176Zm-32,0a8,8,0,1,1,8,8A8,8,0,0,1,120,176Zm56-24a24,24,0,1,0-24-24A24,24,0,0,0,176,152Zm0-32a8,8,0,1,1-8,8A8,8,0,0,1,176,120ZM80,104a24,24,0,1,0,24,24A24,24,0,0,0,80,104Zm0,32a8,8,0,1,1,8-8A8,8,0,0,1,80,136Z"/></svg>By Movie</a>
       </div>
       <div class="top-bar-search">
-        <input type="text" id="searchInput" placeholder="Search movies..." autocomplete="off">
+        <input type="text" id="searchInput" placeholder="Search" autocomplete="off">
         <div class="search-results" id="searchResults"></div>
       </div>
     </div>
