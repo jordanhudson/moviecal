@@ -128,7 +128,6 @@ const PAGE_STYLES = `
       background: #404040;
       border-radius: 8px;
       margin-bottom: 16px;
-      overflow: hidden;
     }
 
     .movie-card-info {
@@ -146,7 +145,9 @@ const PAGE_STYLES = `
       top: 48px;
       background: #404040;
       z-index: 10;
-      padding: 8px 0;
+      margin: -12px -16px 8px;
+      padding: 12px 16px;
+      border-radius: 8px 8px 0 0;
     }
 
     .movie-card-title {
