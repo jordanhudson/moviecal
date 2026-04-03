@@ -9,6 +9,7 @@
 import 'dotenv/config';
 import { db, closeDb } from './connection.js';
 import { getTMDBMovieDetails, tmdbDetailsToMovieFields, searchTMDBByTitle } from '../utils/tmdb.js';
+import { recleanExistingTitles } from '../utils/reclean.js';
 
 async function repair() {
   const apiToken = process.env.TMDB_API_TOKEN;
@@ -16,6 +17,11 @@ async function repair() {
     console.error('TMDB_API_TOKEN not set, cannot repair');
     process.exit(1);
   }
+
+  // Pass 0: Re-clean existing titles (same logic as scrape, without Letterboxd retry)
+  console.log('Pass 0: Re-cleaning existing movie titles...\n');
+  await recleanExistingTitles();
+  console.log('');
 
   // Pass 1: Backfill missing fields for movies that have a TMDB ID
   const incomplete = await db

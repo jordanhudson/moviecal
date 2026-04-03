@@ -18,7 +18,7 @@ npm run build        # Compile TypeScript to dist/
 npm start            # Run compiled JavaScript from dist/
 npm run scrape       # Run full scraping job (all venues + TMDB + DB save)
 npm run migrate      # Run database migrations
-npm run repair       # Backfill missing TMDB data for movies that have a tmdb_id
+npm run repair       # Re-clean titles + backfill missing TMDB data
 npm run clear        # Clear all data from database
 npm run drop         # Drop all tables from database
 npm run server       # Start web server on http://localhost:3000
@@ -129,7 +129,8 @@ Page rendering is in `src/pages/`:
 - `src/db/connection.ts` - Database connection and config (reads from `.env`)
 - `src/db/schema.ts` - TypeScript types for Kysely matching the DB tables
 - `src/db/migrate.ts` - Migration runner (runs SQL files in `migrations/`)
-- `src/db/repair.ts` - Backfills missing TMDB data (popularity, poster, runtime) for movies that have a `tmdb_id`
+- `src/db/repair.ts` - Re-cleans existing titles (shared logic with scrape), then backfills missing TMDB data
+- `src/utils/reclean.ts` - Shared re-clean logic used by both scrape and repair
 - `src/db/clear.ts` - Deletes all data
 - `src/db/drop.ts` - Drops all tables
 - Migrations stored in `migrations/*.sql` (use `IF NOT EXISTS`/`IF EXISTS` for idempotency)
@@ -169,22 +170,26 @@ If adding a new scraper that returns UTC times, use the same pattern as Rio to c
 
 ### Title Cleaning
 
-**`src/utils/title-cleaner.ts`** strips parenthesized annotations from movie titles and returns them as screening notes.
+**`src/utils/title-cleaner.ts`** strips parenthesized annotations (5+ chars at end of title) from movie titles and returns them as screening notes. Also decodes HTML entities (e.g. `&#8217;` → `'`).
 
 `cleanMovieTitle("Backrooms (Advance Screening)")` returns `{ title: "Backrooms", note: "Advance Screening" }`.
 
-Current patterns: Final Screening, Film Screening, Anniversary Edition, Restoration, language w/e.s.t., Director in Attendance, Advance Screening.
+**TMDB verification** (`verifyTitleCleaning()` in `src/utils/tmdb.ts`): The catch-all pattern can false-positive on foreign films with English subtitles in parens (e.g. "Él (This Strange Passion)"). `verifyTitleCleaning()` wraps `cleanMovieTitle()` and checks TMDB before stripping:
+1. If the movie already has a `tmdb_id`: searches TMDB for the note content and checks if any result matches the existing `tmdb_id`. If so, the parens are an alternate title — keep them.
+2. If no `tmdb_id`: searches TMDB for the full uncleaned title, checks for exact title match OR whether searching the note content returns the same movie as the uncleaned title search.
 
-**Re-cleaning on scrape**: Each scrape run re-cleans all existing movie titles in the DB. When a new pattern is added to the title cleaner:
-1. Existing movies whose titles now clean differently get renamed
+This is the **single verification function** used by both scrape and repair.
+
+**Re-cleaning** (`recleanExistingTitles()` in `src/utils/reclean.ts`): Both scrape and repair runs re-clean all existing movie titles in the DB using the shared re-clean logic:
+1. Calls `verifyTitleCleaning()` for each existing title
 2. If the cleaned title matches another existing movie, screenings are merged and the stale record is deleted
 3. If TMDB or Letterboxd data is missing on the renamed movie, it retries the lookup with the cleaned title
 
-This means adding a new pattern to the title cleaner is safe — just add the regex and the next scrape run fixes everything up.
+This means adding a new pattern to the title cleaner is safe — just add the regex and the next scrape or repair run fixes everything up.
 
 ### TMDB Integration
 
-**Shared module**: `src/utils/tmdb.ts` contains `getTMDBMovieDetails()` and `tmdbDetailsToMovieFields()`. The latter is the **single place** that maps a TMDB API response to DB column values (`tmdb_id`, `tmdb_url`, `poster_url`, `runtime`, `year`, `tmdb_popularity`). When adding a new TMDB field, update `tmdbDetailsToMovieFields` and all code paths pick it up:
+**Shared module**: `src/utils/tmdb.ts` contains `getTMDBMovieDetails()`, `tmdbDetailsToMovieFields()`, and `verifyTitleCleaning()`. `tmdbDetailsToMovieFields()` is the **single place** that maps a TMDB API response to DB column values (`tmdb_id`, `tmdb_url`, `poster_url`, `runtime`, `year`, `tmdb_popularity`). When adding a new TMDB field, update `tmdbDetailsToMovieFields` and all code paths pick it up:
 - New movie insert in `scrape.ts`
 - Re-clean retry in `scrape.ts`
 - TMDB fix-match endpoint in `server.ts`

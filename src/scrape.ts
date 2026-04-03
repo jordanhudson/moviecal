@@ -6,9 +6,9 @@ import { scrapeRio } from './scrapers/rio-scraper.js';
 import { scrapeHollywood } from './scrapers/hollywood-scraper.js';
 import { scrapeCineplex } from './scrapers/cineplex-scraper.js';
 import type { Screening, Movie } from './models.js';
-import { cleanMovieTitle } from './utils/title-cleaner.js';
-import { getTMDBMovieDetails, tmdbDetailsToMovieFields } from './utils/tmdb.js';
+import { getTMDBMovieDetails, tmdbDetailsToMovieFields, verifyTitleCleaning } from './utils/tmdb.js';
 import type { TMDBMovieDetails } from './utils/tmdb.js';
+import { recleanExistingTitles } from './utils/reclean.js';
 import { db, closeDb } from './db/connection.js';
 
 interface TMDBMovieResult {
@@ -222,73 +222,8 @@ export async function runScrapeJob(scraperName?: string) {
   }
 
   // Re-clean existing movie titles in case new patterns were added to the title cleaner.
-  // This prevents duplicates when e.g. "Holy Days (Director in Attendance)" is already in the DB
-  // but the scraper now cleans it to "Holy Days".
-  const existingMovies = await db
-    .selectFrom('movie')
-    .select(['id', 'title', 'year', 'tmdb_id', 'letterboxd_url'])
-    .execute();
-
-  for (const existing of existingMovies) {
-    const { title: cleanedTitle } = cleanMovieTitle(existing.title);
-    if (cleanedTitle !== existing.title) {
-      // Check if a movie with the cleaned title already exists
-      const duplicate = await db
-        .selectFrom('movie')
-        .select('id')
-        .where('title', '=', cleanedTitle)
-        .executeTakeFirst();
-
-      if (duplicate) {
-        // Reassign screenings from the stale record to the cleaned one, then delete stale
-        await db
-          .updateTable('screening')
-          .set({ movie_id: duplicate.id })
-          .where('movie_id', '=', existing.id)
-          .execute();
-        await db
-          .deleteFrom('movie')
-          .where('id', '=', existing.id)
-          .execute();
-        console.log(`  → Merged stale movie "${existing.title}" into "${cleanedTitle}"`);
-      } else {
-        // Rename and retry missing external lookups with the cleaned title
-        const updates: Record<string, unknown> = { title: cleanedTitle };
-
-        if (!existing.tmdb_id) {
-          console.log(`  → Retrying TMDB for cleaned title "${cleanedTitle}"...`);
-          const tmdbResult = await searchTMDB(cleanedTitle, existing.year);
-          if (tmdbResult) {
-            const tmdbDetails = await getTMDBMovieDetails(tmdbResult.id);
-            if (tmdbDetails) {
-              Object.assign(updates, tmdbDetailsToMovieFields(tmdbDetails));
-            }
-            console.log(`    ✓ Found on TMDB: ${updates.tmdb_url}`);
-          } else {
-            console.log(`    ✗ Not found on TMDB`);
-          }
-        }
-
-        if (!existing.letterboxd_url || existing.letterboxd_url === 'MISS') {
-          console.log(`  → Retrying Letterboxd for cleaned title "${cleanedTitle}"...`);
-          const letterboxdUrl = await searchLetterboxd(cleanedTitle, existing.year);
-          if (letterboxdUrl) {
-            updates.letterboxd_url = letterboxdUrl;
-            console.log(`    ✓ Found on Letterboxd: ${letterboxdUrl}`);
-          } else {
-            console.log(`    ✗ Not found on Letterboxd`);
-          }
-        }
-
-        await db
-          .updateTable('movie')
-          .set(updates)
-          .where('id', '=', existing.id)
-          .execute();
-        console.log(`  → Cleaned movie title "${existing.title}" → "${cleanedTitle}"`);
-      }
-    }
-  }
+  // Uses shared re-clean logic with TMDB verification to avoid stripping real title parts.
+  await recleanExistingTitles({ searchLetterboxd });
 
   // Extract unique movies (dedupe on title)
   const uniqueMoviesMap = new Map<string, Movie>();
@@ -315,31 +250,26 @@ export async function runScrapeJob(scraperName?: string) {
       continue;
     }
 
-    // If any screening of this movie has a note, try TMDB with the uncleaned title first.
-    // If TMDB returns an exact title match for the uncleaned version, the parens are part of
-    // the real title (e.g. "Él (This Strange Passion)") — undo the cleaning.
+    // If any screening has a note, verify with TMDB that the parens aren't part of the real title
     const movieScreenings = allScreenings.filter(s => s.movie.title === movie.title);
     const firstNote = movieScreenings.find(s => s.note)?.note ?? null;
-    let uncleanedTmdbResult: TMDBMovieResult | null = null;
 
     if (firstNote) {
-      const uncleanedTitle = `${movie.title} (${firstNote})`;
-      console.log(`  → Checking if "${uncleanedTitle}" is the real title on TMDB...`);
-      uncleanedTmdbResult = await searchTMDB(uncleanedTitle, movie.year, movie.runtime);
-      if (uncleanedTmdbResult && uncleanedTmdbResult.title.toLowerCase() === uncleanedTitle.toLowerCase()) {
-        console.log(`    ✓ Parens are part of real title, keeping "${uncleanedTitle}"`);
-        movie.title = uncleanedTitle;
+      const rawTitle = `${movie.title} (${firstNote})`;
+      const verified = await verifyTitleCleaning(rawTitle, movie.year);
+      if (verified.title !== movie.title) {
+        // TMDB confirmed parens are part of the real title — undo cleaning
+        console.log(`  → TMDB confirms "${verified.title}" is the real title, keeping parens`);
+        movie.title = verified.title;
         for (const s of movieScreenings) s.note = null;
-      } else {
-        uncleanedTmdbResult = null; // didn't match, discard
       }
     }
 
-    // Search TMDB with the (possibly uncleaned) title
+    // Search TMDB with the (possibly restored) title
     const searchYear = movie.year ? ` (${movie.year})` : '';
     const runtimeInfo = movie.runtime ? ` [${movie.runtime} min]` : '';
     console.log(`  → Searching TMDB for "${movie.title}${searchYear}${runtimeInfo}"...`);
-    const tmdbResult = uncleanedTmdbResult ?? await searchTMDB(movie.title, movie.year, movie.runtime);
+    const tmdbResult = await searchTMDB(movie.title, movie.year, movie.runtime);
 
     let tmdbFields: Partial<ReturnType<typeof tmdbDetailsToMovieFields>> = {};
     let runtime: number | null = movie.runtime;
