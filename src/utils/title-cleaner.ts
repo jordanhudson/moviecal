@@ -20,13 +20,8 @@ export function cleanMovieTitle(title: string): CleanTitleResult {
   const notes: string[] = [];
 
   const patterns = [
-    /\s*\((Final Screening)\)\s*/gi,
-    /\s*\((Film Screening)\)\s*/gi,
-    /\s*\((.+?\s+Anniversary\s+Edition)\)\s*/gi,
-    /\s*\((.+?\s+Restoration)\)\s*/gi,
-    /\s*\(([A-Za-z]+\s+w\/\s*e\.s\.t\.)\)\s*/gi,
-    /\s*\((Director in Attendance)\)\s*/gi,
-    /\s*\((Advance Screening)\)\s*/gi,
+    // Catch-all: any parenthesized text (5+ chars) at end of title
+    /\s*\((.{5,})\)$/,
   ];
 
   let cleaned = title;

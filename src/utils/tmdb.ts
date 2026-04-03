@@ -47,6 +47,40 @@ export async function getTMDBMovieDetails(tmdbId: number): Promise<TMDBMovieDeta
   }
 }
 
+export interface TMDBSearchResult {
+  id: number;
+  title: string;
+  release_date?: string;
+  poster_path?: string | null;
+  popularity?: number;
+}
+
+/**
+ * Simple TMDB title search. Returns the first result, or null.
+ * For more advanced matching (runtime, short filtering), use searchTMDB in scrape.ts.
+ */
+export async function searchTMDBByTitle(title: string, year?: number | null): Promise<TMDBSearchResult | null> {
+  const apiToken = process.env.TMDB_API_TOKEN;
+  if (!apiToken) return null;
+
+  try {
+    let url = `https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(title)}`;
+    if (year) url += `&year=${year}`;
+
+    const response = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${apiToken}`, 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(10_000),
+    });
+
+    if (!response.ok) return null;
+
+    const data = await response.json() as { results: TMDBSearchResult[] };
+    return data.results[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export function tmdbDetailsToMovieFields(details: TMDBMovieDetails): TMDBMovieFields {
   return {
     tmdb_id: details.id,

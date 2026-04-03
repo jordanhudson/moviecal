@@ -315,11 +315,31 @@ export async function runScrapeJob(scraperName?: string) {
       continue;
     }
 
-    // Movie doesn't exist, try to find it on TMDB
+    // If any screening of this movie has a note, try TMDB with the uncleaned title first.
+    // If TMDB returns an exact title match for the uncleaned version, the parens are part of
+    // the real title (e.g. "Él (This Strange Passion)") — undo the cleaning.
+    const movieScreenings = allScreenings.filter(s => s.movie.title === movie.title);
+    const firstNote = movieScreenings.find(s => s.note)?.note ?? null;
+    let uncleanedTmdbResult: TMDBMovieResult | null = null;
+
+    if (firstNote) {
+      const uncleanedTitle = `${movie.title} (${firstNote})`;
+      console.log(`  → Checking if "${uncleanedTitle}" is the real title on TMDB...`);
+      uncleanedTmdbResult = await searchTMDB(uncleanedTitle, movie.year, movie.runtime);
+      if (uncleanedTmdbResult && uncleanedTmdbResult.title.toLowerCase() === uncleanedTitle.toLowerCase()) {
+        console.log(`    ✓ Parens are part of real title, keeping "${uncleanedTitle}"`);
+        movie.title = uncleanedTitle;
+        for (const s of movieScreenings) s.note = null;
+      } else {
+        uncleanedTmdbResult = null; // didn't match, discard
+      }
+    }
+
+    // Search TMDB with the (possibly uncleaned) title
     const searchYear = movie.year ? ` (${movie.year})` : '';
     const runtimeInfo = movie.runtime ? ` [${movie.runtime} min]` : '';
     console.log(`  → Searching TMDB for "${movie.title}${searchYear}${runtimeInfo}"...`);
-    const tmdbResult = await searchTMDB(movie.title, movie.year, movie.runtime);
+    const tmdbResult = uncleanedTmdbResult ?? await searchTMDB(movie.title, movie.year, movie.runtime);
 
     let tmdbFields: Partial<ReturnType<typeof tmdbDetailsToMovieFields>> = {};
     let runtime: number | null = movie.runtime;
