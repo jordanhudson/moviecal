@@ -5,16 +5,23 @@ export interface CleanTitleResult {
   note: string | null;
 }
 
+function decodeHtmlEntities(str: string): string {
+  const named: Record<string, string> = {
+    '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"',
+    '&#039;': "'", '&apos;': "'",
+  };
+  return str
+    .replace(/&(?:amp|lt|gt|quot|apos|#039);/g, m => named[m])
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(parseInt(n, 10)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, n) => String.fromCharCode(parseInt(n, 16)));
+}
+
 /**
- * Removes common annotations from movie titles like:
- * - (Final Screening)
- * - (50th Anniversary Edition)
- * - (4K Restoration)
- * - (French w/e.s.t.)
- * - (Korean w/ e.s.t.)
- * etc.
+ * Cleans movie titles:
+ * 1. Decodes HTML entities (e.g. &#8217; → ', &#038; → &)
+ * 2. Strips parenthesized annotations (5+ chars) at end of title, saved as note
  *
- * Returns the cleaned title and the extracted annotations (without parens) as a note.
+ * Returns the cleaned title and the extracted annotation (without parens) as a note.
  */
 export function cleanMovieTitle(title: string): CleanTitleResult {
   const notes: string[] = [];
@@ -24,7 +31,7 @@ export function cleanMovieTitle(title: string): CleanTitleResult {
     /\s*\((.{5,})\)$/,
   ];
 
-  let cleaned = title;
+  let cleaned = decodeHtmlEntities(title);
   for (const pattern of patterns) {
     cleaned = cleaned.replace(pattern, (_match, captured) => {
       notes.push(captured.trim());
