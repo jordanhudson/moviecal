@@ -7,6 +7,8 @@ import { scrapeHollywood } from './scrapers/hollywood-scraper.js';
 import { scrapeCineplex } from './scrapers/cineplex-scraper.js';
 import type { Screening, Movie } from './models.js';
 import { cleanMovieTitle } from './utils/title-cleaner.js';
+import { getTMDBMovieDetails, tmdbDetailsToMovieFields } from './utils/tmdb.js';
+import type { TMDBMovieDetails } from './utils/tmdb.js';
 import { db, closeDb } from './db/connection.js';
 
 interface TMDBMovieResult {
@@ -19,15 +21,6 @@ interface TMDBMovieResult {
 
 interface TMDBSearchResponse {
   results: TMDBMovieResult[];
-}
-
-interface TMDBMovieDetails {
-  id: number;
-  title: string;
-  release_date?: string;
-  poster_path?: string | null;
-  runtime: number | null;
-  popularity?: number;
 }
 
 async function searchTMDB(title: string, year?: number | null, runtime?: number | null): Promise<TMDBMovieResult | null> {
@@ -105,35 +98,6 @@ async function searchTMDB(title: string, year?: number | null, runtime?: number 
     return bestMatch || filteredResults[0];
   } catch (error) {
     console.warn(`Error searching TMDB for "${title}":`, error);
-    return null;
-  }
-}
-
-async function getTMDBMovieDetails(tmdbId: number): Promise<TMDBMovieDetails | null> {
-  const apiToken = process.env.TMDB_API_TOKEN;
-  if (!apiToken) {
-    return null;
-  }
-
-  try {
-    const url = `https://api.themoviedb.org/3/movie/${tmdbId}`;
-    const response = await fetch(url, {
-      headers: {
-        'Authorization': `Bearer ${apiToken}`,
-        'Accept': 'application/json'
-      },
-      signal: AbortSignal.timeout(10_000),
-    });
-
-    if (!response.ok) {
-      console.warn(`TMDB details fetch failed for ID ${tmdbId}: ${response.status}`);
-      return null;
-    }
-
-    const data: TMDBMovieDetails = await response.json();
-    return data;
-  } catch (error) {
-    console.warn(`Error fetching TMDB details for ID ${tmdbId}:`, error);
     return null;
   }
 }
@@ -296,13 +260,9 @@ export async function runScrapeJob(scraperName?: string) {
           const tmdbResult = await searchTMDB(cleanedTitle, existing.year);
           if (tmdbResult) {
             const tmdbDetails = await getTMDBMovieDetails(tmdbResult.id);
-            updates.tmdb_id = tmdbResult.id;
-            updates.tmdb_url = `https://www.themoviedb.org/movie/${tmdbResult.id}`;
-            updates.poster_url = tmdbDetails?.poster_path
-              ? `https://image.tmdb.org/t/p/w500${tmdbDetails.poster_path}`
-              : null;
-            if (tmdbDetails?.runtime) updates.runtime = tmdbDetails.runtime;
-            if (tmdbDetails?.popularity) updates.tmdb_popularity = tmdbDetails.popularity;
+            if (tmdbDetails) {
+              Object.assign(updates, tmdbDetailsToMovieFields(tmdbDetails));
+            }
             console.log(`    ✓ Found on TMDB: ${updates.tmdb_url}`);
           } else {
             console.log(`    ✗ Not found on TMDB`);
@@ -361,46 +321,36 @@ export async function runScrapeJob(scraperName?: string) {
     console.log(`  → Searching TMDB for "${movie.title}${searchYear}${runtimeInfo}"...`);
     const tmdbResult = await searchTMDB(movie.title, movie.year, movie.runtime);
 
-    let tmdbId: number | null = null;
-    let tmdbUrl: string | null = null;
-    let posterUrl: string | null = null;
-    let tmdbPopularity: number | null = null;
-    let runtime: number | null = movie.runtime; // Start with runtime from scraper
+    let tmdbFields: Partial<ReturnType<typeof tmdbDetailsToMovieFields>> = {};
+    let runtime: number | null = movie.runtime;
     let year: number | null = movie.year;
 
     if (tmdbResult) {
-      tmdbId = tmdbResult.id;
-      tmdbUrl = `https://www.themoviedb.org/movie/${tmdbResult.id}`;
-
-      // Fetch full movie details to get runtime
+      // Fetch full movie details to get runtime, popularity, etc.
       const tmdbDetails = await getTMDBMovieDetails(tmdbResult.id);
 
       if (tmdbDetails) {
-        posterUrl = tmdbDetails.poster_path
-          ? `https://image.tmdb.org/t/p/w500${tmdbDetails.poster_path}`
-          : null;
-
+        tmdbFields = tmdbDetailsToMovieFields(tmdbDetails);
         // Prefer TMDB runtime, fall back to scraper runtime
-        runtime = tmdbDetails.runtime || runtime;
-        tmdbPopularity = tmdbDetails.popularity ?? null;
-
-        // Extract year from release_date if available
-        if (tmdbDetails.release_date && !year) {
-          year = parseInt(tmdbDetails.release_date.substring(0, 4));
-        }
+        runtime = tmdbFields.runtime || runtime;
+        // Prefer scraper year, fall back to TMDB year
+        if (!year) year = tmdbFields.year ?? null;
       } else {
         // Fallback to search result data if details fetch fails
-        posterUrl = tmdbResult.poster_path
-          ? `https://image.tmdb.org/t/p/w500${tmdbResult.poster_path}`
-          : null;
-
+        tmdbFields = {
+          tmdb_id: tmdbResult.id,
+          tmdb_url: `https://www.themoviedb.org/movie/${tmdbResult.id}`,
+          poster_url: tmdbResult.poster_path
+            ? `https://image.tmdb.org/t/p/w500${tmdbResult.poster_path}`
+            : null,
+        };
         if (tmdbResult.release_date && !year) {
           year = parseInt(tmdbResult.release_date.substring(0, 4));
         }
       }
 
       tmdbFoundCount++;
-      console.log(`    ✓ Found on TMDB: ${tmdbUrl}${runtime ? ` (${runtime} min)` : ''}`);
+      console.log(`    ✓ Found on TMDB: ${tmdbFields.tmdb_url}${runtime ? ` (${runtime} min)` : ''}`);
     } else {
       console.log(`    ✗ Not found on TMDB${runtime ? ` (using scraped runtime: ${runtime} min)` : ''}`);
     }
@@ -422,10 +372,10 @@ export async function runScrapeJob(scraperName?: string) {
         year,
         director: movie.director,
         runtime,
-        tmdb_id: tmdbId,
-        tmdb_url: tmdbUrl,
-        poster_url: posterUrl,
-        tmdb_popularity: tmdbPopularity,
+        tmdb_id: tmdbFields.tmdb_id ?? null,
+        tmdb_url: tmdbFields.tmdb_url ?? null,
+        poster_url: tmdbFields.poster_url ?? null,
+        tmdb_popularity: tmdbFields.tmdb_popularity ?? null,
         letterboxd_url: letterboxdUrl ?? 'MISS',
       })
       .execute();

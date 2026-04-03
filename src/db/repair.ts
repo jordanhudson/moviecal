@@ -5,43 +5,7 @@
 
 import 'dotenv/config';
 import { db, closeDb } from './connection.js';
-
-interface TMDBMovieDetails {
-  id: number;
-  title: string;
-  release_date?: string;
-  poster_path?: string | null;
-  runtime: number | null;
-  popularity?: number;
-}
-
-async function getTMDBMovieDetails(tmdbId: number): Promise<TMDBMovieDetails | null> {
-  const apiToken = process.env.TMDB_API_TOKEN;
-  if (!apiToken) {
-    return null;
-  }
-
-  try {
-    const url = `https://api.themoviedb.org/3/movie/${tmdbId}`;
-    const response = await fetch(url, {
-      headers: {
-        'Authorization': `Bearer ${apiToken}`,
-        'Accept': 'application/json'
-      },
-      signal: AbortSignal.timeout(10_000),
-    });
-
-    if (!response.ok) {
-      console.warn(`  TMDB fetch failed for ID ${tmdbId}: ${response.status}`);
-      return null;
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.warn(`  Error fetching TMDB details for ID ${tmdbId}:`, error);
-    return null;
-  }
-}
+import { getTMDBMovieDetails, tmdbDetailsToMovieFields } from '../utils/tmdb.js';
 
 async function repair() {
   const apiToken = process.env.TMDB_API_TOKEN;
@@ -79,19 +43,20 @@ async function repair() {
       continue;
     }
 
+    const fresh = tmdbDetailsToMovieFields(details);
     const updates: Record<string, unknown> = {};
 
-    if (movie.tmdb_popularity === null && details.popularity != null) {
-      updates.tmdb_popularity = details.popularity;
+    if (movie.tmdb_popularity === null && fresh.tmdb_popularity != null) {
+      updates.tmdb_popularity = fresh.tmdb_popularity;
     }
-    if (movie.poster_url === null && details.poster_path) {
-      updates.poster_url = `https://image.tmdb.org/t/p/w500${details.poster_path}`;
+    if (movie.poster_url === null && fresh.poster_url) {
+      updates.poster_url = fresh.poster_url;
     }
-    if (movie.runtime === null && details.runtime) {
-      updates.runtime = details.runtime;
+    if (movie.runtime === null && fresh.runtime) {
+      updates.runtime = fresh.runtime;
     }
-    if (movie.year === null && details.release_date) {
-      updates.year = parseInt(details.release_date.substring(0, 4));
+    if (movie.year === null && fresh.year) {
+      updates.year = fresh.year;
     }
 
     if (Object.keys(updates).length === 0) {

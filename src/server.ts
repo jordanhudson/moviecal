@@ -12,6 +12,7 @@ import { renderAllMoviesPage } from './pages/all-movies.js';
 import { renderMoviesPage } from './pages/movies.js';
 import { setSearchMovies } from './pages/layout.js';
 import { pacificNow, pacificToday, pacificHour as getPacificHour } from './utils/time.js';
+import { getTMDBMovieDetails, tmdbDetailsToMovieFields } from './utils/tmdb.js';
 
 const app = new Hono();
 
@@ -119,30 +120,14 @@ app.post('/api/movie/:id/tmdb-update', async (c) => {
   const tmdbId = body.tmdbId;
   if (!tmdbId) return c.json({ error: 'tmdbId required' }, 400);
 
-  const token = process.env.TMDB_API_TOKEN;
-  if (!token) return c.json({ error: 'TMDB_API_TOKEN not configured' }, 500);
+  const details = await getTMDBMovieDetails(tmdbId);
+  if (!details) return c.json({ error: 'TMDB fetch failed' }, 502);
 
-  const resp = await fetch(`https://api.themoviedb.org/3/movie/${tmdbId}?language=en-US`, {
-    headers: { Authorization: `Bearer ${token}` },
-    signal: AbortSignal.timeout(10_000),
-  });
-  if (!resp.ok) return c.json({ error: 'TMDB fetch failed' }, 502);
-
-  const tmdbMovie = await resp.json() as { id: number; title: string; release_date: string; runtime: number | null; poster_path: string | null };
-
-  const year = tmdbMovie.release_date ? parseInt(tmdbMovie.release_date.split('-')[0], 10) : null;
-  const posterUrl = tmdbMovie.poster_path ? `https://image.tmdb.org/t/p/w500${tmdbMovie.poster_path}` : null;
-  const tmdbUrl = `https://www.themoviedb.org/movie/${tmdbMovie.id}`;
+  const fields = tmdbDetailsToMovieFields(details);
 
   await db
     .updateTable('movie')
-    .set({
-      tmdb_id: tmdbMovie.id,
-      tmdb_url: tmdbUrl,
-      poster_url: posterUrl,
-      runtime: tmdbMovie.runtime,
-      year: year,
-    })
+    .set(fields)
     .where('id', '=', movieId)
     .execute();
 

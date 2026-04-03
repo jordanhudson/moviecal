@@ -18,6 +18,7 @@ npm run build        # Compile TypeScript to dist/
 npm start            # Run compiled JavaScript from dist/
 npm run scrape       # Run full scraping job (all venues + TMDB + DB save)
 npm run migrate      # Run database migrations
+npm run repair       # Backfill missing TMDB data for movies that have a tmdb_id
 npm run clear        # Clear all data from database
 npm run drop         # Drop all tables from database
 npm run server       # Start web server on http://localhost:3000
@@ -25,18 +26,22 @@ npm run server       # Start web server on http://localhost:3000
 
 ## Deployment
 
-Deployed on Fly.io as `movieclock`:
+Deployed on Fly.io as `movieclock`.
 
+**Auto-deploy**: Pushing to `main` triggers GitHub Actions (`.github/workflows/deploy.yml`) which runs `flyctl deploy --remote-only`. Do NOT run `fly deploy` manually — just push and GHA handles it.
+
+**Manual commands** (for debugging/repair only):
 ```bash
-fly deploy                                    # Deploy to production
 fly status -a movieclock                      # Check app status
 fly ssh console -a movieclock -C "command"   # Run command on server
 fly logs -a movieclock                        # View logs
 ```
 
+**Important**: `tsx` is not available on the production image (it's a dev dependency). To run scripts on prod, use the compiled JS: `fly ssh console -a movieclock -C "node dist/db/repair.js"` (NOT `npm run repair`).
+
 **Configuration** (`fly.toml`):
 - `min_machines_running = 1` - Keeps one machine always running for cron jobs
-- Release command runs migrations on deploy
+- Release command runs migrations on deploy (`node dist/db/migrate.js`)
 
 ## Architecture
 
@@ -50,17 +55,18 @@ fly logs -a movieclock                        # View logs
 ### Entry Points
 
 1. **`src/scrape.ts`** - Production scraping job
-   - Runs all scrapers in parallel (VIFF, Rio, Cinematheque, Park)
-   - Enriches movies with TMDB API data (requires `TMDB_API_TOKEN` in `.env`)
-   - Saves to PostgreSQL database
-   - Handles duplicates via unique constraint
-   - Use `npm run scrape` to run
+   - Runs all scrapers in parallel (VIFF, Rio, Cinematheque, Park, Hollywood, Cineplex)
+   - Re-cleans existing movie titles (see Title Cleaning below)
+   - Enriches new movies with TMDB and Letterboxd data
+   - Saves to PostgreSQL using delete-and-reinsert per scraper
+   - Use `npm run scrape` to run, or `npm run scrape {name}` for a single scraper
 
 2. **`src/server.ts`** - Hono web server
    - Routes requests to page renderers
+   - Hosts admin API endpoints for TMDB/Letterboxd fix-match
    - Runs cron job every 2 hours to scrape
+   - After 10pm Pacific, home page auto-shows tomorrow's screenings
    - Runs on port 3000
-   - Use `npm run server` to run
 
 ### Web Pages
 
@@ -68,33 +74,65 @@ Page rendering is in `src/pages/`:
 
 - **`src/pages/index.ts`** - Home page (`/`)
   - Desktop: Timeline view with theatre rows and time-positioned screening blocks
-  - Mobile (<800px): Agenda view with theatre sections listing movies
+  - Mobile (<800px): Listing view with theatre sections listing movies
+  - Cineplex venues collapse multiple auditoriums into one group
   - Query by date: `/?date=YYYY-MM-DD`
 
 - **`src/pages/movie.ts`** - Movie detail page (`/movie/:id`)
-  - Shows poster, title, year, runtime, director
-  - Link to TMDB
-  - Chronological list of all screenings (past grayed out)
+  - Shows poster, title, year, runtime, director, TMDB + Letterboxd links
+  - Chronological list of future screenings with notes displayed
+  - Hidden TMDB fix-match modal (10 clicks on poster to activate, requires `ADMIN_TOKEN`)
+
+- **`src/pages/theatre.ts`** - Theatre detail page (`/theatre/:name`)
+  - Lists all future screenings at this theatre with notes displayed
+
+- **`src/pages/movies.ts`** - Movies page (`/movies`)
+  - All movies with upcoming screenings, grouped by movie
+  - Client-side sort: Date Added, Name, Popularity (TMDB)
+  - Client-side theatre filtering (persisted in localStorage)
+
+- **`src/pages/all-movies.ts`** - Internal movies page (`/internal-movies`)
+  - Admin-oriented movie list with TMDB fix-match modal
+
+- **`src/pages/layout.ts`** - Shared page layout/shell
+  - Nav bar with search (searches movies with upcoming screenings)
+  - Cloudflare Web Analytics
+
+- **`src/pages/tmdb-modal.ts`** - Shared TMDB fix-match modal component
+
+### API Endpoints
+
+- `GET /api/movie/:id/tmdb-search` - Search TMDB (requires `ADMIN_TOKEN`)
+- `POST /api/movie/:id/tmdb-update` - Fix TMDB match for a movie (requires `ADMIN_TOKEN`)
+- `POST /api/movie/:id/letterboxd-update` - Fix Letterboxd URL for a movie (requires `ADMIN_TOKEN`)
+- `GET /robots.txt` - Robots file with sitemap reference
+- `GET /sitemap.xml` - Dynamic sitemap of movies and theatres with future screenings
 
 ### Database Layer
 
 **Stack**: PostgreSQL + Kysely (type-safe SQL query builder) + pg driver
 
-**Schema** (see `migrations/001_initial_schema.sql`):
-- `movie` table: id, title, year, director, runtime, tmdb_id, tmdb_url, poster_url
-- `screening` table: id, movie_id, datetime, theatre_name, booking_url
-- Unique constraint on (movie_id, datetime, theatre_name) prevents duplicate screenings
+**Schema** (defined in `migrations/*.sql`, types in `src/db/schema.ts`):
+
+`movie` table:
+- `id`, `title`, `year`, `director`, `runtime`
+- `tmdb_id`, `tmdb_url`, `poster_url`, `tmdb_popularity` — from TMDB
+- `letterboxd_url` — from Letterboxd (`'MISS'` = searched but not found, `null` = not yet searched)
+- `created_at`, `updated_at`
+
+`screening` table:
+- `id`, `movie_id`, `datetime`, `theatre_name`, `booking_url`
+- `note` — extracted from title cleaning (e.g. "Advance Screening", "4K Restoration")
+- `created_at`, `updated_at`
 
 **Files**:
 - `src/db/connection.ts` - Database connection and config (reads from `.env`)
-- `src/db/schema.ts` - TypeScript types for Kysely (generated types matching tables)
-- `src/db/migrate.ts` - Simple migration runner (runs SQL files in `migrations/`)
-- Migrations stored in `migrations/*.sql`
-
-**Database Setup**:
-- Requires PostgreSQL running (use `docker-compose.yml` or local install)
-- Configure via environment variables: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`
-- Run `npm run migrate` to initialize schema
+- `src/db/schema.ts` - TypeScript types for Kysely matching the DB tables
+- `src/db/migrate.ts` - Migration runner (runs SQL files in `migrations/`)
+- `src/db/repair.ts` - Backfills missing TMDB data (popularity, poster, runtime) for movies that have a `tmdb_id`
+- `src/db/clear.ts` - Deletes all data
+- `src/db/drop.ts` - Drops all tables
+- Migrations stored in `migrations/*.sql` (use `IF NOT EXISTS`/`IF EXISTS` for idempotency)
 
 ### Global Data Models
 
@@ -102,18 +140,20 @@ All scrapers must return data using standardized models (`src/models.ts`):
 
 ```typescript
 interface Movie {
-  id: number | null;        // Database ID (null for new movies)
+  id: number | null;
   title: string;
   year: number | null;
   director: string | null;
+  runtime: number | null;
 }
 
 interface Screening {
-  id: number | null;        // Database ID (null for new screenings)
-  datetime: Date;           // Parsed as Date object (assume Pacific timezone)
+  id: number | null;
+  datetime: Date;
   theatreName: string;
   bookingUrl: string;
-  movie: Movie;             // Each screening embeds its Movie
+  note: string | null;    // Extracted by title cleaner (e.g. "4K Restoration")
+  movie: Movie;
 }
 ```
 
@@ -121,10 +161,40 @@ interface Screening {
 
 **Important**: The system stores times as naive timestamps representing Pacific time. The server runs in UTC on Fly.io.
 
-- **VIFF, Cinematheque, Park**: Return times without timezone info - these are parsed as local time (UTC on server), which works correctly because the times are stored/displayed as-is
+- **VIFF, Cinematheque, Park, Hollywood**: Return times without timezone info - these are parsed as local time (UTC on server), which works correctly because the times are stored/displayed as-is
 - **Rio**: Returns UTC times with `+00:00` offset - these must be converted to Pacific-naive format using `utcToPacificNaive()` in `rio-scraper.ts`
+- **Cineplex**: Returns local Pacific time without timezone info - parsed with `parsePacificNaive()`
 
 If adding a new scraper that returns UTC times, use the same pattern as Rio to convert to Pacific-naive format.
+
+### Title Cleaning
+
+**`src/utils/title-cleaner.ts`** strips parenthesized annotations from movie titles and returns them as screening notes.
+
+`cleanMovieTitle("Backrooms (Advance Screening)")` returns `{ title: "Backrooms", note: "Advance Screening" }`.
+
+Current patterns: Final Screening, Film Screening, Anniversary Edition, Restoration, language w/e.s.t., Director in Attendance, Advance Screening.
+
+**Re-cleaning on scrape**: Each scrape run re-cleans all existing movie titles in the DB. When a new pattern is added to the title cleaner:
+1. Existing movies whose titles now clean differently get renamed
+2. If the cleaned title matches another existing movie, screenings are merged and the stale record is deleted
+3. If TMDB or Letterboxd data is missing on the renamed movie, it retries the lookup with the cleaned title
+
+This means adding a new pattern to the title cleaner is safe — just add the regex and the next scrape run fixes everything up.
+
+### TMDB Integration
+
+**Shared module**: `src/utils/tmdb.ts` contains `getTMDBMovieDetails()` and `tmdbDetailsToMovieFields()`. The latter is the **single place** that maps a TMDB API response to DB column values (`tmdb_id`, `tmdb_url`, `poster_url`, `runtime`, `year`, `tmdb_popularity`). When adding a new TMDB field, update `tmdbDetailsToMovieFields` and all code paths pick it up:
+- New movie insert in `scrape.ts`
+- Re-clean retry in `scrape.ts`
+- TMDB fix-match endpoint in `server.ts`
+- Repair script in `db/repair.ts`
+
+**Search**: `scrape.ts` also has `searchTMDB()` which searches TMDB by title+year, filters out shorts (<60 min), and picks the best runtime match.
+
+**Letterboxd**: `scrape.ts` has `searchLetterboxd()` which tries slug-based URL lookups on letterboxd.com. Stores `'MISS'` for not-found to distinguish from not-yet-searched (`null`).
+
+Requires `TMDB_API_TOKEN` in `.env` (optional - scraper works without it).
 
 ### Scraper Patterns
 
@@ -139,30 +209,29 @@ Scrapers use one of two approaches depending on whether the venue has an API:
 2. **Export async function**: `export async function scrape{Venue}(): Promise<Screening[]>`
 3. **Fetch from API**: Use `fetch()` to call the API endpoint
 4. **Parse response**: Extract film title, datetime (usually ISO 8601), booking URL, venue
-5. **Convert to global models**: Map API data to `Screening[]`
+5. **Clean title**: Use `cleanMovieTitle()` to extract title and note
+6. **Convert to global models**: Map API data to `Screening[]`
 
 **Example (API-based)**:
 ```typescript
 import { Movie, Screening } from '../models.js';
-
-interface VenueApiEvent {
-  title: string;
-  start_time: string; // ISO 8601
-  booking_url: string;
-  venue_id: string;
-}
+import { cleanMovieTitle } from '../utils/title-cleaner.js';
 
 export async function scrapeVenue(): Promise<Screening[]> {
   const response = await fetch('https://venue.com/api/events');
-  const events: VenueApiEvent[] = await response.json();
+  const events = await response.json();
 
-  return events.map(event => ({
-    id: null,
-    datetime: new Date(event.start_time),
-    theatreName: event.venue_id,
-    bookingUrl: event.booking_url,
-    movie: { id: null, title: event.title, year: null, director: null }
-  }));
+  return events.map(event => {
+    const { title, note } = cleanMovieTitle(event.title);
+    return {
+      id: null,
+      datetime: new Date(event.start_time),
+      theatreName: 'Venue Name',
+      bookingUrl: event.booking_url,
+      note,
+      movie: { id: null, title, year: null, director: null, runtime: null }
+    };
+  });
 }
 ```
 
@@ -180,60 +249,9 @@ export async function scrapeVenue(): Promise<Screening[]> {
      - Required for JavaScript-rendered content to hydrate
    - Extract data via `page.evaluate()` using CSS selectors
 4. **Parse dates with custom function**: Each venue has unique date/time format
-5. **Convert to global models**: Transform venue-specific data to `Screening[]`
-6. **Always close browser**: Use try/finally to ensure `browser.close()`
-
-**Example (Puppeteer-based)**:
-```typescript
-import puppeteer from 'puppeteer';
-import { Movie, Screening } from '../models.js';
-
-interface VenueScreening {
-  date: string;
-  time: string;
-  title: string;
-}
-
-export async function scrapeVenue(): Promise<Screening[]> {
-  const browser = await puppeteer.launch({ headless: true });
-
-  try {
-    const page = await browser.newPage();
-    await page.goto('https://venue.com', { waitUntil: 'networkidle2', timeout: 30000 });
-
-    await new Promise(resolve => setTimeout(resolve, 3000));
-
-    const venueScreenings = await page.evaluate(() => {
-      // Extract data using DOM selectors
-      return results;
-    });
-
-    // Convert to global Screening[] models
-    return venueScreenings.map(vs => ({
-      id: null,
-      datetime: parseDateTime(vs.date, vs.time),
-      theatreName: 'Venue Name',
-      bookingUrl: vs.url,
-      movie: { id: null, title: vs.title, year: null, director: null }
-    }));
-
-  } finally {
-    await browser.close();
-  }
-}
-
-function parseDateTime(dateStr: string, timeStr: string): Date {
-  // Custom parsing logic for this venue's date format
-}
-```
-
-### TMDB Integration
-
-The scraping job (`scrape.ts`) enriches movies with data from The Movie Database (TMDB):
-- Searches TMDB for each new movie by title + year
-- Saves tmdb_id, tmdb_url, poster_url, runtime to database
-- Requires `TMDB_API_TOKEN` in `.env` (optional - scraper works without it)
-- Uses TMDB API v3: `https://api.themoviedb.org/3/search/movie`
+5. **Clean title**: Use `cleanMovieTitle()` to extract title and note
+6. **Convert to global models**: Transform venue-specific data to `Screening[]`
+7. **Always close browser**: Use try/finally to ensure `browser.close()`
 
 ### Current Scrapers
 
@@ -251,14 +269,18 @@ The scraping job (`scrape.ts`) enriches movies with data from The Movie Database
   - Date range: 1 month back, 2 months forward
   - **Note**: Uses `utcToPacificNaive()` to convert UTC times to Pacific-naive format
 
-- **`cineplex-scraper.ts`** - Cineplex Theatres (currently Fifth Avenue only)
+- **`cineplex-scraper.ts`** - Cineplex Theatres (Fifth Avenue, International Village, Scotiabank, Langley)
   - API: `https://apis.cineplex.com/prod/cpx/theatrical/api/v1/showtimes?language=en&locationId={theatreId}&date={M/D/YYYY}`
   - Azure API Management endpoint, requires header: `ocp-apim-subscription-key: 477f072109904a55927ba2c3bf9f77e3` (public key embedded in cineplex.com frontend)
   - Returns movies with sessions (showtimes) per theatre per day; fetches 7 days
   - `showStartDateTime` is local Pacific time — parsed with `parsePacificNaive()`
-  - Theatre name format: `"Fifth Ave {auditorium}"` e.g. `"Fifth Ave Aud #3"`
+  - Theatre name format: `"{venue} {auditorium}"` e.g. `"Fifth Ave Aud #3"`, `"Intl Village Aud 05"`
   - Uses `deeplinkUrl` for booking URLs
   - **To find theatre IDs**: `GET https://apis.cineplex.com/prod/cpx/theatrical/api/v1/theatres?language=en&city=Vancouver&latitude=49.2514&longitude=-123.0972` (same API key header). Returns `theatreId` and `theatreName` for nearby theatres. This is not used by the scraper but is useful for adding new Cineplex locations.
+
+- **`hollywood-scraper.ts`** - Hollywood Theatre
+  - Uses cheerio to scrape event pages
+  - Crawls individual event detail pages with a delay between requests
 
 **Puppeteer-Based** (slower, more brittle):
 - **`cinematheque-scraper.ts`** - Cinematheque
@@ -320,15 +342,7 @@ All scrapers run in parallel via `scrape.ts` with error handling (failed scraper
 
 Add the new theatre name(s) to `THEATRE_ORDER` in `src/server.ts`. This controls which theatres appear on the home page timeline and their display order.
 
-```typescript
-const THEATRE_ORDER = [
-  'VIFF Cinema',
-  // ... existing theatres ...
-  'New Theatre Name',  // Add new theatre here
-];
-```
-
-**Note**: If a venue has multiple screens/auditoriums with separate `theatreName` values (e.g., "Fifth Ave Aud #1", "Fifth Ave Aud #2"), add each one to the list.
+**Note**: If a venue has multiple screens/auditoriums with separate `theatreName` values (e.g., "Fifth Ave Aud #1", "Fifth Ave Aud #2"), add each one to the list. Cineplex venues also need an entry in `CINEPLEX_VENUES` to be collapsed into a single listing group.
 
 ## Environment Variables
 
@@ -339,13 +353,15 @@ DB_PORT=5432
 DB_NAME=moviecal
 DB_USER=postgres
 DB_PASSWORD=postgres
-TMDB_API_TOKEN=your_token_here  # Optional
+TMDB_API_TOKEN=your_token_here  # Optional — scraper works without it
+ADMIN_TOKEN=your_token_here     # Required for TMDB/Letterboxd fix-match endpoints
 ```
 
 ## Tech Stack
 
 - **TypeScript**: Strict mode, ES2022 target
 - **Puppeteer**: Headless browser automation for scraping
+- **Cheerio**: HTML parsing (Hollywood scraper)
 - **Kysely**: Type-safe SQL query builder
 - **PostgreSQL**: Database
 - **Hono**: Web framework for timeline UI
