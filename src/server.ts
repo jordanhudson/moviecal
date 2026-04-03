@@ -264,6 +264,7 @@ app.get('/movie/:id', async (c) => {
       'datetime',
       'theatre_name',
       'booking_url',
+      'note',
     ])
     .where('movie_id', '=', movieId)
     .orderBy('datetime', 'asc')
@@ -285,6 +286,7 @@ app.get('/theatre/:name', async (c) => {
       'screening.id',
       'screening.datetime',
       'screening.booking_url',
+      'screening.note',
       'movie.id as movie_id',
       'movie.title as movie_title',
     ])
@@ -347,6 +349,7 @@ app.get('/movies', async (c) => {
       'movie.tmdb_url',
       'movie.letterboxd_url',
       'movie.created_at as movie_created_at',
+      'movie.tmdb_popularity',
     ])
     .where('screening.datetime', '>=', now)
     .orderBy('screening.datetime', 'asc')

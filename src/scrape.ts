@@ -6,6 +6,7 @@ import { scrapeRio } from './scrapers/rio-scraper.js';
 import { scrapeHollywood } from './scrapers/hollywood-scraper.js';
 import { scrapeCineplex } from './scrapers/cineplex-scraper.js';
 import type { Screening, Movie } from './models.js';
+import { cleanMovieTitle } from './utils/title-cleaner.js';
 import { db, closeDb } from './db/connection.js';
 
 interface TMDBMovieResult {
@@ -13,6 +14,7 @@ interface TMDBMovieResult {
   title: string;
   release_date?: string;
   poster_path?: string | null;
+  popularity?: number;
 }
 
 interface TMDBSearchResponse {
@@ -25,6 +27,7 @@ interface TMDBMovieDetails {
   release_date?: string;
   poster_path?: string | null;
   runtime: number | null;
+  popularity?: number;
 }
 
 async function searchTMDB(title: string, year?: number | null, runtime?: number | null): Promise<TMDBMovieResult | null> {
@@ -254,6 +257,79 @@ export async function runScrapeJob(scraperName?: string) {
     console.log(`  - ${name}: ${screenings.length}`);
   }
 
+  // Re-clean existing movie titles in case new patterns were added to the title cleaner.
+  // This prevents duplicates when e.g. "Holy Days (Director in Attendance)" is already in the DB
+  // but the scraper now cleans it to "Holy Days".
+  const existingMovies = await db
+    .selectFrom('movie')
+    .select(['id', 'title', 'year', 'tmdb_id', 'letterboxd_url'])
+    .execute();
+
+  for (const existing of existingMovies) {
+    const { title: cleanedTitle } = cleanMovieTitle(existing.title);
+    if (cleanedTitle !== existing.title) {
+      // Check if a movie with the cleaned title already exists
+      const duplicate = await db
+        .selectFrom('movie')
+        .select('id')
+        .where('title', '=', cleanedTitle)
+        .executeTakeFirst();
+
+      if (duplicate) {
+        // Reassign screenings from the stale record to the cleaned one, then delete stale
+        await db
+          .updateTable('screening')
+          .set({ movie_id: duplicate.id })
+          .where('movie_id', '=', existing.id)
+          .execute();
+        await db
+          .deleteFrom('movie')
+          .where('id', '=', existing.id)
+          .execute();
+        console.log(`  → Merged stale movie "${existing.title}" into "${cleanedTitle}"`);
+      } else {
+        // Rename and retry missing external lookups with the cleaned title
+        const updates: Record<string, unknown> = { title: cleanedTitle };
+
+        if (!existing.tmdb_id) {
+          console.log(`  → Retrying TMDB for cleaned title "${cleanedTitle}"...`);
+          const tmdbResult = await searchTMDB(cleanedTitle, existing.year);
+          if (tmdbResult) {
+            const tmdbDetails = await getTMDBMovieDetails(tmdbResult.id);
+            updates.tmdb_id = tmdbResult.id;
+            updates.tmdb_url = `https://www.themoviedb.org/movie/${tmdbResult.id}`;
+            updates.poster_url = tmdbDetails?.poster_path
+              ? `https://image.tmdb.org/t/p/w500${tmdbDetails.poster_path}`
+              : null;
+            if (tmdbDetails?.runtime) updates.runtime = tmdbDetails.runtime;
+            if (tmdbDetails?.popularity) updates.tmdb_popularity = tmdbDetails.popularity;
+            console.log(`    ✓ Found on TMDB: ${updates.tmdb_url}`);
+          } else {
+            console.log(`    ✗ Not found on TMDB`);
+          }
+        }
+
+        if (!existing.letterboxd_url || existing.letterboxd_url === 'MISS') {
+          console.log(`  → Retrying Letterboxd for cleaned title "${cleanedTitle}"...`);
+          const letterboxdUrl = await searchLetterboxd(cleanedTitle, existing.year);
+          if (letterboxdUrl) {
+            updates.letterboxd_url = letterboxdUrl;
+            console.log(`    ✓ Found on Letterboxd: ${letterboxdUrl}`);
+          } else {
+            console.log(`    ✗ Not found on Letterboxd`);
+          }
+        }
+
+        await db
+          .updateTable('movie')
+          .set(updates)
+          .where('id', '=', existing.id)
+          .execute();
+        console.log(`  → Cleaned movie title "${existing.title}" → "${cleanedTitle}"`);
+      }
+    }
+  }
+
   // Extract unique movies (dedupe on title)
   const uniqueMoviesMap = new Map<string, Movie>();
   for (const screening of allScreenings) {
@@ -288,6 +364,7 @@ export async function runScrapeJob(scraperName?: string) {
     let tmdbId: number | null = null;
     let tmdbUrl: string | null = null;
     let posterUrl: string | null = null;
+    let tmdbPopularity: number | null = null;
     let runtime: number | null = movie.runtime; // Start with runtime from scraper
     let year: number | null = movie.year;
 
@@ -305,6 +382,7 @@ export async function runScrapeJob(scraperName?: string) {
 
         // Prefer TMDB runtime, fall back to scraper runtime
         runtime = tmdbDetails.runtime || runtime;
+        tmdbPopularity = tmdbDetails.popularity ?? null;
 
         // Extract year from release_date if available
         if (tmdbDetails.release_date && !year) {
@@ -347,6 +425,7 @@ export async function runScrapeJob(scraperName?: string) {
         tmdb_id: tmdbId,
         tmdb_url: tmdbUrl,
         poster_url: posterUrl,
+        tmdb_popularity: tmdbPopularity,
         letterboxd_url: letterboxdUrl ?? 'MISS',
       })
       .execute();
@@ -427,6 +506,7 @@ export async function runScrapeJob(scraperName?: string) {
             datetime: screening.datetime,
             theatre_name: screening.theatreName,
             booking_url: screening.bookingUrl,
+            note: screening.note,
           })
           .execute();
 

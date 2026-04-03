@@ -21,6 +21,7 @@ export interface ScreeningWithMovie {
   tmdb_url: string | null;
   letterboxd_url: string | null;
   movie_created_at?: Date;
+  tmdb_popularity?: number | null;
 }
 
 export interface TheatreRow {

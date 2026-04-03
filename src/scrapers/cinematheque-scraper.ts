@@ -115,9 +115,11 @@ export async function scrapeCinematheque(): Promise<Screening[]> {
     const screenings: Screening[] = [];
 
     for (const cineScreening of cinemathequeScreenings) {
+      const { title, note } = cleanMovieTitle(cineScreening.title);
+
       const movie: Movie = {
         id: null,
-        title: cleanMovieTitle(cineScreening.title),
+        title,
         year: null,
         director: null,
         runtime: null,
@@ -128,6 +130,7 @@ export async function scrapeCinematheque(): Promise<Screening[]> {
         datetime: parseDateTime(cineScreening.date, cineScreening.time),
         theatreName: 'The Cinematheque',
         bookingUrl: cineScreening.url,
+        note,
         movie: movie,
       };
 

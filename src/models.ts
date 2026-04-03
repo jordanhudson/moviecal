@@ -13,5 +13,6 @@ export interface Screening {
   datetime: Date;
   theatreName: string;
   bookingUrl: string;
+  note: string | null;
   movie: Movie;
 }

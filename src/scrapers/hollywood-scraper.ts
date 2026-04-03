@@ -58,9 +58,11 @@ export async function scrapeHollywood(): Promise<Screening[]> {
         continue;
       }
 
+      const { title, note } = cleanMovieTitle(card.title);
+
       const movie: Movie = {
         id: null,
-        title: cleanMovieTitle(card.title),
+        title,
         year: null,
         director: null,
         runtime: null,
@@ -71,6 +73,7 @@ export async function scrapeHollywood(): Promise<Screening[]> {
         datetime: eventDetails.datetime,
         theatreName: 'Hollywood Theatre',
         bookingUrl: card.ticketUrl || eventUrl,
+        note,
         movie: movie,
       };
 

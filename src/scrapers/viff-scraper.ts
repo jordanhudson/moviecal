@@ -69,9 +69,11 @@ export async function scrapeVIFF(): Promise<Screening[]> {
       // Map venue ID to human-readable name, or format it nicely
       const venueName = VENUE_NAMES[event.resourceId] || formatVenueName(event.resourceId);
 
+      const { title, note } = cleanMovieTitle(filmTitle);
+
       const movie: Movie = {
         id: null,
-        title: cleanMovieTitle(filmTitle),
+        title,
         year: null,
         director: null,
         runtime: runtimeMinutes,
@@ -82,6 +84,7 @@ export async function scrapeVIFF(): Promise<Screening[]> {
         datetime: new Date(event.start),
         theatreName: venueName,
         bookingUrl,
+        note,
         movie,
       };
 

@@ -77,9 +77,11 @@ export async function scrapePark(): Promise<Screening[]> {
     const screenings: Screening[] = [];
 
     for (const parkScreening of parkScreenings) {
+      const { title, note } = cleanMovieTitle(parkScreening.title);
+
       const movie: Movie = {
         id: null,
-        title: cleanMovieTitle(parkScreening.title),
+        title,
         year: null,
         director: null,
         runtime: null,
@@ -90,6 +92,7 @@ export async function scrapePark(): Promise<Screening[]> {
         datetime: parseDateTime(parkScreening.datetime),
         theatreName: 'The Park',
         bookingUrl: parkScreening.url,
+        note,
         movie: movie,
       };
 

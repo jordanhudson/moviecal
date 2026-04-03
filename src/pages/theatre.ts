@@ -8,6 +8,7 @@ export interface TheatreScreening {
   id: number;
   datetime: Date;
   booking_url: string;
+  note: string | null;
   movie_id: number;
   movie_title: string;
 }
@@ -74,6 +75,12 @@ const PAGE_STYLES = `
 
     .screening-book:hover {
       background: #3d6868;
+    }
+
+    .screening-note {
+      color: #888;
+      font-size: 13px;
+      font-style: italic;
     }
 
     /* Mobile: hide full button text, show short text */
@@ -159,7 +166,7 @@ export function renderTheatrePage(theatreName: string, screenings: TheatreScreen
             return `
               <li class="screening-item">
                 <div class="screening-date"><span class="date-part">${dateStr}</span><span class="at-separator"> at </span><span class="time-part">${timeStr}</span></div>
-                <div class="screening-movie"><a href="/movie/${screening.movie_id}">${escapeHtml(screening.movie_title)}</a></div>
+                <div class="screening-movie"><a href="/movie/${screening.movie_id}">${escapeHtml(screening.movie_title)}</a>${screening.note ? `<div class="screening-note">${escapeHtml(screening.note)}</div>` : ''}</div>
                 <a href="${safeHref(screening.booking_url)}" target="_blank" class="screening-book"><span class="full-text">Book Tickets</span><span class="short-text">Tix</span></a>
               </li>
             `;

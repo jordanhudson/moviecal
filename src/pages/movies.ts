@@ -255,6 +255,7 @@ export function renderMoviesPage(screenings: ScreeningWithMovie[]): string {
         <div class="sort-menu" id="sortMenu">
           <button class="sort-option" data-sort="date-added">Date Added</button>
           <button class="sort-option" data-sort="name">Name</button>
+          <button class="sort-option" data-sort="popularity">Popularity</button>
         </div>
       </div>
     </div>
@@ -265,7 +266,7 @@ export function renderMoviesPage(screenings: ScreeningWithMovie[]): string {
       const createdAt = movie.movie_created_at ? new Date(movie.movie_created_at).getTime() : 0;
 
       return `
-        <div class="movie-card" data-title="${escapeHtml(movie.movie_title)}" data-created="${createdAt}">
+        <div class="movie-card" data-title="${escapeHtml(movie.movie_title)}" data-created="${createdAt}" data-popularity="${movie.tmdb_popularity ?? 0}">
           <div class="movie-card-info">
             <div class="movie-card-header">
               <div class="movie-card-title"><a href="/movie/${movie.movie_id}">${escapeHtml(movie.movie_title)}</a></div>
@@ -323,6 +324,7 @@ export function renderMoviesPage(screenings: ScreeningWithMovie[]): string {
         var cards = Array.from(list.querySelectorAll('.movie-card'));
         cards.sort(function(a, b) {
           if (sort === 'name') return a.dataset.title.localeCompare(b.dataset.title);
+          if (sort === 'popularity') return Number(b.dataset.popularity) - Number(a.dataset.popularity);
           return Number(b.dataset.created) - Number(a.dataset.created);
         });
         cards.forEach(function(c) { list.appendChild(c); });

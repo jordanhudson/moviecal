@@ -125,9 +125,11 @@ export async function scrapeCineplex(): Promise<Screening[]> {
                     // The API returns local Pacific time without timezone info
                     const datetime = parsePacificNaive(session.showStartDateTime);
 
+                    const { title, note } = cleanMovieTitle(movie.name);
+
                     const movieModel: Movie = {
                       id: null,
-                      title: cleanMovieTitle(movie.name),
+                      title,
                       year: null,
                       director: null,
                       runtime: movie.runtimeInMinutes,
@@ -138,6 +140,7 @@ export async function scrapeCineplex(): Promise<Screening[]> {
                       datetime,
                       theatreName,
                       bookingUrl: session.deeplinkUrl,
+                      note,
                       movie: movieModel,
                     };
 

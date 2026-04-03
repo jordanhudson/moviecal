@@ -1,0 +1,1 @@
+ALTER TABLE movie ADD COLUMN IF NOT EXISTS tmdb_popularity REAL;

@@ -82,9 +82,11 @@ export async function scrapeRio(): Promise<Screening[]> {
 
     // Convert to global Screening models
     const screenings: Screening[] = events.map(event => {
+      const { title, note } = cleanMovieTitle(event.event.title);
+
       const movie: Movie = {
         id: null,
-        title: cleanMovieTitle(event.event.title),
+        title,
         year: null,
         director: null,
         runtime: null,
@@ -102,6 +104,7 @@ export async function scrapeRio(): Promise<Screening[]> {
         datetime: pacificNaive,
         theatreName: 'The Rio',
         bookingUrl,
+        note,
         movie,
       };
     });
