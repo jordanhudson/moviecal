@@ -10,12 +10,39 @@ function displayName(theatre: string): string {
   return THEATRE_DISPLAY_NAMES[theatre] || theatre;
 }
 
+const CINEPLEX_GROUPS = [
+  { display: 'Fifth Avenue', prefix: 'Fifth Ave' },
+  { display: 'International Village', prefix: 'Intl Village' },
+  { display: 'Scotiabank', prefix: 'Scotiabank' },
+  { display: 'Langley', prefix: 'Langley' },
+];
+
+function venueGroup(theatreName: string): { name: string; theatreLink: string | null } {
+  for (const g of CINEPLEX_GROUPS) {
+    if (theatreName.startsWith(g.prefix)) {
+      return { name: g.display, theatreLink: null };
+    }
+  }
+  return { name: displayName(theatreName), theatreLink: theatreName };
+}
+
 function formatShortDate(date: Date): string {
   return date.toLocaleDateString('en-US', {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
   });
+}
+
+function dateKey(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function formatTime(date: Date): string {
+  const h = date.getHours() % 12 || 12;
+  const m = String(date.getMinutes()).padStart(2, '0');
+  const ampm = date.getHours() >= 12 ? 'pm' : 'am';
+  return `${h}:${m}${ampm}`;
 }
 
 const PAGE_STYLES = `
@@ -98,9 +125,9 @@ const PAGE_STYLES = `
 
     .movie-card {
       display: flex;
-      background: #262626;
+      background: #404040;
       border-radius: 8px;
-      margin-bottom: 8px;
+      margin-bottom: 16px;
       overflow: hidden;
     }
 
@@ -143,57 +170,65 @@ const PAGE_STYLES = `
     .movie-card-screenings {
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 12px;
     }
 
-    .movie-screening-row {
-      display: flex;
-      align-items: center;
-      font-size: 14px;
-    }
-
-    .movie-screening-date {
-      color: #888;
-      min-width: 100px;
-      flex-shrink: 0;
-    }
-
-    .movie-screening-time {
-      color: #a0a0a0;
-      min-width: 75px;
-      flex-shrink: 0;
-    }
-
-    .movie-screening-theatre {
-      flex: 1;
-      color: #707070;
-      min-width: 0;
-      white-space: nowrap;
+    .movie-venue-group {
+      background: #2e2e2e;
+      border-radius: 6px;
       overflow: hidden;
-      text-overflow: ellipsis;
     }
 
-    .movie-screening-theatre a {
-      color: #707070;
+    .movie-venue-name {
+      font-weight: 600;
+      font-size: 14px;
+      padding: 10px 14px;
+      background: #2a2a2a;
+    }
+
+    .movie-venue-name a {
+      color: #c5c5c5;
       text-decoration: none;
     }
 
-    .movie-screening-theatre a:hover {
+    .movie-venue-name a:hover {
       color: #6a9a9a;
+      text-decoration: underline;
     }
 
-    .movie-screening-tix {
-      padding: 3px 10px;
+    .movie-date-group {
+      padding: 10px 14px;
+      border-bottom: 1px solid #353535;
+    }
+
+    .movie-date-group:last-child {
+      border-bottom: none;
+    }
+
+    .movie-date-heading {
+      font-weight: 500;
+      font-size: 14px;
+      color: #d0d0d0;
+      margin-bottom: 6px;
+    }
+
+    .movie-times {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .movie-time {
+      display: inline-block;
+      padding: 4px 10px;
       background: #4a7c7c;
       color: white;
+      border-radius: 4px;
       text-decoration: none;
-      border-radius: 3px;
-      font-size: 12px;
-      margin-left: 8px;
-      flex-shrink: 0;
+      font-size: 13px;
     }
 
-    .movie-screening-tix:hover {
+    .movie-time:hover {
       background: #5a8c8c;
     }
 
@@ -210,18 +245,6 @@ const PAGE_STYLES = `
 
       .movie-card-header {
         margin-bottom: 6px;
-      }
-
-      .movie-screening-row {
-        font-size: 13px;
-      }
-
-      .movie-screening-date {
-        min-width: 80px;
-      }
-
-      .movie-screening-time {
-        min-width: 65px;
       }
     }`;
 
@@ -265,27 +288,49 @@ export function renderMoviesPage(screenings: ScreeningWithMovie[]): string {
       const movie = group[0];
       const createdAt = movie.movie_created_at ? new Date(movie.movie_created_at).getTime() : 0;
 
+      // Group screenings by venue, then by date
+      const venueMap = new Map<string, { theatreLink: string | null; dates: Map<string, { label: string; times: { time: string; bookingUrl: string }[] }> }>();
+      for (const s of group) {
+        const dt = new Date(s.datetime);
+        const v = venueGroup(s.theatre_name);
+        if (!venueMap.has(v.name)) {
+          venueMap.set(v.name, { theatreLink: v.theatreLink, dates: new Map() });
+        }
+        const venue = venueMap.get(v.name)!;
+        const dk = dateKey(dt);
+        if (!venue.dates.has(dk)) {
+          venue.dates.set(dk, { label: formatShortDate(dt), times: [] });
+        }
+        venue.dates.get(dk)!.times.push({ time: formatTime(dt), bookingUrl: s.booking_url });
+      }
+
       return `
-        <div class="movie-card" data-title="${escapeHtml(movie.movie_title)}" data-created="${createdAt}" data-popularity="${movie.tmdb_popularity ?? 0}">
+        <div class="movie-card" data-title="${escapeHtml(movie.movie_title)}" data-created="${createdAt}" data-popularity="${movie.tmdb_popularity ?? 0}" data-theatres="${escapeHtml(Array.from(venueMap.keys()).join(','))}">
           <div class="movie-card-info">
             <div class="movie-card-header">
               <div class="movie-card-title"><a href="/movie/${movie.movie_id}">${escapeHtml(movie.movie_title)}</a></div>
               ${movie.movie_year ? `<span class="movie-card-year">(${movie.movie_year})</span>` : ''}
             </div>
             <div class="movie-card-screenings">
-              ${group.map(s => {
-                const dt = new Date(s.datetime);
-                const date = formatShortDate(dt);
-                const time = dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-                return `
-                  <div class="movie-screening-row" data-theatre="${escapeHtml(s.theatre_name)}">
-                    <span class="movie-screening-date">${date}</span>
-                    <span class="movie-screening-time">${time}</span>
-                    <span class="movie-screening-theatre"><a href="/theatre/${encodeURIComponent(s.theatre_name)}">${escapeHtml(displayName(s.theatre_name))}</a></span>
-                    <a href="${safeHref(s.booking_url)}" target="_blank" class="movie-screening-tix">Tix</a>
-                  </div>
-                `;
-              }).join('')}
+              ${Array.from(venueMap.entries()).map(([venueName, venue]) => `
+                <div class="movie-venue-group">
+                  <div class="movie-venue-name">${
+                    venue.theatreLink
+                      ? `<a href="/theatre/${encodeURIComponent(venue.theatreLink)}">${escapeHtml(venueName)}</a>`
+                      : escapeHtml(venueName)
+                  }</div>
+                  ${Array.from(venue.dates.values()).map(dateGroup => `
+                    <div class="movie-date-group">
+                      <div class="movie-date-heading">${dateGroup.label}</div>
+                      <div class="movie-times">
+                        ${dateGroup.times.map(t =>
+                          `<a href="${safeHref(t.bookingUrl)}" target="_blank" class="movie-time">${t.time}</a>`
+                        ).join('')}
+                      </div>
+                    </div>
+                  `).join('')}
+                </div>
+              `).join('')}
             </div>
           </div>
         </div>
@@ -298,12 +343,12 @@ export function renderMoviesPage(screenings: ScreeningWithMovie[]): string {
       try {
         var hidden = JSON.parse(localStorage.getItem('hiddenTheatres') || '[]');
         if (!hidden.length) return;
-        document.querySelectorAll('.movie-screening-row[data-theatre]').forEach(function(row) {
-          if (hidden.indexOf(row.dataset.theatre) !== -1) row.style.display = 'none';
-        });
         document.querySelectorAll('.movie-card').forEach(function(card) {
-          var visible = card.querySelectorAll('.movie-screening-row:not([style*="display: none"])');
-          if (visible.length === 0) card.style.display = 'none';
+          var theatres = (card.dataset.theatres || '').split(',');
+          var allHidden = theatres.every(function(t) {
+            return hidden.indexOf(t) !== -1;
+          });
+          if (allHidden) card.style.display = 'none';
         });
       } catch(e) {}
     })();
