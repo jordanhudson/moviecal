@@ -26,6 +26,7 @@ export function cleanMovieTitle(title: string): CleanTitleResult {
     /\s*\((.+?\s+Restoration)\)\s*/gi,
     /\s*\(([A-Za-z]+\s+w\/\s*e\.s\.t\.)\)\s*/gi,
     /\s*\((Director in Attendance)\)\s*/gi,
+    /\s*\((Advance Screening)\)\s*/gi,
   ];
 
   let cleaned = title;
