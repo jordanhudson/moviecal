@@ -56,6 +56,7 @@ const BASE_STYLES = `
       font-size: 14px;
       width: 200px;
       font-family: inherit;
+      transition: width 0.2s;
     }
 
     .top-bar-search input::placeholder {
@@ -88,7 +89,7 @@ const BASE_STYLES = `
 
     .search-result {
       display: block;
-      padding: 8px 12px;
+      padding: 12px;
       color: #c5c5c5;
       text-decoration: none;
       font-size: 14px;
@@ -169,7 +170,11 @@ const BASE_STYLES = `
       }
 
       .top-bar-search input {
-        width: 140px;
+        width: 80px;
+      }
+
+      .top-bar-search input:focus {
+        width: 160px;
       }
     }`;
 

@@ -142,6 +142,11 @@ const PAGE_STYLES = `
       align-items: baseline;
       gap: 8px;
       margin-bottom: 8px;
+      position: sticky;
+      top: 48px;
+      background: #404040;
+      z-index: 10;
+      padding: 8px 0;
     }
 
     .movie-card-title {
