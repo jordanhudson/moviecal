@@ -5,7 +5,7 @@ export interface CleanTitleResult {
   note: string | null;
 }
 
-function decodeHtmlEntities(str: string): string {
+export function decodeHtmlEntities(str: string): string {
   const named: Record<string, string> = {
     '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"',
     '&#039;': "'", '&apos;': "'",

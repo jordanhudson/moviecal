@@ -9,6 +9,7 @@ import type { Screening, Movie } from './models.js';
 import { getTMDBMovieDetails, tmdbDetailsToMovieFields, verifyTitleCleaning } from './utils/tmdb.js';
 import type { TMDBMovieDetails } from './utils/tmdb.js';
 import { recleanExistingTitles } from './utils/reclean.js';
+import { searchLetterboxd } from './utils/letterboxd.js';
 import { db, closeDb } from './db/connection.js';
 
 interface TMDBMovieResult {
@@ -98,67 +99,6 @@ async function searchTMDB(title: string, year?: number | null, runtime?: number 
     return bestMatch || filteredResults[0];
   } catch (error) {
     console.warn(`Error searching TMDB for "${title}":`, error);
-    return null;
-  }
-}
-
-function decodeHtmlEntities(str: string): string {
-  const named: Record<string, string> = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#039;': "'", '&apos;': "'" };
-  return str
-    .replace(/&(?:amp|lt|gt|quot|apos|#039);/g, m => named[m])
-    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(parseInt(n, 10)))
-    .replace(/&#x([0-9a-fA-F]+);/g, (_, n) => String.fromCharCode(parseInt(n, 16)));
-}
-
-function slugify(title: string): string {
-  return decodeHtmlEntities(title)
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
-
-function extractYearFromLetterboxd(html: string): number | null {
-  const match = html.match(/<title>[^<]*\((\d{4})\)/);
-  return match ? parseInt(match[1], 10) : null;
-}
-
-async function searchLetterboxd(title: string, year: number | null): Promise<string | null> {
-  const slug = slugify(title);
-
-  try {
-    const url = `https://letterboxd.com/film/${slug}/`;
-    const response = await fetch(url, {
-      signal: AbortSignal.timeout(10_000),
-      redirect: 'follow',
-    });
-
-    if (response.ok) {
-      const html = await response.text();
-      const pageYear = extractYearFromLetterboxd(html);
-
-      if (year && pageYear && pageYear !== year) {
-        // Year mismatch — likely a different film with same title, try slug-year
-      } else {
-        return response.url;
-      }
-    }
-
-    // Try slug-year if we have a year
-    if (year) {
-      const yearUrl = `https://letterboxd.com/film/${slug}-${year}/`;
-      const yearResponse = await fetch(yearUrl, {
-        signal: AbortSignal.timeout(10_000),
-        redirect: 'follow',
-      });
-
-      if (yearResponse.ok) {
-        return yearResponse.url;
-      }
-    }
-
-    return null;
-  } catch (error) {
-    console.warn(`Error searching Letterboxd for "${title}":`, error);
     return null;
   }
 }
