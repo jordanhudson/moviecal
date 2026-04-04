@@ -17,6 +17,7 @@ import { apiRoutes } from './routes/api.js';
 
 const app = new Hono();
 
+app.use('/css/*', serveStatic({ root: './public' }));
 app.use('/favicon.png', serveStatic({ root: './public' }));
 
 // Load search movies for the nav bar on every HTML page request
