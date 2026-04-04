@@ -261,7 +261,21 @@ export async function runScrapeJob(scraperName?: string) {
         // TMDB confirmed parens are part of the real title — undo cleaning
         console.log(`  → TMDB confirms "${verified.title}" is the real title, keeping parens`);
         movie.title = verified.title;
-        for (const s of movieScreenings) s.note = null;
+        for (const s of movieScreenings) {
+          s.movie.title = verified.title;
+          s.note = null;
+        }
+
+        // Re-check DB with the restored title — it may already exist
+        const existingWithRestoredTitle = await db
+          .selectFrom('movie')
+          .select('id')
+          .where('title', '=', verified.title)
+          .executeTakeFirst();
+        if (existingWithRestoredTitle) {
+          existingMoviesCount++;
+          continue;
+        }
       }
     }
 
