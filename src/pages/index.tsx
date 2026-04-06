@@ -1,6 +1,7 @@
 /** @jsxImportSource hono/jsx */
 import { renderPage } from './layout.js';
 import { safeHref } from '../utils/html.js';
+import { TheatreCard } from './theatre-card.js';
 
 const DEFAULT_RUNTIME_MINUTES = 105;
 const MIN_DISPLAY_RUNTIME_MINUTES = 90;
@@ -256,7 +257,7 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[], listingGroup
       url: 'https://movieclock.fly.dev',
       description: 'Movie showtimes for Vancouver independent and repertory cinemas.',
     },
-    styles: ['/css/index.css'],
+    styles: ['/css/theatre-card.css', '/css/index.css'],
     activePage: 'home',
     body: (
       <>
@@ -325,31 +326,23 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[], listingGroup
             {!hasScreenings && <div class="no-screenings">No screenings for this day</div>}
 
             {listingGroups.map(group => (
-              <div class="listing-group" data-theatre={group.venue}>
-                <div class="listing-group-header">
-                  {group.theatreName
-                    ? <a href={`/theatre/${encodeURIComponent(group.theatreName)}`}>{displayName(group.venue)}</a>
-                    : <span>{displayName(group.venue)}</span>
-                  }
-                  <span class="hide-link">Hide</span>
-                </div>
-                {group.movies.map(movie => (
-                  <div class="listing-movie-row">
-                    <div class="listing-movie-title">
-                      <a href={`/movie/${movie.movie_id}`}>{movie.movie_title}</a>
-                    </div>
-                    <div class="listing-times">
-                      {movie.showtimes.map(st => {
-                        const time = new Date(st.datetime);
-                        const h = time.getHours() % 12 || 12;
-                        const m = String(time.getMinutes()).padStart(2, '0');
-                        const ampm = time.getHours() >= 12 ? 'pm' : 'am';
-                        return <a href={safeHref(st.booking_url)} target="_blank" class="listing-time">{h}:{m}{ampm}</a>;
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <TheatreCard
+                header={displayName(group.venue)}
+                headerLink={group.theatreName ? `/theatre/${encodeURIComponent(group.theatreName)}` : undefined}
+                dataTheatre={group.venue}
+                hideLink
+                rows={group.movies.map(movie => ({
+                  label: movie.movie_title,
+                  labelLink: `/movie/${movie.movie_id}`,
+                  times: movie.showtimes.map(st => {
+                    const time = new Date(st.datetime);
+                    const h = time.getHours() % 12 || 12;
+                    const m = String(time.getMinutes()).padStart(2, '0');
+                    const ampm = time.getHours() >= 12 ? 'pm' : 'am';
+                    return { display: `${h}:${m}${ampm}`, bookingUrl: st.booking_url };
+                  }),
+                }))}
+              />
             ))}
           </div>
 

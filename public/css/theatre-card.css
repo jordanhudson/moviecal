@@ -1,0 +1,71 @@
+.theatre-card {
+  background: #262626;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.theatre-card-header {
+  font-weight: 600;
+  font-size: 14px;
+  padding: 10px 16px;
+  background: #2a2a2a;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.theatre-card-header a {
+  color: #c5c5c5;
+  text-decoration: none;
+}
+
+.theatre-card-header a:hover {
+  color: #6a9a9a;
+  text-decoration: underline;
+}
+
+.theatre-card-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 16px;
+  border-bottom: 1px solid #353535;
+}
+
+.theatre-card-row:last-child {
+  border-bottom: none;
+}
+
+.theatre-card-label {
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.theatre-card-label a {
+  color: #d0d0d0;
+  text-decoration: none;
+}
+
+.theatre-card-label a:hover {
+  color: #6a9a9a;
+}
+
+.theatre-card-times {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.theatre-card-time {
+  display: inline-block;
+  padding: 4px 10px;
+  background: #4a7c7c;
+  color: white;
+  border-radius: 4px;
+  text-decoration: none;
+  font-size: 13px;
+}
+
+.theatre-card-time:hover {
+  background: #5a8c8c;
+}

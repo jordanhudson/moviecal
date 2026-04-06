@@ -1,7 +1,7 @@
 /** @jsxImportSource hono/jsx */
 import { renderPage } from './layout.js';
-import { safeHref } from '../utils/html.js';
 import { ScreeningWithMovie } from './index.js';
+import { TheatreCard } from './theatre-card.js';
 
 const THEATRE_DISPLAY_NAMES: Record<string, string> = {
   'VIFF Lochmaddy Studio': 'VIFF Lochmaddy',
@@ -122,7 +122,7 @@ export function renderMoviesPage(screenings: ScreeningWithMovie[]): string {
     title: 'Upcoming Movies in Vancouver Cinemas — MovieCal',
     description: 'Browse all upcoming movies playing in Vancouver independent and repertory cinemas, with showtimes and ticket links.',
     canonicalPath: '/movies',
-    styles: ['/css/movies.css'],
+    styles: ['/css/theatre-card.css', '/css/movies.css'],
     activePage: 'movies',
     body: (
       <>
@@ -172,24 +172,14 @@ export function renderMoviesPage(screenings: ScreeningWithMovie[]): string {
                     </div>
                     <div class="movie-card-screenings">
                       {Array.from(venueMap.entries()).map(([venueName, venue]) => (
-                        <div class="movie-venue-group">
-                          <div class="movie-venue-name">
-                            {venue.theatreLink
-                              ? <a href={`/theatre/${encodeURIComponent(venue.theatreLink)}`}>{venueName}</a>
-                              : venueName
-                            }
-                          </div>
-                          {Array.from(venue.dates.values()).map(dateGroup => (
-                            <div class="movie-date-group">
-                              <div class="movie-date-heading">{dateGroup.label}</div>
-                              <div class="movie-times">
-                                {dateGroup.times.map(t => (
-                                  <a href={safeHref(t.bookingUrl)} target="_blank" class="movie-time">{t.time}</a>
-                                ))}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
+                        <TheatreCard
+                          header={venueName}
+                          headerLink={venue.theatreLink ? `/theatre/${encodeURIComponent(venue.theatreLink)}` : undefined}
+                          rows={Array.from(venue.dates.values()).map(dateGroup => ({
+                            label: dateGroup.label,
+                            times: dateGroup.times.map(t => ({ display: t.time, bookingUrl: t.bookingUrl })),
+                          }))}
+                        />
                       ))}
                     </div>
                   </div>

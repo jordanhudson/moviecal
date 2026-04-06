@@ -299,79 +299,11 @@
   text-align: left;
 }
 
-/* Listing view styles */
-.listing-group {
-  background: #262626;
-  border-radius: 8px;
-  overflow: hidden;
+/* Listing view: theatre-card layout within listing container */
+.listing-container .theatre-card {
   flex: 1 1 0;
   min-width: 350px;
   max-width: 500px;
-}
-
-.listing-group-header {
-  font-weight: 600;
-  padding: 12px 20px;
-  background: #2a2a2a;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.listing-group-header a {
-  color: #c5c5c5;
-  text-decoration: none;
-}
-
-.listing-group-header a:hover {
-  color: #6a9a9a;
-  text-decoration: underline;
-}
-
-.listing-movie-row {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px 20px;
-  border-bottom: 1px solid #353535;
-}
-
-.listing-movie-row:last-child {
-  border-bottom: none;
-}
-
-.listing-movie-title {
-  font-weight: 500;
-  font-size: 14px;
-}
-
-.listing-movie-title a {
-  color: #d0d0d0;
-  text-decoration: none;
-}
-
-.listing-movie-title a:hover {
-  color: #6a9a9a;
-}
-
-.listing-times {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.listing-time {
-  display: inline-block;
-  padding: 4px 10px;
-  background: #4a7c7c;
-  color: white;
-  border-radius: 4px;
-  text-decoration: none;
-  font-size: 13px;
-}
-
-.listing-time:hover {
-  background: #5a8c8c;
 }
 
 /* Mobile breakpoint */
@@ -415,7 +347,4 @@
     gap: 16px;
   }
 
-  .listing-movie-row {
-    padding: 12px 16px;
-  }
 }
