@@ -11,6 +11,7 @@ import type { TMDBMovieDetails } from './utils/tmdb.js';
 import { recleanExistingTitles } from './utils/reclean.js';
 import { searchLetterboxd } from './utils/letterboxd.js';
 import { db, closeDb } from './db/connection.js';
+import { reconcileScreenings } from './db/reconcile.js';
 
 interface TMDBMovieResult {
   id: number;
@@ -319,8 +320,8 @@ export async function runScrapeJob(scraperName?: string) {
     }
   }
 
-  // Save screenings per scraper using delete-and-reinsert
-  console.log(`\nSaving screenings to database (delete-and-reinsert per scraper)...`);
+  // Save screenings per scraper using in-memory reconciliation.
+  console.log(`\nReconciling screenings per scraper...`);
 
   for (const { name, screenings } of results) {
     if (screenings.length === 0) {
@@ -329,45 +330,23 @@ export async function runScrapeJob(scraperName?: string) {
     }
 
     const theatreNames = [...new Set(screenings.map(s => s.theatreName))];
+    const titles = [...new Set(screenings.map(s => s.movie.title))];
 
     await db.transaction().execute(async (trx) => {
-      // Delete all screenings for this scraper's theatres
-      const deleteResult = await trx
-        .deleteFrom('screening')
-        .where('theatre_name', 'in', theatreNames)
-        .executeTakeFirst();
+      // Batch-resolve title → movie_id for this scraper's screenings.
+      const movies = await trx
+        .selectFrom('movie')
+        .select(['id', 'title'])
+        .where('title', 'in', titles)
+        .execute();
+      const titleToMovieId = new Map(movies.map(m => [m.title, m.id]));
 
-      const deletedCount = Number(deleteResult.numDeletedRows);
+      const stats = await reconcileScreenings(trx, theatreNames, screenings, titleToMovieId);
 
-      // Insert fresh screenings
-      let insertedCount = 0;
-      for (const screening of screenings) {
-        const movie = await trx
-          .selectFrom('movie')
-          .select('id')
-          .where('title', '=', screening.movie.title)
-          .executeTakeFirst();
-
-        if (!movie) {
-          console.warn(`  ⚠ Movie "${screening.movie.title}" not found in database, skipping screening`);
-          continue;
-        }
-
-        await trx
-          .insertInto('screening')
-          .values({
-            movie_id: movie.id,
-            datetime: screening.datetime,
-            theatre_name: screening.theatreName,
-            booking_url: screening.bookingUrl,
-            note: screening.note,
-          })
-          .execute();
-
-        insertedCount++;
-      }
-
-      console.log(`  - ${name}: deleted ${deletedCount}, inserted ${insertedCount} (theatres: ${theatreNames.join(', ')})`);
+      const skippedSuffix = stats.skipped > 0 ? `, skipped ${stats.skipped}` : '';
+      console.log(
+        `  - ${name}: matched ${stats.matched}, updated ${stats.updated}, inserted ${stats.inserted}, deleted ${stats.deleted}${skippedSuffix} (theatres: ${theatreNames.join(', ')})`
+      );
     });
   }
 
