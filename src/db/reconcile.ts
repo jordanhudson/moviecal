@@ -253,8 +253,10 @@ export async function reconcileScreenings(
 
   const plan = planReconciliation(incoming, titleToMovieId, existing);
 
-  for (const title of plan.skippedTitles) {
-    console.warn(`  ⚠ Movie "${title}" not found in database, skipping screening`);
+  if (plan.skippedTitles.length > 0) {
+    console.error(
+      `  🚨 BUG: ${plan.skippedTitles.length} incoming screening(s) had no matching movie row after the insert phase — this should never happen. Dropping them to avoid a crash, but this indicates a bug upstream (title mutation out of sync, failed insert, or unicode mismatch). Titles: ${plan.skippedTitles.map(t => JSON.stringify(t)).join(', ')}`
+    );
   }
 
   const updatedAt = new Date();
