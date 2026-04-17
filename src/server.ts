@@ -14,6 +14,7 @@ import { setSearchMovies } from './pages/layout.js';
 import { pacificNow, pacificToday, pacificHour as getPacificHour } from './utils/time.js';
 import { THEATRE_ORDER, CINEPLEX_VENUES, CINEPLEX_PREFIXES, buildListingGroup } from './theatres.js';
 import { apiRoutes } from './routes/api.js';
+import { movieUrl } from './utils/movie-url.js';
 
 const app = new Hono();
 
@@ -85,7 +86,7 @@ app.get('/sitemap.xml', async (c) => {
   // Get all movies that have future screenings
   const movies = await db
     .selectFrom('movie')
-    .select(['movie.id'])
+    .select(['movie.id', 'movie.title'])
     .where((eb) =>
       eb.exists(
         eb.selectFrom('screening')
@@ -107,7 +108,7 @@ app.get('/sitemap.xml', async (c) => {
   const urls = [
     { loc: '/', changefreq: 'hourly', priority: '1.0' },
     { loc: '/movies', changefreq: 'hourly', priority: '0.8' },
-    ...movies.map(m => ({ loc: `/movie/${m.id}`, changefreq: 'daily', priority: '0.6' })),
+    ...movies.map(m => ({ loc: movieUrl(m.id, m.title), changefreq: 'daily', priority: '0.6' })),
     ...theatres.map(t => ({ loc: `/theatre/${encodeURIComponent(t.theatre_name)}`, changefreq: 'daily', priority: '0.5' })),
   ];
 

@@ -2,6 +2,7 @@
 import { renderPage } from './layout.js';
 import { safeHref } from '../utils/html.js';
 import { TheatreCard } from './theatre-card.js';
+import { movieUrl } from '../utils/movie-url.js';
 
 const DEFAULT_RUNTIME_MINUTES = 105;
 const MIN_DISPLAY_RUNTIME_MINUTES = 90;
@@ -302,7 +303,7 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[], listingGroup
 
                     return (
                       <div class="screening" style={`left: ${left}; width: ${width};`}>
-                        <a href={`/movie/${screening.movie_id}`} class="screening-overlay" title={screening.movie_title}></a>
+                        <a href={movieUrl(screening.movie_id, screening.movie_title)} class="screening-overlay" title={screening.movie_title}></a>
                         <span class="screening-title">{screening.movie_title}</span>
                         <div class="screening-bottom">
                           <div class="screening-time">{time}</div>
@@ -333,7 +334,7 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[], listingGroup
                 hideLink
                 rows={group.movies.map(movie => ({
                   label: movie.movie_title,
-                  labelLink: `/movie/${movie.movie_id}`,
+                  labelLink: movieUrl(movie.movie_id, movie.movie_title),
                   times: movie.showtimes.map(st => {
                     const time = new Date(st.datetime);
                     const h = time.getHours() % 12 || 12;

@@ -37,6 +37,10 @@ const SEARCH_SCRIPT = `
   var input = document.getElementById('searchInput');
   var results = document.getElementById('searchResults');
 
+  function slug(t) {
+    return t.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  }
+
   input.addEventListener('input', function() {
     var q = input.value.trim().toLowerCase();
     if (!q) { results.classList.remove('open'); return; }
@@ -47,7 +51,9 @@ const SEARCH_SCRIPT = `
       results.innerHTML = '<div class="search-no-results">No matches</div>';
     } else {
       results.innerHTML = matches.map(function(m) {
-        return '<a class="search-result" href="/movie/' + m.id + '">' +
+        var s = slug(m.title);
+        var href = '/movie/' + m.id + (s ? '-' + s : '');
+        return '<a class="search-result" href="' + href + '">' +
           m.title.replace(/</g, '&lt;') + '</a>';
       }).join('');
     }

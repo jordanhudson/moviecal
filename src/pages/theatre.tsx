@@ -2,6 +2,7 @@
 import { renderPage } from './layout.js';
 import { safeHref } from '../utils/html.js';
 import { pacificNow } from '../utils/time.js';
+import { movieUrl } from '../utils/movie-url.js';
 
 export interface TheatreScreening {
   id: number;
@@ -55,7 +56,7 @@ export function renderTheatrePage(theatreName: string, screenings: TheatreScreen
                       <span class="time-part">{timeStr}</span>
                     </div>
                     <div class="screening-movie">
-                      <a href={`/movie/${screening.movie_id}`}>{screening.movie_title}</a>
+                      <a href={movieUrl(screening.movie_id, screening.movie_title)}>{screening.movie_title}</a>
                       {screening.note && <div class="screening-note">{screening.note}</div>}
                     </div>
                     <a href={safeHref(screening.booking_url)} target="_blank" class="screening-book">

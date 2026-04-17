@@ -2,6 +2,7 @@
 import { renderPage } from './layout.js';
 import { TmdbModal } from './tmdb-modal.js';
 import { safeHref } from '../utils/html.js';
+import { movieUrl } from '../utils/movie-url.js';
 
 export interface MovieRow {
   id: number;
@@ -50,7 +51,7 @@ export function renderAllMoviesPage(movies: MovieRow[], sort: string = 'added'):
                 }
               </div>
               <div class="movie-row-info">
-                <div class="movie-row-title"><a href={`/movie/${movie.id}`}>{movie.title}</a></div>
+                <div class="movie-row-title"><a href={movieUrl(movie.id, movie.title)}>{movie.title}</a></div>
                 <div class="movie-row-meta">
                   {movie.year && <span>{movie.year}</span>}
                   {movie.runtime && <span>{movie.year ? ' \u00b7 ' : ''}{movie.runtime} min</span>}

@@ -2,6 +2,7 @@
 import { renderPage } from './layout.js';
 import { ScreeningWithMovie } from './index.js';
 import { TheatreCard } from './theatre-card.js';
+import { movieUrl } from '../utils/movie-url.js';
 
 const THEATRE_DISPLAY_NAMES: Record<string, string> = {
   'VIFF Lochmaddy Studio': 'VIFF Lochmaddy',
@@ -167,7 +168,7 @@ export function renderMoviesPage(screenings: ScreeningWithMovie[]): string {
                   data-theatres={Array.from(venueMap.keys()).join(',')}>
                   <div class="movie-card-info">
                     <div class="movie-card-header">
-                      <div class="movie-card-title"><a href={`/movie/${movie.movie_id}`}>{movie.movie_title}</a></div>
+                      <div class="movie-card-title"><a href={movieUrl(movie.movie_id, movie.movie_title)}>{movie.movie_title}</a></div>
                       {movie.movie_year && <span class="movie-card-year">({movie.movie_year})</span>}
                     </div>
                     <div class="movie-card-screenings">
