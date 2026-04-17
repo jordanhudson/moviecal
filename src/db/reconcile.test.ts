@@ -55,16 +55,19 @@ const DEFAULT_MOVIE_IDS = new Map<string, number>([
   ['Third Movie', 3],
 ]);
 
+// For most tests, `now` is well before the test dates so all existing are "future".
+const PAST_NOW = dt('2026-04-01T00:00:00Z');
+
 // --- computeReconcileWindow ----------------------------------------------
 
 test('computeReconcileWindow: empty incoming returns null', () => {
-  const result = computeReconcileWindow([], dt('2026-05-01T12:00:00Z'));
+  const result = computeReconcileWindow([]);
   assert.equal(result, null);
 });
 
 test('computeReconcileWindow: single screening yields ±1h window', () => {
   const incoming = [makeScreening({ datetime: dt('2026-05-01T19:00:00Z') })];
-  const result = computeReconcileWindow(incoming, dt('2026-05-01T12:00:00Z'));
+  const result = computeReconcileWindow(incoming);
   assert.ok(result);
   assert.equal(result.lowerBound.toISOString(), '2026-05-01T18:00:00.000Z');
   assert.equal(result.upperBound.toISOString(), '2026-05-01T20:00:00.000Z');
@@ -76,35 +79,25 @@ test('computeReconcileWindow: multi-screening spans min..max with ±1h cushions'
     makeScreening({ datetime: dt('2026-05-03T22:00:00Z') }),
     makeScreening({ datetime: dt('2026-05-02T14:00:00Z') }),
   ];
-  const result = computeReconcileWindow(incoming, dt('2026-05-01T12:00:00Z'));
+  const result = computeReconcileWindow(incoming);
   assert.ok(result);
   assert.equal(result.lowerBound.toISOString(), '2026-05-01T18:00:00.000Z');
   assert.equal(result.upperBound.toISOString(), '2026-05-03T23:00:00.000Z');
 });
 
-test('computeReconcileWindow: clamps lower bound at now when minDt - 1h is in the past', () => {
-  // minDt = 14:30, now = 14:00 → minDt - 1h = 13:30 (before now) → clamp to 14:00
+test('computeReconcileWindow: extends into the past when incoming includes past screenings', () => {
+  // minDt = 14:30 → lowerBound = 13:30 (no clamping at now)
   const incoming = [makeScreening({ datetime: dt('2026-05-01T14:30:00Z') })];
-  const now = dt('2026-05-01T14:00:00Z');
-  const result = computeReconcileWindow(incoming, now);
+  const result = computeReconcileWindow(incoming);
   assert.ok(result);
-  assert.equal(result.lowerBound.toISOString(), '2026-05-01T14:00:00.000Z');
+  assert.equal(result.lowerBound.toISOString(), '2026-05-01T13:30:00.000Z');
   assert.equal(result.upperBound.toISOString(), '2026-05-01T15:30:00.000Z');
-});
-
-test('computeReconcileWindow: does not clamp when minDt - 1h is in the future', () => {
-  // now = 10:00, minDt = 19:00 → minDt - 1h = 18:00 (after now) → no clamping
-  const incoming = [makeScreening({ datetime: dt('2026-05-01T19:00:00Z') })];
-  const now = dt('2026-05-01T10:00:00Z');
-  const result = computeReconcileWindow(incoming, now);
-  assert.ok(result);
-  assert.equal(result.lowerBound.toISOString(), '2026-05-01T18:00:00.000Z');
 });
 
 // --- planReconciliation: trivial cases -----------------------------------
 
 test('plan: empty incoming and empty existing → no-op', () => {
-  const plan = planReconciliation([], DEFAULT_MOVIE_IDS, []);
+  const plan = planReconciliation([], DEFAULT_MOVIE_IDS, [], PAST_NOW);
   assert.deepEqual(plan.stats, { matched: 0, updated: 0, inserted: 0, deleted: 0, skipped: 0 });
   assert.equal(plan.metadataUpdates.length, 0);
   assert.equal(plan.reschedules.length, 0);
@@ -117,7 +110,7 @@ test('plan: empty existing → everything inserts', () => {
     makeScreening({ title: 'Test Movie', datetime: dt('2026-05-01T19:00:00Z') }),
     makeScreening({ title: 'Other Movie', datetime: dt('2026-05-01T21:00:00Z') }),
   ];
-  const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, []);
+  const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, [], PAST_NOW);
   assert.equal(plan.stats.inserted, 2);
   assert.equal(plan.stats.matched, 0);
   assert.equal(plan.inserts.length, 2);
@@ -130,7 +123,7 @@ test('plan: empty incoming but existing in window → everything deletes', () =>
     makeExisting({ id: 10 }),
     makeExisting({ id: 11, datetime: dt('2026-05-01T21:00:00Z') }),
   ];
-  const plan = planReconciliation([], DEFAULT_MOVIE_IDS, existing);
+  const plan = planReconciliation([], DEFAULT_MOVIE_IDS, existing, PAST_NOW);
   assert.equal(plan.stats.deleted, 2);
   assert.deepEqual(plan.deleteIds.sort(), [10, 11]);
 });
@@ -140,7 +133,7 @@ test('plan: empty incoming but existing in window → everything deletes', () =>
 test('pass 1: exact match on (theatre, movie, datetime) → matched, no ops', () => {
   const incoming = [makeScreening({ title: 'Test Movie' })];
   const existing = [makeExisting({ id: 10, movieId: 1 })];
-  const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, existing);
+  const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, existing, PAST_NOW);
   assert.equal(plan.stats.matched, 1);
   assert.equal(plan.stats.inserted, 0);
   assert.equal(plan.stats.deleted, 0);
@@ -154,7 +147,7 @@ test('pass 1: exact match with drifted booking_url → metadata update queued', 
   const existing = [
     makeExisting({ id: 10, movieId: 1, bookingUrl: 'https://example.com/OLD' }),
   ];
-  const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, existing);
+  const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, existing, PAST_NOW);
   assert.equal(plan.stats.matched, 1);
   assert.equal(plan.metadataUpdates.length, 1);
   assert.deepEqual(plan.metadataUpdates[0], {
@@ -167,7 +160,7 @@ test('pass 1: exact match with drifted booking_url → metadata update queued', 
 test('pass 1: exact match with drifted note → metadata update queued', () => {
   const incoming = [makeScreening({ title: 'Test Movie', note: '4K Restoration' })];
   const existing = [makeExisting({ id: 10, movieId: 1, note: null })];
-  const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, existing);
+  const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, existing, PAST_NOW);
   assert.equal(plan.stats.matched, 1);
   assert.equal(plan.metadataUpdates.length, 1);
   assert.equal(plan.metadataUpdates[0].note, '4K Restoration');
@@ -189,7 +182,7 @@ test('pass 1: exact match with identical metadata → no update queued', () => {
       note: 'same note',
     }),
   ];
-  const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, existing);
+  const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, existing, PAST_NOW);
   assert.equal(plan.stats.matched, 1);
   assert.equal(plan.metadataUpdates.length, 0);
 });
@@ -197,7 +190,7 @@ test('pass 1: exact match with identical metadata → no update queued', () => {
 test('pass 1: exact match requires theatre to match — different theatre does not match', () => {
   const incoming = [makeScreening({ title: 'Test Movie', theatreName: 'The Rio' })];
   const existing = [makeExisting({ id: 10, movieId: 1, theatreName: 'VIFF Centre' })];
-  const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, existing);
+  const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, existing, PAST_NOW);
   assert.equal(plan.stats.matched, 0);
   assert.equal(plan.stats.inserted, 1);
   assert.equal(plan.stats.deleted, 1);
@@ -212,7 +205,7 @@ test('pass 2: same theatre+movie within 1h → reschedule', () => {
   const existing = [
     makeExisting({ id: 10, movieId: 1, datetime: dt('2026-05-01T19:00:00Z') }),
   ];
-  const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, existing);
+  const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, existing, PAST_NOW);
   assert.equal(plan.stats.matched, 0);
   assert.equal(plan.stats.updated, 1);
   assert.equal(plan.stats.inserted, 0);
@@ -229,7 +222,7 @@ test('pass 2: reschedule works symmetrically (existing later than incoming)', ()
   const existing = [
     makeExisting({ id: 10, movieId: 1, datetime: dt('2026-05-01T19:45:00Z') }),
   ];
-  const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, existing);
+  const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, existing, PAST_NOW);
   assert.equal(plan.stats.updated, 1);
   assert.equal(plan.reschedules[0].id, 10);
 });
@@ -241,7 +234,7 @@ test('pass 2: exactly 1h diff is within window', () => {
   const existing = [
     makeExisting({ id: 10, movieId: 1, datetime: dt('2026-05-01T19:00:00Z') }),
   ];
-  const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, existing);
+  const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, existing, PAST_NOW);
   assert.equal(plan.stats.updated, 1);
 });
 
@@ -252,7 +245,7 @@ test('pass 2: > 1h diff is not a reschedule → insert + delete', () => {
   const existing = [
     makeExisting({ id: 10, movieId: 1, datetime: dt('2026-05-01T20:00:00Z') }),
   ];
-  const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, existing);
+  const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, existing, PAST_NOW);
   assert.equal(plan.stats.updated, 0);
   assert.equal(plan.stats.inserted, 1);
   assert.equal(plan.stats.deleted, 1);
@@ -265,7 +258,7 @@ test('pass 2: different movie at same theatre → not a reschedule', () => {
   const existing = [
     makeExisting({ id: 10, movieId: 2, datetime: dt('2026-05-01T19:00:00Z') }),
   ];
-  const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, existing);
+  const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, existing, PAST_NOW);
   assert.equal(plan.stats.updated, 0);
   assert.equal(plan.stats.inserted, 1);
   assert.equal(plan.stats.deleted, 1);
@@ -287,7 +280,7 @@ test('pass 2: same movie at different theatre → not a reschedule', () => {
       datetime: dt('2026-05-01T19:00:00Z'),
     }),
   ];
-  const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, existing);
+  const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, existing, PAST_NOW);
   assert.equal(plan.stats.updated, 0);
   assert.equal(plan.stats.inserted, 1);
   assert.equal(plan.stats.deleted, 1);
@@ -303,7 +296,7 @@ test('pass 2: picks the closest existing when multiple candidates are within 1h'
     makeExisting({ id: 20, movieId: 1, datetime: dt('2026-05-01T20:15:00Z') }),
     makeExisting({ id: 10, movieId: 1, datetime: dt('2026-05-01T19:00:00Z') }),
   ];
-  const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, existing);
+  const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, existing, PAST_NOW);
   assert.equal(plan.stats.updated, 1);
   assert.equal(plan.reschedules[0].id, 10);
   // The 20:15 existing goes unmatched and is deleted.
@@ -320,7 +313,7 @@ test('pass 2: each existing can only pair once (greedy, closest-time)', () => {
   const existing = [
     makeExisting({ id: 10, movieId: 1, datetime: dt('2026-05-01T19:00:00Z') }),
   ];
-  const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, existing);
+  const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, existing, PAST_NOW);
   assert.equal(plan.stats.updated, 1);
   assert.equal(plan.stats.inserted, 1);
   assert.equal(plan.stats.deleted, 0);
@@ -340,7 +333,7 @@ test('pass 2: two incoming + two existing for the same movie → both pair up', 
     makeExisting({ id: 10, movieId: 1, datetime: dt('2026-05-01T19:00:00Z') }),
     makeExisting({ id: 20, movieId: 1, datetime: dt('2026-05-01T22:00:00Z') }),
   ];
-  const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, existing);
+  const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, existing, PAST_NOW);
   assert.equal(plan.stats.updated, 2);
   assert.equal(plan.stats.inserted, 0);
   assert.equal(plan.stats.deleted, 0);
@@ -367,7 +360,7 @@ test('pass 2: reschedule update carries incoming booking_url and note', () => {
       note: null,
     }),
   ];
-  const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, existing);
+  const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, existing, PAST_NOW);
   assert.equal(plan.reschedules.length, 1);
   assert.deepEqual(plan.reschedules[0], {
     id: 10,
@@ -391,7 +384,7 @@ test('pass 2: pass 1 exact match gets priority over pass 2 reschedule', () => {
     makeExisting({ id: 20, movieId: 1, datetime: dt('2026-05-01T19:30:00Z') }),
     makeExisting({ id: 30, movieId: 1, datetime: dt('2026-05-01T20:00:00Z') }),
   ];
-  const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, existing);
+  const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, existing, PAST_NOW);
   assert.equal(plan.stats.matched, 3);
   assert.equal(plan.stats.updated, 0);
 });
@@ -408,12 +401,42 @@ test('pass 3 + 4: unreconciled incoming inserts, unreconciled existing deletes',
     makeExisting({ id: 10, movieId: 1, datetime: dt('2026-05-01T19:00:00Z') }),
     makeExisting({ id: 99, movieId: 3, datetime: dt('2026-05-01T23:00:00Z') }),
   ];
-  const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, existing);
+  const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, existing, PAST_NOW);
   assert.equal(plan.stats.matched, 1);
   assert.equal(plan.stats.inserted, 1);
   assert.equal(plan.stats.deleted, 1);
   assert.equal(plan.inserts[0].movieId, 2); // Other Movie
   assert.deepEqual(plan.deleteIds, [99]);
+});
+
+test('pass 4: unmatched past existing are preserved, unmatched future existing are deleted', () => {
+  // now = May 2 noon. Two unmatched existing: one past (May 1), one future (May 3).
+  const now = dt('2026-05-02T12:00:00Z');
+  const existing = [
+    makeExisting({ id: 10, movieId: 1, datetime: dt('2026-05-01T19:00:00Z') }), // past
+    makeExisting({ id: 20, movieId: 2, datetime: dt('2026-05-03T20:00:00Z') }), // future
+  ];
+  const plan = planReconciliation([], DEFAULT_MOVIE_IDS, existing, now);
+  assert.equal(plan.stats.deleted, 1);
+  assert.deepEqual(plan.deleteIds, [20]); // only the future one
+});
+
+test('pass 4: past incoming matches past existing instead of creating duplicate', () => {
+  // This is the exact bug scenario: Rio sends past screenings, reconciler should
+  // match them against existing past screenings (not insert duplicates).
+  const now = dt('2026-05-02T12:00:00Z');
+  const incoming = [
+    makeScreening({ title: 'Test Movie', datetime: dt('2026-05-01T19:00:00Z') }), // past
+    makeScreening({ title: 'Other Movie', datetime: dt('2026-05-03T20:00:00Z') }), // future
+  ];
+  const existing = [
+    makeExisting({ id: 10, movieId: 1, datetime: dt('2026-05-01T19:00:00Z') }), // past
+    makeExisting({ id: 20, movieId: 2, datetime: dt('2026-05-03T20:00:00Z') }), // future
+  ];
+  const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, existing, now);
+  assert.equal(plan.stats.matched, 2);
+  assert.equal(plan.stats.inserted, 0);
+  assert.equal(plan.stats.deleted, 0);
 });
 
 // --- skipped (missing movie) ---------------------------------------------
@@ -423,7 +446,7 @@ test('skipped: incoming whose title is not in titleToMovieId is collected and no
     makeScreening({ title: 'Test Movie' }),
     makeScreening({ title: 'Ghost Movie' }), // not in the map
   ];
-  const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, []);
+  const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, [], PAST_NOW);
   assert.equal(plan.stats.skipped, 1);
   assert.deepEqual(plan.skippedTitles, ['Ghost Movie']);
   assert.equal(plan.stats.inserted, 1);
@@ -465,7 +488,7 @@ test('mixed scenario: match + metadata drift + reschedule + insert + delete + sk
     makeExisting({ id: 103, movieId: 3, datetime: dt('2026-05-02T18:00:00Z') }),
   ];
 
-  const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, existing);
+  const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, existing, PAST_NOW);
 
   assert.deepEqual(plan.stats, {
     matched: 2,

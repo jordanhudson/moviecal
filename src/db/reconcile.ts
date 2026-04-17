@@ -57,12 +57,11 @@ const ONE_HOUR_MS = 60 * 60 * 1000;
  * Returns null if incoming is empty.
  *
  * Window spans (minDt - 1h) to (maxDt + 1h) so pass 2 can catch reschedules at
- * the edges of the batch. The lower bound is clamped at `now` so past screenings
- * aren't fetched — they become historical records untouched by reconciliation.
+ * the edges of the batch. The window extends into the past so the reconciler can
+ * see (and match) past screenings — pass 4 protects them from deletion separately.
  */
 export function computeReconcileWindow(
-  incoming: Screening[],
-  now: Date
+  incoming: Screening[]
 ): { lowerBound: Date; upperBound: Date } | null {
   if (incoming.length === 0) return null;
 
@@ -74,7 +73,7 @@ export function computeReconcileWindow(
     if (ms > maxMs) maxMs = ms;
   }
 
-  const lowerBound = new Date(Math.max(now.getTime(), minMs - ONE_HOUR_MS));
+  const lowerBound = new Date(minMs - ONE_HOUR_MS);
   const upperBound = new Date(maxMs + ONE_HOUR_MS);
   return { lowerBound, upperBound };
 }
@@ -96,13 +95,17 @@ interface ExistingItem extends ExistingScreening {
  * and the existing screenings already filtered to the reconciliation window,
  * returns a plan describing which records to update, insert, and delete.
  *
+ * `now` controls pass 4: unmatched existing screenings in the past (datetime < now)
+ * are preserved as historical records; only future unmatched existing are deleted.
+ *
  * Incoming screenings whose title isn't in `titleToMovieId` are collected into
  * `skippedTitles` so the caller can log them.
  */
 export function planReconciliation(
   incoming: Screening[],
   titleToMovieId: Map<string, number>,
-  existing: ExistingScreening[]
+  existing: ExistingScreening[],
+  now: Date
 ): ReconcilePlan {
   const plan: ReconcilePlan = {
     metadataUpdates: [],
@@ -208,9 +211,11 @@ export function planReconciliation(
   }
 
   // Pass 4: remaining existing (inside the query window) → DELETE.
-  // Past screenings were never fetched, so they're safe from this.
+  // Only delete future screenings — past ones are preserved as historical records.
+  const nowMs = now.getTime();
   for (const e of existingItems) {
     if (e.reconciled) continue;
+    if (e.datetimeMs < nowMs) continue;
     plan.deleteIds.push(e.id);
     plan.stats.deleted++;
   }
@@ -231,7 +236,8 @@ export async function reconcileScreenings(
 ): Promise<ReconcileStats> {
   const emptyStats: ReconcileStats = { matched: 0, updated: 0, inserted: 0, deleted: 0, skipped: 0 };
 
-  const window = computeReconcileWindow(incoming, new Date());
+  const now = new Date();
+  const window = computeReconcileWindow(incoming);
   if (!window) return emptyStats;
 
   const existingRows = await trx
@@ -251,7 +257,7 @@ export async function reconcileScreenings(
     note: r.note,
   }));
 
-  const plan = planReconciliation(incoming, titleToMovieId, existing);
+  const plan = planReconciliation(incoming, titleToMovieId, existing, now);
 
   if (plan.skippedTitles.length > 0) {
     console.error(
