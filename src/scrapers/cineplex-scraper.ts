@@ -161,7 +161,16 @@ export async function scrapeCineplex(): Promise<Screening[]> {
       }
     }
 
-    return screenings;
+    // Deduplicate: the API can return the same showtime in responses for
+    // adjacent days (the `dates` array spans multiple days), so fetching
+    // day-by-day produces duplicates at the overlap.
+    const seen = new Set<string>();
+    return screenings.filter(s => {
+      const key = `${s.theatreName}\t${s.movie.title}\t${s.datetime.getTime()}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
 
   } catch (error) {
     console.error('Error scraping Cineplex:', error);
