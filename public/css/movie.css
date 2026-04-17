@@ -92,6 +92,30 @@
   margin-bottom: 15px;
   padding-bottom: 10px;
   border-bottom: 1px solid #353535;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.hidden-toggle {
+  font-size: 13px;
+  font-weight: normal;
+  color: #6a9a9a;
+  cursor: pointer;
+  user-select: none;
+}
+
+.hidden-toggle:hover {
+  text-decoration: underline;
+}
+
+.screening-item.hidden-by-theatre {
+  display: none;
+}
+
+.screening-list.show-hidden .screening-item.hidden-by-theatre {
+  display: flex;
+  opacity: 0.55;
 }
 
 .screening-list {

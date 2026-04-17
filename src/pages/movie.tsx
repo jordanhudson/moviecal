@@ -4,6 +4,7 @@ import { TmdbModal } from './tmdb-modal.js';
 import { safeHref } from '../utils/html.js';
 import { pacificNow } from '../utils/time.js';
 import { movieUrl } from '../utils/movie-url.js';
+import { CINEPLEX_VENUES } from '../theatres.js';
 
 export interface MovieDetail {
   id: number;
@@ -76,6 +77,59 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
       });
     })();`;
 
+  const hideScript = `
+    (function() {
+      try {
+        var hidden = JSON.parse(localStorage.getItem('hiddenTheatres') || '[]');
+        if (!hidden.length) return;
+        var cineplex = ${JSON.stringify(CINEPLEX_VENUES)};
+        var items = document.querySelectorAll('.screening-item[data-theatre]');
+        var hiddenCount = 0;
+        items.forEach(function(el) {
+          var t = el.dataset.theatre;
+          var match = hidden.indexOf(t) !== -1;
+          if (!match) {
+            for (var i = 0; i < cineplex.length; i++) {
+              if (t.indexOf(cineplex[i].prefix) === 0 && hidden.indexOf(cineplex[i].display) !== -1) {
+                match = true;
+                break;
+              }
+            }
+          }
+          if (match) {
+            el.classList.add('hidden-by-theatre');
+            hiddenCount++;
+          }
+        });
+        if (hiddenCount === 0) return;
+
+        var list = document.querySelector('.screening-list');
+        var heading = document.querySelector('.screenings-section h2');
+        if (!heading) return;
+
+        var toggle = document.createElement('span');
+        toggle.className = 'hidden-toggle';
+        var allHidden = hiddenCount === items.length;
+
+        function render(showing) {
+          var label = hiddenCount + ' hidden';
+          toggle.textContent = showing ? label + ' — hide again' : label + ' — show';
+        }
+
+        var showing = allHidden;
+        if (list && allHidden) list.classList.add('show-hidden');
+        render(showing);
+
+        toggle.addEventListener('click', function() {
+          showing = !showing;
+          if (list) list.classList.toggle('show-hidden', showing);
+          render(showing);
+        });
+
+        heading.appendChild(toggle);
+      } catch(e) {}
+    })();`;
+
   return renderPage({
     title: `${movie.title}${movie.year ? ` (${movie.year})` : ''} Showtimes Vancouver — MovieCal`,
     description: movieDesc,
@@ -124,7 +178,7 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
                     });
 
                     return (
-                      <li class="screening-item">
+                      <li class="screening-item" data-theatre={screening.theatre_name}>
                         <div class="screening-date">
                           <span class="date-part">{dateStr}</span>
                           <span class="at-separator"> at </span>
@@ -148,6 +202,7 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
 
         <TmdbModal />
         <script dangerouslySetInnerHTML={{ __html: posterScript }} />
+        <script dangerouslySetInnerHTML={{ __html: hideScript }} />
       </>
     ),
   });

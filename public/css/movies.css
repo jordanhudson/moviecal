@@ -77,7 +77,7 @@
 
 .movie-card {
   display: flex;
-  background: #222;
+  background: #333;
   border: 1px solid #353535;
   border-radius: 8px;
   margin-bottom: 16px;
@@ -96,7 +96,7 @@
   margin-bottom: 8px;
   position: sticky;
   top: 48px;
-  background: #222;
+  background: #444;
   z-index: 10;
   margin: -12px -16px 8px;
   padding: 12px 16px;
