@@ -25,7 +25,7 @@ const FIX_MATCH_SCRIPT = `
 
 export function renderAllMoviesPage(movies: MovieRow[], sort: string = 'added'): string {
   return renderPage({
-    title: 'All Upcoming Movies — MovieCal',
+    title: 'All Upcoming Movies — MovieClock',
     description: 'Complete list of all movies with upcoming screenings in Vancouver cinemas.',
     styles: ['/css/all-movies.css', '/css/tmdb-modal.css'],
     activePage: 'movies',

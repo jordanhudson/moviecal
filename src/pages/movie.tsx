@@ -131,9 +131,10 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
     })();`;
 
   return renderPage({
-    title: `${movie.title}${movie.year ? ` (${movie.year})` : ''} Showtimes Vancouver — MovieCal`,
+    title: `${movie.title}${movie.year ? ` (${movie.year})` : ''} Showtimes Vancouver — MovieClock`,
     description: movieDesc,
     canonicalPath: movieUrl(movie.id, movie.title),
+    ogImage: movie.poster_url || undefined,
     jsonLd: [movieSchema, ...screeningSchemas],
     styles: ['/css/movie.css', '/css/tmdb-modal.css'],
     body: (

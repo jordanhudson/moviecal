@@ -18,7 +18,7 @@ export function renderTheatrePage(theatreName: string, screenings: TheatreScreen
   const futureScreenings = screenings.filter(s => new Date(s.datetime) >= now);
 
   return renderPage({
-    title: `${theatreName} Showtimes Vancouver — MovieCal`,
+    title: `${theatreName} Showtimes Vancouver — MovieClock`,
     description: `Upcoming movie showtimes at ${theatreName} in Vancouver.`,
     canonicalPath: `/theatre/${encodeURIComponent(theatreName)}`,
     jsonLd: {

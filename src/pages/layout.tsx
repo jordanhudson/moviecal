@@ -25,6 +25,7 @@ export interface PageOptions {
   title: string;
   description?: string;
   canonicalPath?: string;
+  ogImage?: string;
   jsonLd?: object | object[];
   styles?: string[];
   body: Child;
@@ -69,12 +70,14 @@ const calendarIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height=
 
 const filmIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 256 256" style="vertical-align: -2px; margin-right: 4px;"><path fill="currentColor" d="M232,216H183.36A103.95,103.95,0,1,0,128,232H232a8,8,0,0,0,0-16ZM40,128a88,88,0,1,1,88,88A88.1,88.1,0,0,1,40,128Zm88-24a24,24,0,1,0-24-24A24,24,0,0,0,128,104Zm0-32a8,8,0,1,1-8,8A8,8,0,0,1,128,72Zm24,104a24,24,0,1,0-24,24A24,24,0,0,0,152,176Zm-32,0a8,8,0,1,1,8,8A8,8,0,0,1,120,176Zm56-24a24,24,0,1,0-24-24A24,24,0,0,0,176,152Zm0-32a8,8,0,1,1-8,8A8,8,0,0,1,176,120ZM80,104a24,24,0,1,0,24,24A24,24,0,0,0,80,104Zm0,32a8,8,0,1,1,8-8A8,8,0,0,1,80,136Z"/></svg>';
 
-export function renderPage({ title, description, canonicalPath, jsonLd, styles, body, activePage }: PageOptions): string {
+export function renderPage({ title, description, canonicalPath, ogImage, jsonLd, styles, body, activePage }: PageOptions): string {
   const searchMovies = _searchMovies;
   const BASE_URL = 'https://movieclock.fly.dev';
   const metaDesc = description || 'Movie showtimes for Vancouver independent cinemas — Cinematheque, VIFF, Rio Theatre, Park Theatre, and more.';
   const jsonLdItems = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
   const cssFiles = ['/css/global.css', ...(styles || [])];
+  const ogImageUrl = ogImage || `${BASE_URL}/og-image.png`;
+  const canonicalUrl = canonicalPath != null ? `${BASE_URL}${canonicalPath}` : BASE_URL;
 
   const page = (
     <html lang="en">
@@ -83,9 +86,16 @@ export function renderPage({ title, description, canonicalPath, jsonLd, styles, 
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <meta name="google-site-verification" content="VM8EAB3B8XS6MIzpotyQjlH5WodE2q_e0NkffgF_DdI" />
         <meta name="description" content={metaDesc} />
+        <meta property="og:site_name" content="MovieClock" />
         <meta property="og:title" content={title} />
         <meta property="og:description" content={metaDesc} />
         <meta property="og:type" content="website" />
+        <meta property="og:url" content={canonicalUrl} />
+        <meta property="og:image" content={ogImageUrl} />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={title} />
+        <meta name="twitter:description" content={metaDesc} />
+        <meta name="twitter:image" content={ogImageUrl} />
         {canonicalPath != null && <link rel="canonical" href={`${BASE_URL}${canonicalPath}`} />}
         <link rel="icon" type="image/png" href="/favicon.png" />
         {cssFiles.map(href => <link rel="stylesheet" href={href} />)}

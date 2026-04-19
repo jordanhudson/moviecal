@@ -120,7 +120,7 @@ export function renderMoviesPage(screenings: ScreeningWithMovie[]): string {
     .sort((a, b) => new Date(b[0].movie_created_at || 0).getTime() - new Date(a[0].movie_created_at || 0).getTime());
 
   return renderPage({
-    title: 'Upcoming Movies in Vancouver Cinemas — MovieCal',
+    title: 'Upcoming Movies in Vancouver Cinemas — MovieClock',
     description: 'Browse all upcoming movies playing in Vancouver independent and repertory cinemas, with showtimes and ticket links.',
     canonicalPath: '/movies',
     styles: ['/css/theatre-card.css', '/css/movies.css'],
