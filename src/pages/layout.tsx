@@ -72,7 +72,7 @@ const filmIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15"
 
 export function renderPage({ title, description, canonicalPath, ogImage, jsonLd, styles, body, activePage }: PageOptions): string {
   const searchMovies = _searchMovies;
-  const BASE_URL = 'https://movieclock.fly.dev';
+  const BASE_URL = 'https://movieclock.app';
   const metaDesc = description || 'Movie showtimes for Vancouver independent cinemas — Cinematheque, VIFF, Rio Theatre, Park Theatre, and more.';
   const jsonLdItems = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
   const cssFiles = ['/css/global.css', ...(styles || [])];

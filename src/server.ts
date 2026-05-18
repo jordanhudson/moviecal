@@ -18,6 +18,15 @@ import { movieUrl } from './utils/movie-url.js';
 
 const app = new Hono();
 
+app.use('*', async (c, next) => {
+  const host = c.req.header('host');
+  if (host === 'movieclock.fly.dev') {
+    const url = new URL(c.req.url);
+    return c.redirect(`https://movieclock.app${url.pathname}${url.search}`, 301);
+  }
+  return next();
+});
+
 app.use('/css/*', serveStatic({ root: './public' }));
 app.use('/favicon.png', serveStatic({ root: './public' }));
 
@@ -69,7 +78,7 @@ app.route('/', apiRoutes);
 
 // robots.txt
 app.get('/robots.txt', (c) => {
-  const BASE_URL = process.env.BASE_URL || 'https://movieclock.fly.dev';
+  const BASE_URL = process.env.BASE_URL || 'https://movieclock.app';
   const body = `User-agent: *
 Allow: /
 
@@ -80,7 +89,7 @@ Sitemap: ${BASE_URL}/sitemap.xml
 
 // sitemap.xml
 app.get('/sitemap.xml', async (c) => {
-  const BASE_URL = process.env.BASE_URL || 'https://movieclock.fly.dev';
+  const BASE_URL = process.env.BASE_URL || 'https://movieclock.app';
   const now = new Date().toISOString().split('T')[0];
 
   // Get all movies that have future screenings

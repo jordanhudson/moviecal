@@ -255,7 +255,7 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[], listingGroup
       '@context': 'https://schema.org',
       '@type': 'WebSite',
       name: 'MovieClock',
-      url: 'https://movieclock.fly.dev',
+      url: 'https://movieclock.app',
       description: 'Movie showtimes for Vancouver independent and repertory cinemas.',
     },
     styles: ['/css/theatre-card.css', '/css/index.css'],

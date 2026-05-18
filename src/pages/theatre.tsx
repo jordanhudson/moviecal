@@ -26,7 +26,7 @@ export function renderTheatrePage(theatreName: string, screenings: TheatreScreen
       '@type': 'MovieTheater',
       name: theatreName,
       address: { '@type': 'PostalAddress', addressLocality: 'Vancouver', addressRegion: 'BC', addressCountry: 'CA' },
-      url: `https://movieclock.fly.dev/theatre/${encodeURIComponent(theatreName)}`,
+      url: `https://movieclock.app/theatre/${encodeURIComponent(theatreName)}`,
     },
     styles: ['/css/theatre.css'],
     body: (

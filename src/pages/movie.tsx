@@ -43,7 +43,7 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
     ...(movie.director && { director: { '@type': 'Person', name: movie.director } }),
     ...(movie.runtime && { duration: `PT${movie.runtime}M` }),
     ...(movie.poster_url && { image: movie.poster_url }),
-    url: `https://movieclock.fly.dev${movieUrl(movie.id, movie.title)}`,
+    url: `https://movieclock.app${movieUrl(movie.id, movie.title)}`,
   };
 
   const screeningSchemas = futureScreenings.map(s => ({
