@@ -186,7 +186,7 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
                           <span class="time-part">{timeStr}</span>
                         </div>
                         <div class="screening-theatre">
-                          {screening.theatre_name}
+                          <a href={`/theatre/${encodeURIComponent(screening.theatre_name)}`}>{screening.theatre_name}</a>
                           {screening.note && <div class="screening-note">{screening.note}</div>}
                         </div>
                         <a href={safeHref(screening.booking_url)} target="_blank" class="screening-book">
