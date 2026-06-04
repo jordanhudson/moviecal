@@ -172,7 +172,7 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
                       weekday: 'short',
                       month: 'short',
                       day: 'numeric',
-                    });
+                    }).replace(',', '');
                     const timeStr = screeningDate.toLocaleTimeString('en-US', {
                       hour: 'numeric',
                       minute: '2-digit',

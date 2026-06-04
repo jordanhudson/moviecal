@@ -66,9 +66,10 @@
 .sort-option:hover { background: var(--glass2); color: var(--ink); }
 .sort-option.active { color: var(--cyan); }
 
-/* movie card = poster + info */
+/* movie card = stacked: [poster + title] row, then theatre rows */
 .movie-card {
   display: flex;
+  flex-direction: column;
   gap: 16px;
   background: var(--glass);
   border: 1px solid var(--line);
@@ -78,9 +79,16 @@
   backdrop-filter: blur(10px);
 }
 
+/* first row: poster beside title */
+.movie-card-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
 .movie-card-poster {
   flex-shrink: 0;
-  width: 76px;
+  width: 60px;
   aspect-ratio: 2/3;
   border-radius: 10px;
   overflow: hidden;
@@ -89,32 +97,26 @@
 }
 .movie-card-poster img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
-.movie-card-info { flex: 1; min-width: 0; }
-
-.movie-card-header {
+.movie-card-titles {
+  min-width: 0;
   display: flex;
-  align-items: baseline;
-  gap: 8px;
-  margin-bottom: 12px;
+  flex-direction: column;
+  gap: 3px;
 }
 
 .movie-card-title {
   font-family: var(--font-disp);
   font-weight: 600;
-  font-size: 17px;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: 18px;
+  line-height: 1.2;
 }
 .movie-card-title a:hover { color: var(--cyan); }
 
-.movie-card-year { color: var(--faint); font-size: 13px; flex-shrink: 0; }
+.movie-card-year { color: var(--faint); font-size: 13px; }
 
 .movie-card-screenings { display: flex; flex-direction: column; gap: 12px; }
 
 @media (max-width: 720px) {
   .movie-view { padding-top: 22px; }
-  .movie-card { padding: 12px; gap: 12px; }
-  .movie-card-poster { width: 60px; }
+  .movie-card { padding: 12px; gap: 14px; }
 }

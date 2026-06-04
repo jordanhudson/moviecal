@@ -176,27 +176,27 @@ export function renderMoviesPage(screenings: ScreeningWithMovie[]): string {
                   data-created={String(createdAt)}
                   data-popularity={String(movie.tmdb_popularity ?? 0)}
                   data-theatres={Array.from(venueMap.keys()).join(',')}>
-                  <a class="movie-card-poster" href={movieUrl(movie.movie_id, movie.movie_title)}
-                    style={movie.poster_url ? '' : `background:${POSTER_GRADS[movie.movie_id % POSTER_GRADS.length]}`}>
-                    {movie.poster_url && <img src={safeHref(movie.poster_url)} alt="" loading="lazy" />}
-                  </a>
-                  <div class="movie-card-info">
-                    <div class="movie-card-header">
+                  <div class="movie-card-header">
+                    <a class="movie-card-poster" href={movieUrl(movie.movie_id, movie.movie_title)}
+                      style={movie.poster_url ? '' : `background:${POSTER_GRADS[movie.movie_id % POSTER_GRADS.length]}`}>
+                      {movie.poster_url && <img src={safeHref(movie.poster_url)} alt="" loading="lazy" />}
+                    </a>
+                    <div class="movie-card-titles">
                       <div class="movie-card-title"><a href={movieUrl(movie.movie_id, movie.movie_title)}>{movie.movie_title}</a></div>
                       {movie.movie_year && <span class="movie-card-year">({movie.movie_year})</span>}
                     </div>
-                    <div class="movie-card-screenings">
-                      {Array.from(venueMap.entries()).map(([venueName, venue]) => (
-                        <TheatreCard
-                          header={venueName}
-                          headerLink={venue.theatreLink ? `/theatre/${encodeURIComponent(venue.theatreLink)}` : undefined}
-                          rows={Array.from(venue.dates.values()).map(dateGroup => ({
-                            label: dateGroup.label,
-                            times: dateGroup.times.map(t => ({ display: t.time, bookingUrl: t.bookingUrl })),
-                          }))}
-                        />
-                      ))}
-                    </div>
+                  </div>
+                  <div class="movie-card-screenings">
+                    {Array.from(venueMap.entries()).map(([venueName, venue]) => (
+                      <TheatreCard
+                        header={venueName}
+                        headerLink={venue.theatreLink ? `/theatre/${encodeURIComponent(venue.theatreLink)}` : undefined}
+                        rows={Array.from(venue.dates.values()).map(dateGroup => ({
+                          label: dateGroup.label,
+                          times: dateGroup.times.map(t => ({ display: t.time, bookingUrl: t.bookingUrl })),
+                        }))}
+                      />
+                    ))}
                   </div>
                 </div>
               );

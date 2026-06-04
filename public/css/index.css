@@ -247,7 +247,7 @@
   display: grid;
   grid-template-columns: 1fr;
   gap: 18px;
-  align-items: start;
+  align-items: stretch;
 }
 /* two-up once there's room */
 @media (min-width: 760px) {
@@ -271,12 +271,13 @@
 .film-row {
   display: grid;
   grid-template-columns: 50px 1fr auto;
-  gap: 16px;
+  gap: 14px;
   align-items: center;
   padding: 14px 18px;
   border-top: 1px solid var(--line);
 }
 .film-row:first-of-type { border-top: none; }
+.film-row:last-of-type { border-bottom: 1px solid var(--line); }
 .film-poster {
   aspect-ratio: 2/3;
   border-radius: 8px;
@@ -288,13 +289,13 @@
 .film-title { font-weight: 600; font-size: 15.5px; }
 .film-title:hover { color: var(--cyan); }
 .film-meta { color: var(--muted); font-size: 12.5px; margin-top: 3px; }
-.show-times { display: flex; flex-wrap: wrap; gap: 7px; justify-content: flex-end; }
+.show-times { display: flex; flex-wrap: wrap; gap: 7px; justify-content: flex-end; max-width: 280px; }
 .show-time {
   font-family: var(--font-disp);
   font-weight: 600;
   font-size: 14px;
   font-variant-numeric: tabular-nums;
-  padding: 8px 13px;
+  padding: 8px 8px;
   border-radius: 11px;
   background: var(--glass2);
   border: 1px solid var(--line);
@@ -310,5 +311,5 @@
   #viewsWrapper .timeline-view { display: none !important; }
   #viewsWrapper .listing-view { display: grid !important; grid-template-columns: 1fr; }
   .film-row { grid-template-columns: 46px 1fr; row-gap: 11px; }
-  .show-times { grid-column: 1 / -1; justify-content: flex-start; }
+  .show-times { grid-column: 1 / -1; justify-content: flex-start; max-width: none; }
 }

@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { Hono } from 'hono';
+import type { Context } from 'hono';
 import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { db } from './db/connection.js';
@@ -267,9 +268,8 @@ app.get('/movies', async (c) => {
   return c.html(html);
 });
 
-// Home page - Timeline view
-app.get('/', async (c) => {
-  const dateParam = c.req.query('date');
+// Home page (By Date) — shared by `/` and `/date/:datestr`
+async function renderHome(c: Context, dateParam?: string) {
   const { start, end, date } = getDayBounds(dateParam);
 
   // Query screenings for this date
@@ -337,6 +337,24 @@ app.get('/', async (c) => {
   // Render HTML
   const html = renderIndexPage(date, theatres, listingGroups);
   return c.html(html);
+}
+
+app.get('/', (c) => {
+  // Back-compat: old bookmarks used `/?date=YYYY-MM-DD`; 301 to the new path form
+  const legacyDate = c.req.query('date');
+  if (legacyDate && /^\d{4}-\d{2}-\d{2}$/.test(legacyDate)) {
+    return c.redirect(`/date/${legacyDate}`, 301);
+  }
+  return renderHome(c);
+});
+
+app.get('/date/:datestr', (c) => {
+  const datestr = c.req.param('datestr');
+  // Only accept YYYY-MM-DD; anything else falls back to today's view at `/`
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(datestr)) {
+    return c.redirect('/', 301);
+  }
+  return renderHome(c, datestr);
 });
 
 // Schedule scrape job every 2 hours

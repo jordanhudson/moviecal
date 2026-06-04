@@ -84,6 +84,8 @@ export function renderPage({ title, description, canonicalPath, ogImage, jsonLd,
       <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="color-scheme" content="dark" />
+        <meta name="darkreader-lock" />
         <meta name="google-site-verification" content="VM8EAB3B8XS6MIzpotyQjlH5WodE2q_e0NkffgF_DdI" />
         <meta name="description" content={metaDesc} />
         <meta property="og:site_name" content="MovieClock" />

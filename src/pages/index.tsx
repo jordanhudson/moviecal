@@ -124,7 +124,7 @@ const INDEX_SCRIPT = `
 
   // ---- view toggle (desktop only) ----
   var wrapper = document.getElementById('viewsWrapper');
-  var savedView = localStorage.getItem('viewMode') || 'timeline';
+  var savedView = localStorage.getItem('viewMode') || 'listing';
   wrapper.dataset.view = savedView;
   document.querySelectorAll('.view-toggle button').forEach(function(btn) {
     btn.classList.toggle('active', btn.dataset.view === savedView);
@@ -146,14 +146,16 @@ const INDEX_SCRIPT = `
     function ymd(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
     var DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
     var today = new Date(); today.setHours(0,0,0,0);
-    var list = [];
     var sel = new Date(selected + 'T00:00:00');
-    if (sel < today) list.push(sel);
-    for (var i = 0; i < 14; i++) { var d = new Date(today); d.setDate(d.getDate()+i); list.push(d); }
+    var start = sel < today ? new Date(sel) : new Date(today);
+    var end = new Date(today); end.setDate(end.getDate()+13);
+    if (sel > end) end = new Date(sel);
+    var list = [];
+    for (var d = new Date(start); d <= end; d.setDate(d.getDate()+1)) { list.push(new Date(d)); }
     rail.innerHTML = list.map(function(d){
       var key = ymd(d);
       var on = key === selected ? ' on' : '';
-      return '<a class="day'+on+'" href="/?date='+key+'"><span class="dow">'+DOW[d.getDay()]+'</span><span class="num">'+d.getDate()+'</span></a>';
+      return '<a class="day'+on+'" href="/date/'+key+'"><span class="dow">'+DOW[d.getDay()]+'</span><span class="num">'+d.getDate()+'</span></a>';
     }).join('');
     var active = rail.querySelector('.day.on');
     if (active) active.scrollIntoView({inline:'center', block:'nearest'});
@@ -162,7 +164,7 @@ const INDEX_SCRIPT = `
   // ---- date picker jump ----
   var picker = document.getElementById('datePicker');
   if (picker) {
-    picker.addEventListener('change', function(){ window.location.href = '/?date=' + this.value; });
+    picker.addEventListener('change', function(){ window.location.href = '/date/' + this.value; });
   }
 
   // ---- theatre filter chips (localStorage: hiddenTheatres) ----
@@ -233,18 +235,18 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[], listingGroup
               <h1 class="date-h1">{displayDate}</h1>
             </div>
             <div class="view-toggle">
-              <button class="active" data-view="timeline">Timeline</button>
-              <button data-view="listing">Listing</button>
+              <button class="active" data-view="listing">Listing</button>
+              <button data-view="timeline">Timeline</button>
             </div>
           </div>
 
           <div class="rail-wrap">
-            <a class="rail-arrow" href={`/?date=${prevDay}`} aria-label="Previous day">{'‹'}</a>
+            <a class="rail-arrow" href={`/date/${prevDay}`} aria-label="Previous day">{'‹'}</a>
             <div class="rail" id="dateRail" data-selected={dateStr}>
               {/* filled client-side; SEO/no-JS fallback below */}
               <noscript><a class="day on"><span class="num">{date.getDate()}</span></a></noscript>
             </div>
-            <a class="rail-arrow" href={`/?date=${nextDay}`} aria-label="Next day">{'›'}</a>
+            <a class="rail-arrow" href={`/date/${nextDay}`} aria-label="Next day">{'›'}</a>
             <label class="rail-cal" title="Pick a date">
               {'📅'}
               <input type="date" id="datePicker" value={dateStr} />
@@ -260,7 +262,7 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[], listingGroup
           )}
         </div>
 
-        <div id="viewsWrapper" data-view="timeline">
+        <div id="viewsWrapper" data-view="listing">
           {!hasScreenings && <div class="no-screenings">No screenings for this day — try another date.</div>}
 
           {/* ---- Timeline view (desktop only) ---- */}

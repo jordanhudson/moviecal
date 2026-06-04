@@ -42,7 +42,7 @@ export function renderTheatrePage(theatreName: string, screenings: TheatreScreen
                   weekday: 'short',
                   month: 'short',
                   day: 'numeric',
-                });
+                }).replace(',', '');
                 const timeStr = screeningDate.toLocaleTimeString('en-US', {
                   hour: 'numeric',
                   minute: '2-digit',
