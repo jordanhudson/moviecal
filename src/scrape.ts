@@ -218,6 +218,31 @@ export async function runScrapeJob(scraperName?: string) {
           continue;
         }
       }
+    } else {
+      // No parens note, but the title may carry a colon annotation
+      // ("Real Title: Bleak Week"). Scrapers don't strip these, so split here at
+      // insert time — verifyTitleCleaning only splits when TMDB confirms the part
+      // before the colon is the real title.
+      const verified = await verifyTitleCleaning(movie.title, movie.year);
+      if (verified.title !== movie.title && verified.note) {
+        console.log(`  → Split "${movie.title}" → "${verified.title}" (note: "${verified.note}")`);
+        for (const s of movieScreenings) {
+          s.movie.title = verified.title;
+          if (!s.note) s.note = verified.note;
+        }
+        movie.title = verified.title;
+
+        // The split title may already exist — reconcile will attach screenings to it
+        const existingSplit = await db
+          .selectFrom('movie')
+          .select('id')
+          .where('title', '=', verified.title)
+          .executeTakeFirst();
+        if (existingSplit) {
+          existingMoviesCount++;
+          continue;
+        }
+      }
     }
 
     // Search TMDB with the (possibly restored) title
