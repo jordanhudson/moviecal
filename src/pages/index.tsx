@@ -1,15 +1,15 @@
 /** @jsxImportSource hono/jsx */
 import { renderPage } from './layout.js';
 import { safeHref } from '../utils/html.js';
-import { TheatreCard } from './theatre-card.js';
 import { movieUrl } from '../utils/movie-url.js';
+import { CINEPLEX_VENUES } from '../theatres.js';
 
 const DEFAULT_RUNTIME_MINUTES = 105;
 const MIN_DISPLAY_RUNTIME_MINUTES = 90;
 const TIMELINE_START_HOUR = 10; // 10am
 const TIMELINE_END_HOUR = 26;   // 2am next day (24 + 2)
 
-// Home page - Timeline view (desktop) and Agenda view (mobile)
+// Home page — By Date. Timeline view (desktop) + Listing view (mobile always, desktop optional).
 
 export interface ScreeningWithMovie {
   screening_id: number;
@@ -38,6 +38,8 @@ export interface ListingGroup {
   movies: {
     movie_id: number;
     movie_title: string;
+    movie_year?: number | null;
+    movie_runtime?: number | null;
     poster_url: string | null;
     letterboxd_url: string | null;
     tmdb_url: string | null;
@@ -46,20 +48,7 @@ export interface ListingGroup {
 }
 
 function formatDate(date: Date): string {
-  return date.toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  });
-}
-
-function formatDateShort(date: Date): string {
-  return date.toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric'
-  });
+  return date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 }
 
 function getPrevDay(date: Date): string {
@@ -93,10 +82,7 @@ function calculatePosition(datetime: Date, runtime: number | null): { left: stri
   const effectiveRuntime = Math.max(movieRuntime, MIN_DISPLAY_RUNTIME_MINUTES);
   const widthPercent = (effectiveRuntime / totalMinutes) * 100;
 
-  return {
-    left: `${Math.max(0, leftPercent)}%`,
-    width: `${widthPercent}%`
-  };
+  return { left: `${Math.max(0, leftPercent)}%`, width: `${widthPercent}%` };
 }
 
 const THEATRE_DISPLAY_NAMES: Record<string, string> = {
@@ -107,145 +93,123 @@ function displayName(theatre: string): string {
   return THEATRE_DISPLAY_NAMES[theatre] || theatre;
 }
 
+function formatTime(d: Date): string {
+  const h = d.getHours() % 12 || 12;
+  const m = String(d.getMinutes()).padStart(2, '0');
+  const ampm = d.getHours() >= 12 ? 'pm' : 'am';
+  return `${h}:${m}${ampm}`;
+}
+
+function metaLine(year?: number | null, runtime?: number | null): string {
+  return [year, runtime ? `${runtime} min` : null].filter(Boolean).join(' · ');
+}
+
 const TIME_LABELS = ['10am', '11am', '12pm', '1pm', '2pm', '3pm', '4pm', '5pm', '6pm', '7pm', '8pm', '9pm', '10pm', '11pm', '12am', '1am'];
 
+// Distinct gradient per movie for poster placeholders (stable by id)
+const POSTER_GRADS = [
+  'linear-gradient(155deg,#c2410c,#7c2d12)',
+  'linear-gradient(155deg,#0f766e,#134e4a)',
+  'linear-gradient(155deg,#6d28d9,#4c1d95)',
+  'linear-gradient(155deg,#be185d,#831843)',
+  'linear-gradient(155deg,#0369a1,#0c4a6e)',
+  'linear-gradient(155deg,#a16207,#713f12)',
+];
+function posterGrad(id: number): string {
+  return POSTER_GRADS[id % POSTER_GRADS.length];
+}
+
 const INDEX_SCRIPT = `
-    // View toggle
-    var wrapper = document.getElementById('viewsWrapper');
-    var pageContent = document.querySelector('.page-content');
-    var savedView = localStorage.getItem('viewMode') || 'timeline';
-    wrapper.dataset.view = savedView;
-    pageContent.dataset.view = savedView;
-    document.querySelectorAll('.view-btn').forEach(function(btn) {
-      btn.classList.toggle('active', btn.dataset.view === savedView);
-      btn.addEventListener('click', function() {
-        var view = btn.dataset.view;
-        wrapper.dataset.view = view;
-        pageContent.dataset.view = view;
-        localStorage.setItem('viewMode', view);
-        document.querySelectorAll('.view-btn').forEach(function(b) {
-          b.classList.toggle('active', b.dataset.view === view);
-        });
+  var CINEPLEX = __CINEPLEX__;
+
+  // ---- view toggle (desktop only) ----
+  var wrapper = document.getElementById('viewsWrapper');
+  var savedView = localStorage.getItem('viewMode') || 'timeline';
+  wrapper.dataset.view = savedView;
+  document.querySelectorAll('.view-toggle button').forEach(function(btn) {
+    btn.classList.toggle('active', btn.dataset.view === savedView);
+    btn.addEventListener('click', function() {
+      var view = btn.dataset.view;
+      wrapper.dataset.view = view;
+      localStorage.setItem('viewMode', view);
+      document.querySelectorAll('.view-toggle button').forEach(function(b) {
+        b.classList.toggle('active', b.dataset.view === view);
       });
     });
+  });
 
-    // Hidden theatres
-    function getHidden() {
-      try { return JSON.parse(localStorage.getItem('hiddenTheatres') || '[]'); }
-      catch { return []; }
+  // ---- date rail (built client-side off real "today") ----
+  (function() {
+    var rail = document.getElementById('dateRail');
+    if (!rail) return;
+    var selected = rail.dataset.selected;
+    function ymd(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+    var DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    var today = new Date(); today.setHours(0,0,0,0);
+    var list = [];
+    var sel = new Date(selected + 'T00:00:00');
+    if (sel < today) list.push(sel);
+    for (var i = 0; i < 14; i++) { var d = new Date(today); d.setDate(d.getDate()+i); list.push(d); }
+    rail.innerHTML = list.map(function(d){
+      var key = ymd(d);
+      var on = key === selected ? ' on' : '';
+      return '<a class="day'+on+'" href="/?date='+key+'"><span class="dow">'+DOW[d.getDay()]+'</span><span class="num">'+d.getDate()+'</span></a>';
+    }).join('');
+    var active = rail.querySelector('.day.on');
+    if (active) active.scrollIntoView({inline:'center', block:'nearest'});
+  })();
+
+  // ---- date picker jump ----
+  var picker = document.getElementById('datePicker');
+  if (picker) {
+    picker.addEventListener('change', function(){ window.location.href = '/?date=' + this.value; });
+  }
+
+  // ---- theatre filter chips (localStorage: hiddenTheatres) ----
+  function getHidden(){ try { return JSON.parse(localStorage.getItem('hiddenTheatres') || '[]'); } catch(e){ return []; } }
+  function saveHidden(l){ localStorage.setItem('hiddenTheatres', JSON.stringify(l)); }
+  function isHidden(dt, hidden){
+    if (hidden.indexOf(dt) !== -1) return true;
+    for (var i=0;i<CINEPLEX.length;i++){
+      if (hidden.indexOf(CINEPLEX[i].display) !== -1 && dt.indexOf(CINEPLEX[i].prefix) === 0) return true;
     }
-
-    function saveHidden(list) {
-      localStorage.setItem('hiddenTheatres', JSON.stringify(list));
-    }
-
-    function hideTheatre(name) {
-      var list = getHidden();
-      if (list.indexOf(name) === -1) list.push(name);
-      saveHidden(list);
-      applyHidden();
-    }
-
-    function unhideTheatre(name) {
-      var list = getHidden().filter(function(n) { return n !== name; });
-      saveHidden(list);
-      applyHidden();
-    }
-
-    function toggleHidden() {
-      var section = document.getElementById('hiddenSection');
-      var btn = document.getElementById('hiddenToggle');
-      if (section.style.display === 'block') {
-        section.style.display = 'none';
-        btn.textContent = 'Show Hidden Theatres';
-      } else {
-        section.style.display = 'block';
-        btn.textContent = "Don't Show Hidden Theatres";
-      }
-    }
-
-    document.getElementById('hiddenToggle').addEventListener('click', toggleHidden);
-
-    // Event delegation for hide/unhide links
-    document.addEventListener('click', function(e) {
-      var link = e.target.closest('.hide-link');
-      if (!link) return;
-      var theatreEl = link.closest('[data-theatre]');
-      if (!theatreEl) return;
-      var name = theatreEl.dataset.theatre;
-      if (link.textContent === 'Unhide') {
-        unhideTheatre(name);
-      } else {
-        hideTheatre(name);
-      }
+    return false;
+  }
+  function applyFilter(){
+    var hidden = getHidden();
+    document.querySelectorAll('[data-theatre]').forEach(function(el){
+      if (el.classList.contains('chip')) return;
+      el.style.display = isHidden(el.dataset.theatre, hidden) ? 'none' : '';
     });
-
-    function cloneForUnhide(selector, name) {
-      var el = document.querySelector(selector + ' > [data-theatre="' + CSS.escape(name) + '"]');
-      if (!el) return '';
-      var clone = el.cloneNode(true);
-      clone.style.display = '';
-      var link = clone.querySelector('.hide-link');
-      if (link) link.textContent = 'Unhide';
-      return clone.outerHTML;
-    }
-
-    function applyHidden() {
+    document.querySelectorAll('.chip').forEach(function(c){
+      var off = hidden.indexOf(c.dataset.theatre) !== -1;
+      c.classList.toggle('off', off);
+      c.classList.toggle('on', !off);
+    });
+  }
+  document.querySelectorAll('.chip').forEach(function(c){
+    c.addEventListener('click', function(){
+      var name = c.dataset.theatre;
       var hidden = getHidden();
-      var footer = document.getElementById('hiddenFooter');
-      var section = document.getElementById('hiddenSection');
-      var btn = document.getElementById('hiddenToggle');
-
-      // Show/hide theatre rows in main views
-      document.querySelectorAll('[data-theatre]').forEach(function(el) {
-        if (el.closest('#hiddenSection')) return;
-        el.style.display = hidden.indexOf(el.dataset.theatre) !== -1 ? 'none' : '';
-      });
-
-      // Build hidden section content
-      if (hidden.length === 0) {
-        footer.style.display = 'none';
-        section.style.display = 'none';
-        return;
-      }
-
-      footer.style.display = 'block';
-      if (section.style.display !== 'block') {
-        btn.textContent = 'Show Hidden Theatres';
-      }
-
-      var desktopRows = '';
-      var listingRows = '';
-      hidden.forEach(function(name) {
-        desktopRows += cloneForUnhide('.timeline-container', name);
-        listingRows += cloneForUnhide('.listing-container', name);
-      });
-
-      section.innerHTML =
-        '<div class="timeline-container">' + desktopRows + '</div>' +
-        '<div class="listing-container">' + listingRows + '</div>';
-    }
-
-    applyHidden();
-
-    var picker = document.getElementById('datePicker');
-    picker.addEventListener('click', function(e) {
-      e.preventDefault();
-      try { picker.showPicker(); } catch(err) { console.log('showPicker failed:', err); }
+      var idx = hidden.indexOf(name);
+      if (idx === -1) hidden.push(name); else hidden.splice(idx, 1);
+      saveHidden(hidden);
+      applyFilter();
     });
-    picker.addEventListener('change', function() {
-      window.location.href = '/?date=' + this.value;
-    });
+  });
+  applyFilter();
 `;
 
 export function renderIndexPage(date: Date, theatres: TheatreRow[], listingGroups: ListingGroup[] = []): string {
   const prevDay = getPrevDay(date);
   const nextDay = getNextDay(date);
   const displayDate = formatDate(date);
-  const displayDateShort = formatDateShort(date);
   const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
   const hasScreenings = theatres.some(t => t.screenings.length > 0) || listingGroups.length > 0;
+  const totalScreenings = theatres.reduce((n, t) => n + t.screenings.length, 0);
+
+  const script = INDEX_SCRIPT.replace('__CINEPLEX__', JSON.stringify(CINEPLEX_VENUES));
 
   return renderPage({
     title: `Vancouver Movie Showtimes ${displayDate} — MovieClock`,
@@ -258,104 +222,117 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[], listingGroup
       url: 'https://movieclock.app',
       description: 'Movie showtimes for Vancouver independent and repertory cinemas.',
     },
-    styles: ['/css/theatre-card.css', '/css/index.css'],
+    styles: ['/css/index.css'],
     activePage: 'home',
     body: (
       <>
-        <div class="header">
-          <a href={`/?date=${prevDay}`} class="nav-button">{'\u2190'}</a>
-          <h1>
-            <span class="date-full">{displayDate}</span>
-            <span class="date-short">{displayDateShort}</span>
-            <input type="date" id="datePicker" value={dateStr} class="date-picker-input" title="Pick a date" />
-          </h1>
-          <a href={`/?date=${nextDay}`} class="nav-button">{'\u2192'}</a>
-          <div class="view-toggle">
-            <button class="view-btn active" data-view="timeline">Timeline</button>
-            <button class="view-btn" data-view="listing">Listing</button>
+        <div class="datebar">
+          <div class="datebar-head">
+            <div>
+              <div class="kicker">Vancouver Showtimes</div>
+              <h1 class="date-h1">{displayDate}</h1>
+            </div>
+            <div class="view-toggle">
+              <button class="active" data-view="timeline">Timeline</button>
+              <button data-view="listing">Listing</button>
+            </div>
           </div>
+
+          <div class="rail-wrap">
+            <a class="rail-arrow" href={`/?date=${prevDay}`} aria-label="Previous day">{'‹'}</a>
+            <div class="rail" id="dateRail" data-selected={dateStr}>
+              {/* filled client-side; SEO/no-JS fallback below */}
+              <noscript><a class="day on"><span class="num">{date.getDate()}</span></a></noscript>
+            </div>
+            <a class="rail-arrow" href={`/?date=${nextDay}`} aria-label="Next day">{'›'}</a>
+            <label class="rail-cal" title="Pick a date">
+              {'📅'}
+              <input type="date" id="datePicker" value={dateStr} />
+            </label>
+          </div>
+
+          {listingGroups.length > 0 && (
+            <div class="chips" id="chips">
+              {listingGroups.map(g => (
+                <button class="chip on" data-theatre={g.venue}>{displayName(g.venue)}</button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div id="viewsWrapper" data-view="timeline">
+          {!hasScreenings && <div class="no-screenings">No screenings for this day — try another date.</div>}
 
-          {/* Desktop Timeline View */}
-          <div class="timeline-container">
-            <div class="time-labels">
-              {TIME_LABELS.map(label => <div class="time-label">{label}</div>)}
-            </div>
-
-            {!hasScreenings && <div class="no-screenings">No screenings for this day</div>}
-
-            {theatres.map(({ theatre, screenings }) => (
-              <div class="theatre-row" data-theatre={theatre}>
-                <div class="theatre-label">
-                  <a href={`/theatre/${encodeURIComponent(theatre)}`}>{displayName(theatre)}</a>
-                  <span class="hide-link">Hide</span>
-                </div>
-                <div class="timeline">
-                  {screenings.map(screening => {
-                    const { left, width } = calculatePosition(new Date(screening.datetime), screening.movie_runtime);
-                    const timeDate = new Date(screening.datetime);
-                    const h = timeDate.getHours() % 12 || 12;
-                    const m = String(timeDate.getMinutes()).padStart(2, '0');
-                    const time = `${h}:${m}`;
-                    const lookupUrl = screening.letterboxd_url || screening.tmdb_url;
-
-                    return (
-                      <div class="screening" style={`left: ${left}; width: ${width};`}>
-                        <a href={movieUrl(screening.movie_id, screening.movie_title)} class="screening-overlay" title={screening.movie_title}></a>
-                        <span class="screening-title">{screening.movie_title}</span>
-                        <div class="screening-bottom">
-                          <div class="screening-time">{time}</div>
-                          <div class="screening-links">
-                            <a href={safeHref(screening.booking_url)} target="_blank" class="screening-link" title="Book tickets">{'\uD83C\uDF9F\uFE0F'}</a>
-                            {lookupUrl && (
-                              <a href={safeHref(lookupUrl)} target="_blank" class="screening-link" title={screening.letterboxd_url ? 'View on Letterboxd' : 'View on TMDB'}>{'\uD83D\uDD0D'}</a>
-                            )}
+          {/* ---- Timeline view (desktop only) ---- */}
+          <div class="timeline-view">
+            <div class="timeline-container">
+              <div class="time-labels">
+                {TIME_LABELS.map(label => <div class="time-label">{label}</div>)}
+              </div>
+              {theatres.map(({ theatre, screenings }) => (
+                <div class="theatre-row" data-theatre={theatre}>
+                  <div class="theatre-label">
+                    <a href={`/theatre/${encodeURIComponent(theatre)}`}>{displayName(theatre)}</a>
+                  </div>
+                  <div class="timeline">
+                    {screenings.map(screening => {
+                      const { left, width } = calculatePosition(new Date(screening.datetime), screening.movie_runtime);
+                      const time = formatTime(new Date(screening.datetime)).replace(/(am|pm)$/, '');
+                      const lookupUrl = screening.letterboxd_url && screening.letterboxd_url !== 'MISS'
+                        ? screening.letterboxd_url : screening.tmdb_url;
+                      return (
+                        <div class="screening" style={`left: ${left}; width: ${width};`}>
+                          <a href={movieUrl(screening.movie_id, screening.movie_title)} class="screening-overlay" title={screening.movie_title}></a>
+                          <span class="screening-title">{screening.movie_title}</span>
+                          <div class="screening-bottom">
+                            <div class="screening-time">{time}</div>
+                            <div class="screening-links">
+                              <a href={safeHref(screening.booking_url)} target="_blank" class="screening-link" title="Book tickets">{'🎟️'}</a>
+                              {lookupUrl && (
+                                <a href={safeHref(lookupUrl)} target="_blank" class="screening-link" title={screening.letterboxd_url && screening.letterboxd_url !== 'MISS' ? 'View on Letterboxd' : 'View on TMDB'}>{'🔍'}</a>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
 
-          {/* Listing View */}
-          <div class="listing-container">
-            {!hasScreenings && <div class="no-screenings">No screenings for this day</div>}
-
+          {/* ---- Listing view (mobile always; desktop optional) ---- */}
+          <div class="listing-view">
             {listingGroups.map(group => (
-              <TheatreCard
-                header={displayName(group.venue)}
-                headerLink={group.theatreName ? `/theatre/${encodeURIComponent(group.theatreName)}` : undefined}
-                dataTheatre={group.venue}
-                hideLink
-                rows={group.movies.map(movie => ({
-                  label: movie.movie_title,
-                  labelLink: movieUrl(movie.movie_id, movie.movie_title),
-                  times: movie.showtimes.map(st => {
-                    const time = new Date(st.datetime);
-                    const h = time.getHours() % 12 || 12;
-                    const m = String(time.getMinutes()).padStart(2, '0');
-                    const ampm = time.getHours() >= 12 ? 'pm' : 'am';
-                    return { display: `${h}:${m}${ampm}`, bookingUrl: st.booking_url };
-                  }),
-                }))}
-              />
+              <section class="venue-card" data-theatre={group.venue}>
+                <div class="venue-head">
+                  {group.theatreName
+                    ? <a href={`/theatre/${encodeURIComponent(group.theatreName)}`}>{displayName(group.venue)}</a>
+                    : <span>{displayName(group.venue)}</span>}
+                </div>
+                {group.movies.map(movie => (
+                  <div class="film-row">
+                    <a class="film-poster" href={movieUrl(movie.movie_id, movie.movie_title)} style={movie.poster_url ? '' : `background:${posterGrad(movie.movie_id)}`}>
+                      {movie.poster_url && <img src={safeHref(movie.poster_url)} alt="" loading="lazy" />}
+                    </a>
+                    <div class="film-body">
+                      <a class="film-title" href={movieUrl(movie.movie_id, movie.movie_title)}>{movie.movie_title}</a>
+                      <div class="film-meta">{metaLine(movie.movie_year, movie.movie_runtime)}</div>
+                    </div>
+                    <div class="show-times">
+                      {movie.showtimes.map(st => (
+                        <a class="show-time" href={safeHref(st.booking_url)} target="_blank">{formatTime(new Date(st.datetime))}</a>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </section>
             ))}
           </div>
-
         </div>
 
-        {/* Hidden Theatres */}
-        <div class="hidden-theatres-footer" id="hiddenFooter">
-          <button class="hidden-theatres-toggle" id="hiddenToggle"></button>
-          <div class="hidden-theatres-section" id="hiddenSection"></div>
-        </div>
-
-        <script dangerouslySetInnerHTML={{ __html: INDEX_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: script }} />
       </>
     ),
   });

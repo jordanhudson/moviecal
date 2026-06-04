@@ -3,6 +3,16 @@ import { renderPage } from './layout.js';
 import { ScreeningWithMovie } from './index.js';
 import { TheatreCard } from './theatre-card.js';
 import { movieUrl } from '../utils/movie-url.js';
+import { safeHref } from '../utils/html.js';
+
+const POSTER_GRADS = [
+  'linear-gradient(155deg,#c2410c,#7c2d12)',
+  'linear-gradient(155deg,#0f766e,#134e4a)',
+  'linear-gradient(155deg,#6d28d9,#4c1d95)',
+  'linear-gradient(155deg,#be185d,#831843)',
+  'linear-gradient(155deg,#0369a1,#0c4a6e)',
+  'linear-gradient(155deg,#a16207,#713f12)',
+];
 
 const THEATRE_DISPLAY_NAMES: Record<string, string> = {
   'VIFF Lochmaddy Studio': 'VIFF Lochmaddy',
@@ -166,6 +176,10 @@ export function renderMoviesPage(screenings: ScreeningWithMovie[]): string {
                   data-created={String(createdAt)}
                   data-popularity={String(movie.tmdb_popularity ?? 0)}
                   data-theatres={Array.from(venueMap.keys()).join(',')}>
+                  <a class="movie-card-poster" href={movieUrl(movie.movie_id, movie.movie_title)}
+                    style={movie.poster_url ? '' : `background:${POSTER_GRADS[movie.movie_id % POSTER_GRADS.length]}`}>
+                    {movie.poster_url && <img src={safeHref(movie.poster_url)} alt="" loading="lazy" />}
+                  </a>
                   <div class="movie-card-info">
                     <div class="movie-card-header">
                       <div class="movie-card-title"><a href={movieUrl(movie.movie_id, movie.movie_title)}>{movie.movie_title}</a></div>

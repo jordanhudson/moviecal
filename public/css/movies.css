@@ -1,149 +1,120 @@
-.movie-view {
-  max-width: 500px;
-  margin: 0 auto;
-}
+/* ============================================================
+   By Movie page — Neon Night / Glass
+   ============================================================ */
+
+.movie-view { max-width: 760px; margin: 0 auto; padding-top: 30px; }
 
 .movie-view-header {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
-  margin-bottom: 16px;
+  gap: 16px;
+  margin-bottom: 20px;
 }
 
 .movie-view-heading {
-  font-size: 20px;
-  font-weight: 600;
-  color: #c5c5c5;
+  font-family: var(--font-disp);
+  font-weight: 700;
+  font-size: clamp(24px, 4vw, 34px);
+  letter-spacing: -.02em;
 }
 
-.sort-wrapper {
-  position: relative;
-  z-index: 20;
-}
+/* sort dropdown */
+.sort-wrapper { position: relative; z-index: 20; flex-shrink: 0; }
 
 .sort-btn {
-  background: #2a2a2a;
-  border: 1px solid #3a3a3a;
-  border-radius: 4px;
-  color: #b0b0b0;
-  padding: 6px 12px;
+  background: var(--glass);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-chip);
+  color: var(--ink);
+  padding: 8px 16px;
   font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
   font-family: inherit;
 }
-
-.sort-btn:hover {
-  background: #333333;
-}
+.sort-btn:hover { border-color: var(--violet); }
 
 .sort-menu {
   display: none;
   position: absolute;
   right: 0;
   top: 100%;
-  margin-top: 4px;
-  background: #2a2a2a;
-  border: 1px solid #3a3a3a;
-  border-radius: 4px;
+  margin-top: 6px;
+  background: rgba(16, 16, 28, .96);
+  backdrop-filter: blur(18px);
+  border: 1px solid var(--line);
+  border-radius: 14px;
   overflow: hidden;
   z-index: 10;
 }
-
-.sort-menu.open {
-  display: block;
-}
+.sort-menu.open { display: block; }
 
 .sort-option {
   display: block;
   width: 100%;
-  padding: 8px 16px;
+  padding: 9px 18px;
   background: none;
   border: none;
-  color: #b0b0b0;
+  color: var(--muted);
   font-size: 13px;
   cursor: pointer;
   text-align: left;
   white-space: nowrap;
   font-family: inherit;
 }
+.sort-option:hover { background: var(--glass2); color: var(--ink); }
+.sort-option.active { color: var(--cyan); }
 
-.sort-option:hover {
-  background: #333333;
-}
-
-.sort-option.active {
-  color: #6a9a9a;
-}
-
+/* movie card = poster + info */
 .movie-card {
   display: flex;
-  background: #333;
-  border: 1px solid #353535;
-  border-radius: 8px;
+  gap: 16px;
+  background: var(--glass);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  padding: 16px;
   margin-bottom: 16px;
+  backdrop-filter: blur(10px);
 }
 
-.movie-card-info {
-  flex: 1;
-  padding: 12px 16px;
-  min-width: 0;
+.movie-card-poster {
+  flex-shrink: 0;
+  width: 76px;
+  aspect-ratio: 2/3;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--glass2);
+  display: block;
 }
+.movie-card-poster img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.movie-card-info { flex: 1; min-width: 0; }
 
 .movie-card-header {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  margin-bottom: 8px;
-  position: sticky;
-  top: 48px;
-  background: #444;
-  z-index: 10;
-  margin: -12px -16px 8px;
-  padding: 12px 16px;
-  border-radius: 8px 8px 0 0;
+  margin-bottom: 12px;
 }
 
 .movie-card-title {
+  font-family: var(--font-disp);
   font-weight: 600;
+  font-size: 17px;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.movie-card-title a:hover { color: var(--cyan); }
 
-.movie-card-title a {
-  color: #d0d0d0;
-  text-decoration: none;
-}
+.movie-card-year { color: var(--faint); font-size: 13px; flex-shrink: 0; }
 
-.movie-card-title a:hover {
-  color: #6a9a9a;
-}
+.movie-card-screenings { display: flex; flex-direction: column; gap: 12px; }
 
-.movie-card-year {
-  color: #707070;
-  font-size: 13px;
-  flex-shrink: 0;
-}
-
-.movie-card-screenings {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.no-screenings {
-  text-align: center;
-  padding: 40px;
-}
-
-@media (max-width: 800px) {
-  .movie-card-info {
-    padding: 10px 12px;
-  }
-
-  .movie-card-header {
-    margin: -10px -12px 6px;
-    padding: 10px 12px;
-  }
+@media (max-width: 720px) {
+  .movie-view { padding-top: 22px; }
+  .movie-card { padding: 12px; gap: 12px; }
+  .movie-card-poster { width: 60px; }
 }

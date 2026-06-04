@@ -29,11 +29,12 @@ app.use('*', async (c, next) => {
 
 app.use('/css/*', serveStatic({ root: './public' }));
 app.use('/favicon.png', serveStatic({ root: './public' }));
+app.use('/favicon.svg', serveStatic({ root: './public' }));
 
 // Load search movies for the nav bar on every HTML page request
 app.use('*', async (c, next) => {
   const path = c.req.path;
-  if (path.startsWith('/api/') || path === '/favicon.png' || path === '/robots.txt' || path === '/sitemap.xml') {
+  if (path.startsWith('/api/') || path === '/favicon.png' || path === '/favicon.svg' || path === '/robots.txt' || path === '/sitemap.xml') {
     return next();
   }
   const now = pacificNow();

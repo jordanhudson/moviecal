@@ -1,112 +1,85 @@
+/* ============================================================
+   Theatre detail page — Neon Night / Glass
+   ============================================================ */
+
 .theatre-container {
-  background: #262626;
-  border-radius: 8px;
-  padding: 30px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
   max-width: 900px;
-  margin: 0 auto;
+  margin: 32px auto;
 }
 
 .theatre-title {
-  font-size: 28px;
-  font-weight: 600;
-  margin-bottom: 30px;
-  padding-bottom: 15px;
-  border-bottom: 1px solid #353535;
+  font-family: var(--font-disp);
+  font-weight: 700;
+  font-size: clamp(28px, 4vw, 40px);
+  letter-spacing: -.02em;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
 }
 
-.screening-list {
-  list-style: none;
-}
+.screening-list { list-style: none; }
 
 .screening-item {
   display: flex;
   align-items: center;
-  padding: 12px 0;
-  border-bottom: 1px solid #353535;
-}
-
-.screening-item:last-child {
-  border-bottom: none;
+  gap: 14px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  background: var(--glass);
+  border: 1px solid var(--line);
+  border-radius: 14px;
 }
 
 .screening-date {
-  width: 220px;
-  font-weight: 500;
+  width: 200px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
+.screening-date .time-part { color: var(--cyan); }
 
-.screening-movie {
-  flex: 1;
-}
+.screening-movie { flex: 1; min-width: 0; }
+.screening-movie a { font-weight: 600; }
+.screening-movie a:hover { color: var(--cyan); }
 
-.screening-movie a {
-  color: #6a9a9a;
-  text-decoration: none;
-}
-
-.screening-movie a:hover {
-  text-decoration: underline;
+.screening-note {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--pink);
+  background: rgba(244, 114, 182, .12);
+  border: 1px solid rgba(244, 114, 182, .3);
+  padding: 2px 8px;
+  border-radius: var(--radius-chip);
+  font-style: normal;
 }
 
 .screening-book {
-  padding: 6px 12px;
-  background: #4a7c7c;
-  color: white;
-  text-decoration: none;
-  border-radius: 4px;
-  font-size: 13px;
+  flex-shrink: 0;
+  padding: 9px 16px;
+  background: var(--grad);
+  color: #0a0a14;
+  font-weight: 600;
+  border-radius: 11px;
+  font-size: 13.5px;
 }
+.screening-book:hover { filter: brightness(1.08); }
+.screening-book .short-text { display: none; }
 
-.screening-book:hover {
-  background: #3d6868;
-}
-
-.screening-note {
-  color: #888;
-  font-size: 13px;
-  font-style: italic;
-}
-
-.screening-book .short-text {
-  display: none;
-}
-
-@media (max-width: 800px) {
-  .theatre-container {
-    padding: 16px;
-  }
-
+@media (max-width: 720px) {
+  .theatre-container { margin: 20px auto; }
+  .screening-item { gap: 10px; padding: 12px; }
   .screening-date {
     width: auto;
-    min-width: 80px;
-    text-align: left;
+    min-width: 76px;
     line-height: 1.3;
-    margin-right: 10px;
   }
-
-  .screening-date .date-part {
-    display: block;
-  }
-
-  .screening-date .time-part {
-    display: block;
-    font-weight: normal;
-    font-size: 0.9em;
-  }
-
-  .screening-date .at-separator {
-    display: none;
-  }
-
-  .screening-movie {
-    margin-right: 5px;
-  }
-
-  .screening-book .full-text {
-    display: none;
-  }
-
-  .screening-book .short-text {
-    display: inline;
-  }
+  .screening-date .date-part { display: block; }
+  .screening-date .time-part { display: block; font-weight: 500; font-size: .9em; }
+  .screening-date .at-separator { display: none; }
+  .screening-movie { margin-right: 4px; }
+  .screening-book .full-text { display: none; }
+  .screening-book .short-text { display: inline; }
 }

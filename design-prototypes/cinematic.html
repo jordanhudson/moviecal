@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MovieClock — Cinematic Editorial</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,900;1,9..144,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0a09; --bg2:#13110f; --surface:#1a1714; --surface2:#211d18;
+    --line:#2c2722; --ink:#f3ece1; --muted:#a89b88; --faint:#6f6557;
+    --amber:#e8a33d; --ember:#d8632f; --amber-soft:rgba(232,163,61,.14);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif;font-size:15px;line-height:1.5;
+    background-image:radial-gradient(1200px 600px at 80% -10%, rgba(216,99,47,.10), transparent 60%);
+    -webkit-font-smoothing:antialiased}
+  a{color:inherit;text-decoration:none}
+  .serif{font-family:Fraunces,Georgia,serif}
+
+  /* ---- top bar ---- */
+  .topbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:24px;
+    padding:18px 32px;background:rgba(11,10,9,.72);backdrop-filter:blur(14px);
+    border-bottom:1px solid var(--line)}
+  .logo{font-family:Fraunces;font-weight:900;font-size:22px;letter-spacing:-.5px}
+  .logo b{color:var(--amber)}
+  .search{margin-left:auto;position:relative}
+  .search input{background:var(--surface);border:1px solid var(--line);color:var(--ink);
+    padding:9px 14px 9px 34px;border-radius:999px;width:230px;font-size:14px;outline:none}
+  .search input:focus{border-color:var(--amber);width:280px;transition:width .25s}
+  .search::before{content:"⌕";position:absolute;left:13px;top:7px;color:var(--faint);font-size:17px}
+
+  /* ---- pivot tabs ---- */
+  .pivot{display:flex;gap:4px}
+  .pivot a{font-family:Fraunces;font-weight:600;font-size:15px;padding:7px 16px;border-radius:999px;color:var(--muted)}
+  .pivot a.on{background:var(--amber-soft);color:var(--amber)}
+  .pivot a:hover{color:var(--ink)}
+
+  /* ---- hero / date head ---- */
+  .wrap{max-width:1120px;margin:0 auto;padding:0 32px}
+  .head{padding:46px 0 22px}
+  .kicker{font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--ember);font-weight:600}
+  .head h1{font-family:Fraunces;font-weight:900;font-size:clamp(38px,6vw,68px);line-height:.98;margin:10px 0 4px;letter-spacing:-1.5px}
+  .head h1 em{font-style:italic;color:var(--amber);font-weight:500}
+  .head .sub{color:var(--muted);font-size:16px}
+
+  /* ---- date rail ---- */
+  .rail{display:flex;gap:8px;overflow-x:auto;padding:18px 0 6px;scrollbar-width:none}
+  .rail::-webkit-scrollbar{display:none}
+  .day{flex:0 0 auto;min-width:62px;text-align:center;padding:10px 14px;border:1px solid var(--line);
+    border-radius:14px;background:var(--surface);cursor:pointer}
+  .day .dow{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+  .day .num{font-family:Fraunces;font-weight:700;font-size:22px;margin-top:2px}
+  .day.on{background:var(--amber);border-color:var(--amber);color:#1a1206}
+  .day.on .dow{color:#5a3d10}
+
+  /* ---- filter chips ---- */
+  .filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:22px 0 6px;border-top:1px solid var(--line);margin-top:18px}
+  .filters .lab{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin-right:4px}
+  .chip{font-size:13px;padding:6px 13px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--muted);cursor:pointer}
+  .chip.on{background:var(--ink);color:#1a1206;border-color:var(--ink);font-weight:600}
+  .chip.off{opacity:.45;text-decoration:line-through}
+
+  /* ---- theatre sections ---- */
+  .theatre{padding:38px 0;border-top:1px solid var(--line)}
+  .theatre-h{display:flex;align-items:baseline;gap:14px;margin-bottom:22px}
+  .theatre-h h2{font-family:Fraunces;font-weight:900;font-size:30px;letter-spacing:-.6px}
+  .theatre-h .meta{color:var(--faint);font-size:13px;letter-spacing:.06em}
+  .theatre-h a.all{margin-left:auto;color:var(--amber);font-size:13px;font-weight:600}
+
+  .film{display:grid;grid-template-columns:84px 1fr;gap:20px;padding:18px 0;border-top:1px dashed #241f1a}
+  .film:first-of-type{border-top:none}
+  .poster{aspect-ratio:2/3;border-radius:8px;overflow:hidden;position:relative;
+    background:linear-gradient(150deg,#2a2018,#15110d);border:1px solid var(--line);
+    display:flex;align-items:flex-end;padding:8px}
+  .poster span{font-family:Fraunces;font-weight:600;font-size:11px;line-height:1.1;color:rgba(243,236,225,.6)}
+  .poster.p1{background:linear-gradient(160deg,#3a2417,#0e0b08)}
+  .poster.p2{background:linear-gradient(160deg,#243a2e,#0b0e0c)}
+  .poster.p3{background:linear-gradient(160deg,#2c2340,#0d0b12)}
+  .poster.p4{background:linear-gradient(160deg,#3a1f2a,#120a0d)}
+  .poster.p5{background:linear-gradient(160deg,#1f2f3a,#0a0d10)}
+  .poster.p6{background:linear-gradient(160deg,#3a3320,#100e08)}
+
+  .film-body .title{font-family:Fraunces;font-weight:700;font-size:23px;line-height:1.1;letter-spacing:-.4px}
+  .film-body .title:hover{color:var(--amber)}
+  .film-body .fmeta{color:var(--muted);font-size:13.5px;margin:5px 0 2px}
+  .note{display:inline-block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--amber);
+    border:1px solid var(--amber-soft);background:var(--amber-soft);padding:2px 9px;border-radius:6px;margin-top:6px}
+  .times{display:flex;flex-wrap:wrap;gap:8px;margin-top:13px}
+  .time{display:inline-flex;align-items:center;gap:7px;font-family:Fraunces;font-weight:600;font-size:15px;
+    padding:7px 14px;border-radius:10px;background:var(--surface2);border:1px solid var(--line)}
+  .time:hover{border-color:var(--amber);color:var(--amber)}
+  .time .dot{width:6px;height:6px;border-radius:50%;background:var(--ember)}
+
+  /* ---- by-movie grid (hidden tab) ---- */
+  #bymovie{display:none}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:26px;padding:30px 0}
+  .card .poster{margin-bottom:12px}
+  .card .ct{font-family:Fraunces;font-weight:700;font-size:18px;line-height:1.12}
+  .card .cm{color:var(--muted);font-size:13px;margin-top:3px}
+  .card .cv{color:var(--faint);font-size:12px;margin-top:8px;line-height:1.7}
+  .card .cv b{color:var(--ink);font-weight:600}
+
+  footer{border-top:1px solid var(--line);margin-top:40px;padding:30px 32px;text-align:center;color:var(--faint);font-size:12.5px}
+  footer a{color:var(--amber)}
+  .banner{background:var(--amber-soft);border-bottom:1px solid var(--line);text-align:center;padding:7px;font-size:12.5px;color:var(--amber);letter-spacing:.04em}
+
+  @media (max-width:720px){
+    body{padding-bottom:66px}
+    .topbar{padding:12px 16px;gap:14px}
+    .search{flex:1;margin-left:auto}
+    .search input,.search input:focus{width:100%}
+    .pivot{position:fixed;left:0;right:0;bottom:0;z-index:40;gap:0;justify-content:space-around;
+      background:rgba(11,10,9,.92);backdrop-filter:blur(16px);border-top:1px solid var(--line);padding:8px 10px}
+    .pivot a{flex:1;text-align:center;padding:10px 0;font-size:14px}
+    .wrap{padding:0 18px}
+    .head{padding:30px 0 16px}
+    .theatre{padding:26px 0}
+    .theatre-h h2{font-size:24px}
+    .theatre-h a.all{display:none}
+    .film{grid-template-columns:66px 1fr;gap:14px}
+  }
+</style>
+</head>
+<body>
+<div class="banner">Prototype A · “Cinematic Editorial” — near-black, poster-forward, expressive serif</div>
+<nav class="topbar">
+  <a class="logo" href="#">Movie<b>Clock</b></a>
+  <div class="pivot">
+    <a href="#" data-v="theatre" class="on">Timeline</a>
+    <a href="#" data-v="theatre">By Theatre</a>
+    <a href="#" data-v="movie">By Movie</a>
+  </div>
+  <div class="search"><input placeholder="Search films…"></div>
+</nav>
+
+<div class="wrap">
+  <div class="head">
+    <div class="kicker">Tonight · Vancouver</div>
+    <h1>Tuesday, <em>June 3</em></h1>
+    <div class="sub">37 screenings across 7 cinemas</div>
+  </div>
+
+  <div class="rail">
+    <div class="day on"><div class="dow">Tue</div><div class="num">3</div></div>
+    <div class="day"><div class="dow">Wed</div><div class="num">4</div></div>
+    <div class="day"><div class="dow">Thu</div><div class="num">5</div></div>
+    <div class="day"><div class="dow">Fri</div><div class="num">6</div></div>
+    <div class="day"><div class="dow">Sat</div><div class="num">7</div></div>
+    <div class="day"><div class="dow">Sun</div><div class="num">8</div></div>
+    <div class="day"><div class="dow">Mon</div><div class="num">9</div></div>
+    <div class="day"><div class="dow">Tue</div><div class="num">10</div></div>
+  </div>
+
+  <div class="filters">
+    <span class="lab">Cinemas</span>
+    <button class="chip on">The Rio</button>
+    <button class="chip on">VIFF</button>
+    <button class="chip on">Cinematheque</button>
+    <button class="chip on">The Park</button>
+    <button class="chip on">Hollywood</button>
+    <button class="chip off">Fifth Avenue</button>
+    <button class="chip off">Scotiabank</button>
+  </div>
+
+  <!-- BY THEATRE -->
+  <div id="bytheatre">
+    <section class="theatre">
+      <div class="theatre-h"><h2>The Rio</h2><span class="meta">Commercial Drive</span><a class="all">All showtimes →</a></div>
+      <div class="film">
+        <div class="poster p1"><span>Zone of Interest</span></div>
+        <div class="film-body">
+          <div class="title">The Zone of Interest</div>
+          <div class="fmeta">2023 · 105 min · Jonathan Glazer</div>
+          <div class="times">
+            <a class="time"><span class="dot"></span>7:00</a>
+            <a class="time"><span class="dot"></span>9:15</a>
+          </div>
+        </div>
+      </div>
+      <div class="film">
+        <div class="poster p2"><span>Perfect Days</span></div>
+        <div class="film-body">
+          <div class="title">Perfect Days</div>
+          <div class="fmeta">2023 · 124 min · Wim Wenders</div>
+          <div class="times"><a class="time"><span class="dot"></span>6:30</a></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="theatre">
+      <div class="theatre-h"><h2>VIFF Centre</h2><span class="meta">Seymour St</span><a class="all">All showtimes →</a></div>
+      <div class="film">
+        <div class="poster p3"><span>La Chimera</span></div>
+        <div class="film-body">
+          <div class="title">La Chimera</div>
+          <div class="fmeta">2023 · 130 min · Alice Rohrwacher</div>
+          <div class="times"><a class="time"><span class="dot"></span>6:45</a><a class="time"><span class="dot"></span>9:00</a></div>
+        </div>
+      </div>
+      <div class="film">
+        <div class="poster p5"><span>Evil Does Not Exist</span></div>
+        <div class="film-body">
+          <div class="title">Evil Does Not Exist</div>
+          <div class="fmeta">2023 · 106 min · Ryūsuke Hamaguchi</div>
+          <div class="times"><a class="time"><span class="dot"></span>8:30</a></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="theatre">
+      <div class="theatre-h"><h2>The Cinematheque</h2><span class="meta">Howe St</span><a class="all">All showtimes →</a></div>
+      <div class="film">
+        <div class="poster p6"><span>In the Mood for Love</span></div>
+        <div class="film-body">
+          <div class="title">In the Mood for Love</div>
+          <div class="fmeta">2000 · 98 min · Wong Kar-wai</div>
+          <span class="note">4K Restoration</span>
+          <div class="times"><a class="time"><span class="dot"></span>7:30</a></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="theatre">
+      <div class="theatre-h"><h2>The Park</h2><span class="meta">Cambie St</span><a class="all">All showtimes →</a></div>
+      <div class="film">
+        <div class="poster p4"><span>Poor Things</span></div>
+        <div class="film-body">
+          <div class="title">Poor Things</div>
+          <div class="fmeta">2023 · 141 min · Yorgos Lanthimos</div>
+          <div class="times"><a class="time"><span class="dot"></span>8:00</a></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- BY MOVIE -->
+  <div id="bymovie">
+    <div class="grid">
+      <div class="card"><div class="poster p1"><span></span></div><div class="ct">The Zone of Interest</div><div class="cm">2023 · 105 min</div><div class="cv"><b>The Rio</b> · 7:00, 9:15</div></div>
+      <div class="card"><div class="poster p3"><span></span></div><div class="ct">La Chimera</div><div class="cm">2023 · 130 min</div><div class="cv"><b>VIFF Centre</b> · 6:45, 9:00</div></div>
+      <div class="card"><div class="poster p4"><span></span></div><div class="ct">Poor Things</div><div class="cm">2023 · 141 min</div><div class="cv"><b>The Park</b> · 8:00</div></div>
+      <div class="card"><div class="poster p6"><span></span></div><div class="ct">In the Mood for Love</div><div class="cm">2000 · 98 min</div><div class="cv"><b>Cinematheque</b> · 7:30</div></div>
+      <div class="card"><div class="poster p2"><span></span></div><div class="ct">Perfect Days</div><div class="cm">2023 · 124 min</div><div class="cv"><b>The Rio</b> · 6:30</div></div>
+      <div class="card"><div class="poster p5"><span></span></div><div class="ct">Evil Does Not Exist</div><div class="cm">2023 · 106 min</div><div class="cv"><b>VIFF Centre</b> · 8:30</div></div>
+    </div>
+  </div>
+</div>
+
+<footer>Vancouver showtimes for independent &amp; repertory cinemas — Cinematheque, VIFF, Rio, Park, Hollywood &amp; more · Made by <a>Jordan Hudson</a></footer>
+
+<script>
+  document.querySelectorAll('.pivot a').forEach(a=>a.addEventListener('click',e=>{
+    e.preventDefault();
+    document.querySelectorAll('.pivot a').forEach(x=>x.classList.remove('on'));
+    a.classList.add('on');
+    const movie = a.dataset.v==='movie';
+    document.getElementById('bymovie').style.display = movie?'block':'none';
+    document.getElementById('bytheatre').style.display = movie?'none':'block';
+  }));
+  document.querySelectorAll('.chip').forEach(c=>c.addEventListener('click',()=>{
+    c.classList.toggle('on');c.classList.toggle('off');
+  }));
+</script>
+</body>
+</html>

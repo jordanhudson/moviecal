@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MovieClock — UI Concepts</title>
+<style>
+  body{margin:0;background:#101014;color:#e8e8ef;font:16px/1.5 system-ui,sans-serif;min-height:100vh;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px;gap:8px}
+  h1{font-size:26px;font-weight:800;letter-spacing:-.02em}
+  p{color:#8a8a9a;margin:0 0 24px}
+  .row{display:flex;gap:18px;flex-wrap:wrap;justify-content:center;max-width:880px}
+  a.card{flex:1 1 240px;min-width:240px;text-decoration:none;color:inherit;border:1px solid #2a2a34;border-radius:16px;
+    padding:22px;background:#17171f;transition:transform .15s,border-color .15s}
+  a.card:hover{transform:translateY(-4px);border-color:#555}
+  .swatch{height:80px;border-radius:10px;margin-bottom:14px}
+  .a{background:radial-gradient(circle at 70% 0,#d8632f33,transparent),#0b0a09;border:1px solid #2c2722}
+  .b{background:#f6f6f3;border:1px solid #e3e3dd}
+  .c{background:linear-gradient(120deg,#8b5cf6,#22d3ee)}
+  .t{font-weight:700;font-size:17px}
+  .d{color:#8a8a9a;font-size:13.5px;margin-top:4px}
+</style>
+</head>
+<body>
+  <h1>MovieClock · 3 brand-new UI concepts</h1>
+  <p>Same content in each — judge the look. Use the pivot tabs &amp; cinema chips inside.</p>
+  <div class="row">
+    <a class="card" href="cinematic.html"><div class="swatch a"></div><div class="t">A · Cinematic Editorial</div><div class="d">Near-black, poster-forward, expressive serif, warm amber.</div></a>
+    <a class="card" href="swiss.html"><div class="swatch b"></div><div class="t">B · Swiss Light Minimal</div><div class="d">Bright, gridded, tight sans, hairline rules, cobalt accent.</div></a>
+    <a class="card" href="neon.html"><div class="swatch c"></div><div class="t">C · Neon Night / Glass</div><div class="d">Deep indigo, frosted glass, violet→cyan glow.</div></a>
+  </div>
+</body>
+</html>

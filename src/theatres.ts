@@ -67,16 +67,16 @@ export const THEATRE_ORDER = [
 // Build a listing group from screenings: groups by movie, deduplicates showtimes
 export function buildListingGroup(venue: string, screenings: ScreeningWithMovie[], sortByTime = false): ListingGroup {
   const movieMap = new Map<number, {
-    movie_id: number; movie_title: string; poster_url: string | null;
-    letterboxd_url: string | null; tmdb_url: string | null;
+    movie_id: number; movie_title: string; movie_year: number | null; movie_runtime: number | null;
+    poster_url: string | null; letterboxd_url: string | null; tmdb_url: string | null;
     showtimes: Map<number, { datetime: Date; booking_url: string }>;
   }>();
   for (const s of screenings) {
     let movie = movieMap.get(s.movie_id);
     if (!movie) {
       movie = {
-        movie_id: s.movie_id, movie_title: s.movie_title, poster_url: s.poster_url,
-        letterboxd_url: s.letterboxd_url, tmdb_url: s.tmdb_url, showtimes: new Map(),
+        movie_id: s.movie_id, movie_title: s.movie_title, movie_year: s.movie_year, movie_runtime: s.movie_runtime,
+        poster_url: s.poster_url, letterboxd_url: s.letterboxd_url, tmdb_url: s.tmdb_url, showtimes: new Map(),
       };
       movieMap.set(s.movie_id, movie);
     }
@@ -89,8 +89,8 @@ export function buildListingGroup(venue: string, screenings: ScreeningWithMovie[
     venue,
     movies: Array.from(movieMap.values())
       .map(m => ({
-        movie_id: m.movie_id, movie_title: m.movie_title, poster_url: m.poster_url,
-        letterboxd_url: m.letterboxd_url, tmdb_url: m.tmdb_url,
+        movie_id: m.movie_id, movie_title: m.movie_title, movie_year: m.movie_year, movie_runtime: m.movie_runtime,
+        poster_url: m.poster_url, letterboxd_url: m.letterboxd_url, tmdb_url: m.tmdb_url,
         showtimes: Array.from(m.showtimes.values()).sort((a, b) => a.datetime.getTime() - b.datetime.getTime()),
       }))
       .sort(sortByTime

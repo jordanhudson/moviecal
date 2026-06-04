@@ -1,350 +1,314 @@
-.page-content {
-  max-width: 1295px;
-  margin: 0 auto;
+/* ============================================================
+   By Date page (home) — Neon Night / Glass
+   ============================================================ */
+
+/* ---- date bar ---- */
+.datebar { padding: 30px 0 8px; }
+
+.datebar-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.kicker {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--cyan);
+}
+.date-h1 {
+  font-family: var(--font-disp);
+  font-weight: 700;
+  font-size: clamp(30px, 5vw, 48px);
+  line-height: 1.02;
+  letter-spacing: -.03em;
+  margin-top: 6px;
 }
 
-/* Header */
-.header {
-  margin-bottom: 20px;
+/* desktop view toggle */
+.view-toggle {
+  display: flex;
+  gap: 2px;
+  background: var(--glass);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-chip);
+  padding: 4px;
+}
+.view-toggle button {
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--muted);
+  background: none;
+  border: none;
+  padding: 7px 16px;
+  border-radius: var(--radius-chip);
+  cursor: pointer;
+}
+.view-toggle button.active { background: var(--grad); color: #0a0a14; }
+
+/* ---- date rail ---- */
+.rail-wrap {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  margin-top: 20px;
+}
+.rail {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex: 1;
+}
+.rail::-webkit-scrollbar { display: none; }
+.day {
+  flex: 0 0 auto;
+  min-width: 60px;
+  text-align: center;
+  padding: 10px 0;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--glass);
+  display: flex;
+  flex-direction: column;
+}
+.day .dow {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.day .num {
+  font-family: var(--font-disp);
+  font-weight: 700;
+  font-size: 20px;
+  margin-top: 2px;
+}
+.day.on {
+  background: var(--grad);
+  border-color: transparent;
+  color: #0a0a14;
+  box-shadow: 0 8px 24px -6px rgba(139, 92, 246, .6);
+}
+.day.on .dow { color: rgba(10, 10, 20, .65); }
+
+.rail-arrow, .rail-cal {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 20px;
-  position: relative;
-}
-
-.header h1 {
-  font-size: 20px;
-  font-weight: 600;
-  min-width: 320px;
-  text-align: center;
-  position: relative;
+  width: 40px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--glass);
+  color: var(--muted);
+  font-size: 22px;
   cursor: pointer;
 }
-
-.header h1:hover {
-  color: #6a9a9a;
-}
-
-.date-picker-input {
+.rail-arrow:hover, .rail-cal:hover { color: var(--ink); border-color: var(--violet); }
+.rail-cal { position: relative; font-size: 17px; overflow: hidden; }
+.rail-cal input {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  inset: 0;
   opacity: 0;
   cursor: pointer;
-  border: none;
-  font-size: 24px;
-  z-index: 10;
 }
 
-.date-picker-input::-webkit-calendar-picker-indicator {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+/* ---- theatre filter chips ---- */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 20px;
+}
+.chip {
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 6px 13px;
+  border-radius: var(--radius-chip);
+  border: 1px solid var(--line);
+  background: var(--glass);
+  color: var(--ink);
   cursor: pointer;
 }
-
-.header .date-full,
-.header .date-short {
-  pointer-events: none;
+.chip.on {
+  background: var(--glass2);
+  border-color: rgba(139, 92, 246, .5);
+  box-shadow: 0 0 0 1px rgba(139, 92, 246, .25);
 }
+.chip.off { color: var(--faint); opacity: .55; }
 
-.header .date-short {
-  display: none;
-}
+/* ---- view switching ---- */
+#viewsWrapper { padding: 8px 0 20px; }
+#viewsWrapper[data-view="timeline"] .listing-view { display: none; }
+#viewsWrapper[data-view="listing"] .timeline-view { display: none; }
 
-.nav-button {
-  padding: 6px 12px;
-  font-size: 14px;
-  background: #2a2a2a;
-  border: 1px solid #3a3a3a;
-  border-radius: 4px;
-  cursor: pointer;
-  text-decoration: none;
-  color: #b0b0b0;
-}
-
-.nav-button:hover {
-  background: #333333;
-}
-
-/* Desktop Timeline Styles */
-.timeline-container {
-  background: #262626;
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-}
-
+/* ============================================================
+   Timeline view
+   ============================================================ */
+.timeline-container { margin-top: 18px; }
 .time-labels {
   display: flex;
-  margin-bottom: 10px;
-  padding-left: 170px;
-  position: relative;
+  margin-left: 150px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 6px;
+  margin-bottom: 6px;
 }
-
 .time-label {
   flex: 1;
-  text-align: left;
-  font-size: 12px;
-  color: #707070;
+  font-size: 11px;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
 }
-
 .theatre-row {
   display: flex;
-  align-items: center;
-  min-height: 80px;
-  border-bottom: 1px solid #353535;
-  position: relative;
+  align-items: stretch;
+  min-height: 56px;
+  border-bottom: 1px solid var(--line);
 }
-
-.theatre-row:last-child {
-  border-bottom: none;
-}
-
 .theatre-label {
-  width: 170px;
+  flex: 0 0 150px;
+  display: flex;
+  align-items: center;
+  padding-right: 12px;
   font-weight: 600;
-  padding-right: 20px;
-  flex-shrink: 0;
+  font-size: 13.5px;
 }
-
-.theatre-label a {
-  color: #c5c5c5;
-  text-decoration: none;
-}
-
-.theatre-label a:hover {
-  color: #6a9a9a;
-  text-decoration: underline;
-}
-
+.theatre-label a { color: var(--muted); }
+.theatre-label a:hover { color: var(--cyan); }
 .timeline {
-  flex: 1;
   position: relative;
-  height: 60px;
-  background: linear-gradient(to right,
-    transparent 0%,
-    transparent calc(100% - 1px),
-    #353535 calc(100% - 1px),
-    #353535 100%
-  );
-  background-size: calc(100% / 16) 100%;
+  flex: 1;
+  margin: 6px 0;
 }
-
 .screening {
   position: absolute;
-  top: 6px;
-  height: 48px;
-  background: #4a7c7c;
-  border-radius: 4px;
-  padding: 5px;
-  color: white;
-  font-size: 12px;
+  top: 0;
+  bottom: 0;
+  min-height: 46px;
+  background: var(--glass2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 6px 8px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  transition: border-color .15s, box-shadow .15s, transform .15s;
 }
-
 .screening:hover {
-  background: #5a8c8c;
+  border-color: var(--violet);
+  box-shadow: 0 6px 18px -4px rgba(139, 92, 246, .5);
+  transform: translateY(-1px);
+  z-index: 5;
 }
-
-.screening-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 1;
-}
-
+.screening-overlay { position: absolute; inset: 0; z-index: 1; }
 .screening-title {
+  font-size: 12px;
   font-weight: 600;
-  font-stretch: condensed;
+  line-height: 1.15;
+  color: var(--ink);
   white-space: nowrap;
-  overflow: hidden;
   text-overflow: ellipsis;
-  color: white;
+  overflow: hidden;
+  position: relative;
+  z-index: 2;
+  pointer-events: none;
 }
-
 .screening-bottom {
   display: flex;
   align-items: center;
   justify-content: space-between;
-}
-
-.screening-time {
-  font-size: 10px;
-  opacity: 0.9;
-  position: relative;
-  top: -1px;
-}
-
-.screening-links {
-  display: flex;
-  flex-direction: row;
-  gap: 4px;
-  flex-shrink: 0;
   position: relative;
   z-index: 2;
 }
-
-.screening-link {
-  width: 20px;
-  height: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 3px;
-  text-decoration: none;
-  color: white;
-  font-size: 14px;
-  transition: background 0.2s;
-  filter: grayscale(100%);
+.screening-time {
+  font-family: var(--font-disp);
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--cyan);
+  font-variant-numeric: tabular-nums;
 }
+.screening-links { display: flex; gap: 4px; }
+.screening-link { font-size: 12px; position: relative; z-index: 3; }
+.screening-link:hover { filter: brightness(1.3); }
 
-.screening-link:hover {
-  background: rgba(255, 255, 255, 0.3);
+/* ============================================================
+   Listing view
+   ============================================================ */
+.listing-view {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 18px;
+  align-items: start;
 }
-
-.no-screenings {
-  text-align: center;
-  padding: 40px;
+/* two-up once there's room */
+@media (min-width: 760px) {
+  .listing-view { grid-template-columns: 1fr 1fr; }
 }
-
-/* View switching */
-.timeline-container,
-.listing-container { display: none; }
-
-[data-view="timeline"] .timeline-container { display: block; }
-[data-view="listing"] .listing-container { display: flex; flex-wrap: wrap; gap: 16px; }
-
-.page-content[data-view="listing"] {
-  max-width: 1060px;
-}
-
-/* View toggle */
-.view-toggle {
-  position: absolute;
-  right: 0;
-  display: flex;
-  border: 1px solid #3a3a3a;
-  border-radius: 4px;
+.venue-card {
+  background: var(--glass);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  backdrop-filter: blur(10px);
   overflow: hidden;
 }
-
-.view-btn {
-  padding: 6px 12px;
-  font-size: 12px;
-  background: #2a2a2a;
-  color: #808080;
-  border: none;
-  cursor: pointer;
-  font-family: inherit;
+.venue-head {
+  padding: 14px 18px;
+  font-family: var(--font-disp);
+  font-weight: 600;
+  font-size: 18px;
+  border-bottom: 1px solid var(--line);
 }
-
-.view-btn:hover {
-  color: #b0b0b0;
+.venue-head a:hover { color: var(--cyan); }
+.film-row {
+  display: grid;
+  grid-template-columns: 50px 1fr auto;
+  gap: 16px;
+  align-items: center;
+  padding: 14px 18px;
+  border-top: 1px solid var(--line);
 }
-
-.view-btn.active {
-  background: #4a7c7c;
-  color: white;
-}
-
-/* Hide theatre feature */
-.hide-link {
-  font-size: 10px;
-  color: #555555;
-  cursor: pointer;
+.film-row:first-of-type { border-top: none; }
+.film-poster {
+  aspect-ratio: 2/3;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--glass2);
   display: block;
-  margin-top: 2px;
 }
-
-.hide-link:hover {
-  color: #6a9a9a;
+.film-poster img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.film-title { font-weight: 600; font-size: 15.5px; }
+.film-title:hover { color: var(--cyan); }
+.film-meta { color: var(--muted); font-size: 12.5px; margin-top: 3px; }
+.show-times { display: flex; flex-wrap: wrap; gap: 7px; justify-content: flex-end; }
+.show-time {
+  font-family: var(--font-disp);
+  font-weight: 600;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  padding: 8px 13px;
+  border-radius: 11px;
+  background: var(--glass2);
+  border: 1px solid var(--line);
 }
+.show-time:hover { border-color: var(--violet); box-shadow: 0 0 14px -2px rgba(139, 92, 246, .5); }
 
-.hidden-theatres-footer {
-  display: none;
-  margin-top: 24px;
-  text-align: center;
-}
-
-.hidden-theatres-toggle {
-  background: none;
-  border: 1px solid #353535;
-  color: #777;
-  padding: 6px 16px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 13px;
-}
-
-.hidden-theatres-toggle:hover {
-  color: #999;
-  border-color: #555;
-}
-
-.hidden-theatres-section {
-  display: none;
-  margin-top: 16px;
-  text-align: left;
-}
-
-/* Listing view: theatre-card layout within listing container */
-.listing-container .theatre-card {
-  flex: 1 1 0;
-  min-width: 350px;
-  max-width: 500px;
-}
-
-/* Mobile breakpoint */
-@media (max-width: 800px) {
-  .header {
-    gap: 12px;
-    margin-bottom: 16px;
-    flex-wrap: wrap;
-  }
-
-  .header h1 {
-    font-size: 18px;
-    min-width: 150px;
-    text-align: center;
-  }
-
-  .header .date-full {
-    display: none;
-  }
-
-  .header .date-short {
-    display: inline;
-  }
-
-  .nav-button {
-    padding: 8px 12px;
-    font-size: 14px;
-  }
-
-  .view-toggle {
-    display: none;
-  }
-
-  .timeline-container {
-    display: none !important;
-  }
-
-  .listing-container {
-    display: flex !important;
-    flex-wrap: wrap;
-    gap: 16px;
-  }
-
+/* ============================================================
+   Mobile — force Listing, hide Timeline + toggle
+   ============================================================ */
+@media (max-width: 720px) {
+  .datebar { padding: 22px 0 8px; }
+  .view-toggle { display: none; }
+  #viewsWrapper .timeline-view { display: none !important; }
+  #viewsWrapper .listing-view { display: grid !important; grid-template-columns: 1fr; }
+  .film-row { grid-template-columns: 46px 1fr; row-gap: 11px; }
+  .show-times { grid-column: 1 / -1; justify-content: flex-start; }
 }

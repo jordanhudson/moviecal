@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MovieClock — Swiss Light Minimal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f6f6f3; --surface:#ffffff; --ink:#111110; --muted:#6b6b66; --faint:#9b9b94;
+    --line:#e3e3dd; --line2:#d4d4cc; --accent:#1f4fff; --accent-soft:#eaeefb;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif;font-size:14px;line-height:1.45;
+    -webkit-font-smoothing:antialiased;letter-spacing:-.01em}
+  a{color:inherit;text-decoration:none}
+  .num{font-variant-numeric:tabular-nums}
+
+  .topbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:28px;height:58px;padding:0 28px;
+    background:rgba(246,246,243,.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  .logo{font-weight:800;font-size:16px;letter-spacing:-.03em}
+  .logo i{font-style:normal;color:var(--accent)}
+  .pivot{display:flex;gap:2px;background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:3px}
+  .pivot a{font-weight:600;font-size:13px;padding:6px 13px;border-radius:6px;color:var(--muted)}
+  .pivot a.on{background:var(--ink);color:#fff}
+  .search{margin-left:auto;position:relative}
+  .search input{background:var(--surface);border:1px solid var(--line2);color:var(--ink);
+    padding:8px 12px 8px 30px;border-radius:8px;width:210px;font-size:13px;outline:none}
+  .search input:focus{border-color:var(--accent)}
+  .search::before{content:"⌕";position:absolute;left:10px;top:6px;color:var(--faint);font-size:15px}
+
+  .wrap{max-width:1080px;margin:0 auto;padding:0 28px}
+  .head{display:flex;align-items:flex-end;justify-content:space-between;padding:40px 0 18px;flex-wrap:wrap;gap:16px}
+  .head h1{font-size:34px;font-weight:800;letter-spacing:-.04em;line-height:1}
+  .head .sub{color:var(--muted);font-size:14px;margin-top:8px}
+  .head .navbtns{display:flex;gap:6px}
+  .navbtns button{width:34px;height:34px;border:1px solid var(--line2);background:var(--surface);border-radius:8px;
+    font-size:15px;color:var(--ink);cursor:pointer}
+  .navbtns .today{width:auto;padding:0 14px;font-weight:600;font-size:13px}
+
+  .rail{display:flex;gap:6px;overflow-x:auto;padding:6px 0 4px;scrollbar-width:none}
+  .rail::-webkit-scrollbar{display:none}
+  .day{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;min-width:54px;padding:8px 0;
+    border:1px solid var(--line);border-radius:9px;background:var(--surface);cursor:pointer}
+  .day .dow{font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+  .day .n{font-size:18px;font-weight:700;margin-top:1px}
+  .day.on{background:var(--ink);border-color:var(--ink);color:#fff}
+  .day.on .dow{color:#bdbdbd}
+
+  .filters{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:20px 0 4px}
+  .filters .lab{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);margin-right:6px}
+  .chip{font-size:12.5px;font-weight:500;padding:5px 11px;border-radius:7px;border:1px solid var(--line2);background:var(--surface);color:var(--ink);cursor:pointer}
+  .chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .chip.off{color:var(--faint)}
+
+  /* by theatre */
+  #bytheatre{padding-top:14px}
+  .theatre{border-top:1px solid var(--line);padding:8px 0 2px}
+  .theatre-h{display:flex;align-items:center;gap:10px;padding:16px 0 10px;position:sticky;top:58px;background:var(--bg)}
+  .theatre-h h2{font-size:15px;font-weight:700;letter-spacing:-.02em}
+  .theatre-h .loc{color:var(--faint);font-size:12px}
+  .theatre-h .cnt{margin-left:auto;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .row{display:grid;grid-template-columns:1fr auto;gap:16px;align-items:center;padding:11px 0;border-top:1px solid var(--line)}
+  .row .ftitle{font-weight:600;font-size:15px}
+  .row .ftitle:hover{color:var(--accent)}
+  .row .fmeta{color:var(--muted);font-size:12.5px;margin-top:2px}
+  .note{display:inline-block;font-size:10.5px;font-weight:600;letter-spacing:.04em;color:var(--accent);background:var(--accent-soft);padding:2px 7px;border-radius:5px;margin-left:8px;vertical-align:1px}
+  .times{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}
+  .time{font-variant-numeric:tabular-nums;font-weight:600;font-size:13.5px;padding:6px 12px;border-radius:7px;
+    border:1px solid var(--line2);background:var(--surface);color:var(--ink)}
+  .time:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+
+  /* by movie */
+  #bymovie{display:none;padding-top:8px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:22px;padding:14px 0}
+  .card .poster{aspect-ratio:2/3;border-radius:10px;border:1px solid var(--line);margin-bottom:10px;display:flex;align-items:flex-end;padding:8px;color:#fff}
+  .card .poster span{font-size:11px;font-weight:600;line-height:1.1;opacity:.85}
+  .p1{background:linear-gradient(160deg,#c47a3a,#7a4a1f)}
+  .p2{background:linear-gradient(160deg,#3a8a6a,#1f5a44)}
+  .p3{background:linear-gradient(160deg,#6a5ab0,#3a2f6a)}
+  .p4{background:linear-gradient(160deg,#b04a6a,#6a2f44)}
+  .p5{background:linear-gradient(160deg,#3a7ab0,#1f4a6a)}
+  .p6{background:linear-gradient(160deg,#b0993a,#6a5a1f)}
+  .card .ct{font-weight:700;font-size:14px;line-height:1.15}
+  .card .cm{color:var(--muted);font-size:12px;margin-top:2px}
+  .card .cv{color:var(--faint);font-size:11.5px;margin-top:7px;line-height:1.6}
+  .card .cv b{color:var(--ink);font-weight:600}
+
+  footer{border-top:1px solid var(--line);margin-top:34px;padding:26px;text-align:center;color:var(--faint);font-size:12px}
+  footer a{color:var(--accent)}
+  .banner{background:var(--accent);color:#fff;text-align:center;padding:7px;font-size:12px;font-weight:500;letter-spacing:.02em}
+
+  @media (max-width:720px){
+    body{padding-bottom:60px}
+    .topbar{gap:14px;padding:0 16px}
+    .search{flex:1}
+    .search input,.search input:focus{width:100%}
+    .pivot{position:fixed;left:0;right:0;bottom:0;z-index:40;border:none;border-top:1px solid var(--line);border-radius:0;
+      background:rgba(246,246,243,.96);backdrop-filter:blur(12px);padding:7px 10px;gap:4px;justify-content:space-around}
+    .pivot a{flex:1;text-align:center;padding:9px 0;font-size:13.5px}
+    .wrap{padding:0 16px}
+    .head{padding:26px 0 12px}
+    .head h1{font-size:27px}
+    .theatre-h .loc{display:none}
+    .row{grid-template-columns:1fr;gap:8px}
+    .times{justify-content:flex-start}
+  }
+</style>
+</head>
+<body>
+<div class="banner">Prototype B · “Swiss Light Minimal” — bright, gridded, tight sans, hairline rules</div>
+<nav class="topbar">
+  <a class="logo" href="#">Movie<i>Clock</i></a>
+  <div class="pivot">
+    <a class="on" data-v="theatre">Timeline</a>
+    <a data-v="theatre">By Theatre</a>
+    <a data-v="movie">By Movie</a>
+  </div>
+  <div class="search"><input placeholder="Search films…"></div>
+</nav>
+
+<div class="wrap">
+  <div class="head">
+    <div>
+      <h1>Tuesday, June 3</h1>
+      <div class="sub">Tonight · 37 screenings · 7 cinemas</div>
+    </div>
+    <div class="navbtns">
+      <button>←</button><button class="today">Today</button><button>→</button>
+    </div>
+  </div>
+
+  <div class="rail">
+    <div class="day on"><span class="dow">Tue</span><span class="n">3</span></div>
+    <div class="day"><span class="dow">Wed</span><span class="n">4</span></div>
+    <div class="day"><span class="dow">Thu</span><span class="n">5</span></div>
+    <div class="day"><span class="dow">Fri</span><span class="n">6</span></div>
+    <div class="day"><span class="dow">Sat</span><span class="n">7</span></div>
+    <div class="day"><span class="dow">Sun</span><span class="n">8</span></div>
+    <div class="day"><span class="dow">Mon</span><span class="n">9</span></div>
+    <div class="day"><span class="dow">Tue</span><span class="n">10</span></div>
+  </div>
+
+  <div class="filters">
+    <span class="lab">Cinemas</span>
+    <button class="chip on">The Rio</button>
+    <button class="chip on">VIFF</button>
+    <button class="chip on">Cinematheque</button>
+    <button class="chip on">The Park</button>
+    <button class="chip on">Hollywood</button>
+    <button class="chip off">Fifth Avenue</button>
+    <button class="chip off">Scotiabank</button>
+  </div>
+
+  <div id="bytheatre">
+    <section class="theatre">
+      <div class="theatre-h"><h2>The Rio</h2><span class="loc">Commercial Drive</span><span class="cnt">3 screenings</span></div>
+      <div class="row"><div><span class="ftitle">The Zone of Interest</span><div class="fmeta">2023 · 105 min · Jonathan Glazer</div></div><div class="times"><a class="time">7:00</a><a class="time">9:15</a></div></div>
+      <div class="row"><div><span class="ftitle">Perfect Days</span><div class="fmeta">2023 · 124 min · Wim Wenders</div></div><div class="times"><a class="time">6:30</a></div></div>
+    </section>
+    <section class="theatre">
+      <div class="theatre-h"><h2>VIFF Centre</h2><span class="loc">Seymour St</span><span class="cnt">3 screenings</span></div>
+      <div class="row"><div><span class="ftitle">La Chimera</span><div class="fmeta">2023 · 130 min · Alice Rohrwacher</div></div><div class="times"><a class="time">6:45</a><a class="time">9:00</a></div></div>
+      <div class="row"><div><span class="ftitle">Evil Does Not Exist</span><div class="fmeta">2023 · 106 min · Ryūsuke Hamaguchi</div></div><div class="times"><a class="time">8:30</a></div></div>
+    </section>
+    <section class="theatre">
+      <div class="theatre-h"><h2>The Cinematheque</h2><span class="loc">Howe St</span><span class="cnt">1 screening</span></div>
+      <div class="row"><div><span class="ftitle">In the Mood for Love</span><span class="note">4K Restoration</span><div class="fmeta">2000 · 98 min · Wong Kar-wai</div></div><div class="times"><a class="time">7:30</a></div></div>
+    </section>
+    <section class="theatre">
+      <div class="theatre-h"><h2>The Park</h2><span class="loc">Cambie St</span><span class="cnt">1 screening</span></div>
+      <div class="row"><div><span class="ftitle">Poor Things</span><div class="fmeta">2023 · 141 min · Yorgos Lanthimos</div></div><div class="times"><a class="time">8:00</a></div></div>
+    </section>
+  </div>
+
+  <div id="bymovie">
+    <div class="grid">
+      <div class="card"><div class="poster p1"><span>Zone of Interest</span></div><div class="ct">The Zone of Interest</div><div class="cm">2023 · 105 min</div><div class="cv"><b>The Rio</b> · 7:00, 9:15</div></div>
+      <div class="card"><div class="poster p3"><span>La Chimera</span></div><div class="ct">La Chimera</div><div class="cm">2023 · 130 min</div><div class="cv"><b>VIFF Centre</b> · 6:45, 9:00</div></div>
+      <div class="card"><div class="poster p4"><span>Poor Things</span></div><div class="ct">Poor Things</div><div class="cm">2023 · 141 min</div><div class="cv"><b>The Park</b> · 8:00</div></div>
+      <div class="card"><div class="poster p6"><span>In the Mood for Love</span></div><div class="ct">In the Mood for Love</div><div class="cm">2000 · 98 min</div><div class="cv"><b>Cinematheque</b> · 7:30</div></div>
+      <div class="card"><div class="poster p2"><span>Perfect Days</span></div><div class="ct">Perfect Days</div><div class="cm">2023 · 124 min</div><div class="cv"><b>The Rio</b> · 6:30</div></div>
+      <div class="card"><div class="poster p5"><span>Evil Does Not Exist</span></div><div class="ct">Evil Does Not Exist</div><div class="cm">2023 · 106 min</div><div class="cv"><b>VIFF Centre</b> · 8:30</div></div>
+    </div>
+  </div>
+</div>
+
+<footer>Vancouver showtimes for independent &amp; repertory cinemas · Made by <a>Jordan Hudson</a></footer>
+
+<script>
+  document.querySelectorAll('.pivot a').forEach(a=>a.addEventListener('click',e=>{
+    e.preventDefault();
+    document.querySelectorAll('.pivot a').forEach(x=>x.classList.remove('on'));
+    a.classList.add('on');
+    const movie=a.dataset.v==='movie';
+    document.getElementById('bymovie').style.display=movie?'block':'none';
+    document.getElementById('bytheatre').style.display=movie?'none':'block';
+  }));
+  document.querySelectorAll('.chip').forEach(c=>c.addEventListener('click',()=>{c.classList.toggle('on');c.classList.toggle('off');}));
+</script>
+</body>
+</html>

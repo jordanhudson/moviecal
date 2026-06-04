@@ -1,23 +1,23 @@
+/* ============================================================
+   TMDB fix-match modal (admin) — Neon Night / Glass
+   ============================================================ */
+
 .tmdb-modal-overlay {
   display: none;
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0,0,0,0.7);
+  inset: 0;
+  background: rgba(5, 5, 12, .72);
+  backdrop-filter: blur(6px);
   z-index: 1000;
   align-items: center;
   justify-content: center;
 }
-
-.tmdb-modal-overlay.active {
-  display: flex;
-}
+.tmdb-modal-overlay.active { display: flex; }
 
 .tmdb-modal {
-  background: #262626;
-  border-radius: 8px;
+  background: rgba(16, 16, 28, .97);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
   padding: 24px;
   width: 90%;
   max-width: 600px;
@@ -27,87 +27,70 @@
 }
 
 .tmdb-modal h3 {
+  font-family: var(--font-disp);
+  font-weight: 600;
   margin-bottom: 16px;
 }
 
-.tmdb-search-row {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
-}
+.tmdb-search-row { display: flex; gap: 8px; margin-bottom: 16px; }
 
 .tmdb-search-row input {
   flex: 1;
-  padding: 8px 12px;
-  border: 1px solid #353535;
-  border-radius: 4px;
-  background: #1e1e1e;
-  color: #c5c5c5;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--glass);
+  color: var(--ink);
   font-size: 14px;
+  font-family: inherit;
+  outline: none;
 }
+.tmdb-search-row input:focus { border-color: var(--violet); }
 
 .tmdb-search-row button {
-  padding: 8px 16px;
-  background: #4a7c7c;
-  color: white;
+  padding: 9px 16px;
+  background: var(--grad);
+  color: #0a0a14;
   border: none;
-  border-radius: 4px;
+  border-radius: 10px;
   cursor: pointer;
   font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
 }
 
-.tmdb-results {
-  overflow-y: auto;
-  flex: 1;
-}
+.tmdb-results { overflow-y: auto; flex: 1; }
 
 .tmdb-result-item {
   display: flex;
   gap: 12px;
   padding: 12px;
-  border-bottom: 1px solid #353535;
+  border-bottom: 1px solid var(--line);
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: 10px;
 }
-
-.tmdb-result-item:hover {
-  background: #353535;
-}
+.tmdb-result-item:hover { background: var(--glass2); }
 
 .tmdb-result-item img {
   width: 46px;
   height: 69px;
   object-fit: cover;
-  border-radius: 4px;
+  border-radius: 6px;
   flex-shrink: 0;
 }
-
 .tmdb-result-poster-placeholder {
   width: 46px;
   height: 69px;
-  background: #353535;
-  border-radius: 4px;
+  background: var(--glass2);
+  border-radius: 6px;
   flex-shrink: 0;
 }
 
-.tmdb-result-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.tmdb-result-title {
-  font-weight: 600;
-  margin-bottom: 4px;
-}
-
-.tmdb-result-year {
-  color: #888;
-  font-size: 13px;
-  margin-bottom: 4px;
-}
-
+.tmdb-result-info { flex: 1; min-width: 0; }
+.tmdb-result-title { font-weight: 600; margin-bottom: 4px; }
+.tmdb-result-year { color: var(--muted); font-size: 13px; margin-bottom: 4px; }
 .tmdb-result-overview {
-  color: #888;
+  color: var(--muted);
   font-size: 12px;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -117,42 +100,26 @@
 
 .tmdb-modal-close {
   margin-top: 12px;
-  padding: 8px 16px;
-  background: #353535;
-  color: #c5c5c5;
-  border: none;
-  border-radius: 4px;
+  padding: 9px 16px;
+  background: var(--glass2);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 10px;
   cursor: pointer;
   font-size: 14px;
+  font-family: inherit;
   align-self: flex-end;
 }
+.tmdb-modal-close:hover { border-color: var(--violet); }
 
-.tmdb-loading {
-  color: #888;
-  text-align: center;
-  padding: 20px;
-}
+.tmdb-loading { color: var(--muted); text-align: center; padding: 20px; }
 
-.tmdb-id-section {
-  border-top: 1px solid #353535;
-  margin-top: 12px;
-  padding-top: 12px;
-}
-
-.tmdb-id-label {
-  color: #888;
-  font-size: 13px;
-  margin-bottom: 8px;
-}
-
+.tmdb-id-section,
 .letterboxd-section {
-  border-top: 1px solid #353535;
+  border-top: 1px solid var(--line);
   margin-top: 12px;
   padding-top: 12px;
 }
 
-.letterboxd-status {
-  color: #888;
-  font-size: 13px;
-  margin-bottom: 8px;
-}
+.tmdb-id-label,
+.letterboxd-status { color: var(--muted); font-size: 13px; margin-bottom: 8px; }
