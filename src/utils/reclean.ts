@@ -19,6 +19,20 @@ interface RecleanOptions {
   searchLetterboxd?: (title: string, year: number | null) => Promise<string | null>;
 }
 
+/**
+ * Apply a note extracted during re-cleaning to a movie's screenings. Only fills
+ * screenings whose note is still null, so existing notes are never clobbered.
+ */
+async function applyNoteToScreenings(movieId: number, note: string | null) {
+  if (!note) return;
+  await db
+    .updateTable('screening')
+    .set({ note })
+    .where('movie_id', '=', movieId)
+    .where('note', 'is', null)
+    .execute();
+}
+
 export async function recleanExistingTitles(options: RecleanOptions = {}) {
   const existingMovies = await db
     .selectFrom('movie')
@@ -49,6 +63,8 @@ export async function recleanExistingTitles(options: RecleanOptions = {}) {
       .executeTakeFirst();
 
     if (duplicate) {
+      // Carry the extracted note onto the stale record's screenings before they move
+      await applyNoteToScreenings(existing.id, verified.note);
       // Reassign screenings from the stale record to the existing one, then delete stale
       await db
         .updateTable('screening')
@@ -98,6 +114,7 @@ export async function recleanExistingTitles(options: RecleanOptions = {}) {
         .set(updates)
         .where('id', '=', existing.id)
         .execute();
+      await applyNoteToScreenings(existing.id, verified.note);
       console.log(`  → Cleaned movie title "${existing.title}" → "${verified.title}"`);
     }
   }
