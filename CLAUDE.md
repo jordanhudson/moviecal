@@ -48,9 +48,15 @@ fly logs -a movieclock                        # View logs
 ### ES Modules Configuration
 
 - Project uses `"type": "module"` in package.json
-- **CRITICAL**: All imports must include `.js` extension, even when importing `.ts` files
+- **CRITICAL**: All imports must include `.js` extension, even when importing `.ts`/`.tsx` files
   - Example: `import { Movie } from './models.js'` (NOT `'./models'` or `'./models.ts'`)
-- TypeScript compiles `.ts` → `.js` but import statements must already reference `.js`
+- TypeScript compiles `.ts`/`.tsx` → `.js` but import statements must already reference `.js`
+
+### JSX Rendering
+
+- Pages live in `src/pages/*.tsx` and render with **hono/jsx** (server-side only). Each page file starts with the `/** @jsxImportSource hono/jsx */` pragma.
+- JSX is rendered to an HTML **string** via `.toString()` (see `renderPage` in `layout.tsx`); there is no client-side React/hydration. Interactivity is plain inline `<script>` strings injected with `dangerouslySetInnerHTML`.
+- **Dev gotcha**: `npm run server` uses nodemon with `--watch src --ext ts`, which does **not** match `.tsx`. Editing a page does not hot-reload — restart the server manually after `.tsx` edits. (CSS under `public/css/` is served statically, so CSS edits need only a browser refresh.)
 
 ### Entry Points
 
@@ -58,7 +64,7 @@ fly logs -a movieclock                        # View logs
    - Runs all scrapers in parallel (VIFF, Rio, Cinematheque, Park, Hollywood, Cineplex)
    - Re-cleans existing movie titles (see Title Cleaning below)
    - Enriches new movies with TMDB and Letterboxd data
-   - Saves to PostgreSQL using delete-and-reinsert per scraper
+   - Saves to PostgreSQL by **reconciling** screenings per scraper (`src/db/reconcile.ts`): within a date window, incoming screenings are matched/updated/rescheduled/inserted and stale ones deleted (not a blind delete-and-reinsert). Logged per scraper as `matched/updated/inserted/deleted`.
    - Use `npm run scrape` to run, or `npm run scrape {name}` for a single scraper
 
 2. **`src/server.ts`** - Hono web server
@@ -70,35 +76,40 @@ fly logs -a movieclock                        # View logs
 
 ### Web Pages
 
-Page rendering is in `src/pages/`:
+Page rendering is in `src/pages/` (all `.tsx`, see JSX Rendering above):
 
-- **`src/pages/index.ts`** - Home page (`/`)
-  - Desktop: Timeline view with theatre rows and time-positioned screening blocks
-  - Mobile (<800px): Listing view with theatre sections listing movies
+- **`src/pages/index.tsx`** - Home page / "By Date" (`/`)
+  - Desktop: a **Listing | Timeline** toggle (default **Listing**); Listing shows venue cards, Timeline shows theatre rows with time-positioned screening blocks
+  - Mobile (<720px): always Listing (the Timeline and toggle are hidden)
+  - Sticky date rail (built client-side, spans through any picked date) + a date picker; theatre filter chips drive the `hiddenTheatres` localStorage
   - Cineplex venues collapse multiple auditoriums into one group
-  - Query by date: `/?date=YYYY-MM-DD`
+  - Date selection is path-based: `/date/YYYY-MM-DD` (served by `renderHome` in `server.ts`). Legacy `/?date=YYYY-MM-DD` 301-redirects to the path form; invalid date paths 301 to `/`.
 
-- **`src/pages/movie.ts`** - Movie detail page (`/movie/:id`)
+- **`src/pages/movie.tsx`** - Movie detail page (`/movie/:id`)
   - Shows poster, title, year, runtime, director, TMDB + Letterboxd links
-  - Chronological list of future screenings with notes displayed
+  - Chronological list of future screenings with notes displayed; theatre name links to its page
   - Hidden TMDB fix-match modal (10 clicks on poster to activate, requires `ADMIN_TOKEN`)
+  - `/movie/:id` URLs include a title slug (e.g. `/movie/1294-grave-of-the-fireflies`); see `src/utils/movie-url.ts`
 
-- **`src/pages/theatre.ts`** - Theatre detail page (`/theatre/:name`)
+- **`src/pages/theatre.tsx`** - Theatre detail page (`/theatre/:name`)
   - Lists all future screenings at this theatre with notes displayed
 
-- **`src/pages/movies.ts`** - Movies page (`/movies`)
-  - All movies with upcoming screenings, grouped by movie
+- **`src/pages/movies.tsx`** - Movies page / "By Movie" (`/movies`)
+  - All movies with upcoming screenings, grouped by movie (poster + title row, theatre cards below)
   - Client-side sort: Date Added, Name, Popularity (TMDB)
-  - Client-side theatre filtering (persisted in localStorage)
+  - Client-side theatre filtering (persisted in localStorage). Note: this page does **not** render screening notes (movie + theatre pages do).
 
-- **`src/pages/all-movies.ts`** - Internal movies page (`/internal-movies`)
-  - Admin-oriented movie list with TMDB fix-match modal
+- **`src/pages/all-movies.tsx`** - Internal movies page (`/internal-movies`)
+  - Admin-oriented movie list with TMDB fix-match modal (intentionally left on the old styling)
 
-- **`src/pages/layout.ts`** - Shared page layout/shell
-  - Nav bar with search (searches movies with upcoming screenings)
-  - Cloudflare Web Analytics
+- **`src/pages/layout.tsx`** - Shared page layout/shell (`renderPage`, `setSearchMovies`)
+  - Nav bar with **By Date / By Movie** + search (searches movies with upcoming screenings)
+  - `color-scheme: dark` + `darkreader-lock` meta, Google Fonts (Space Grotesk + Inter), Cloudflare Web Analytics
 
-- **`src/pages/tmdb-modal.ts`** - Shared TMDB fix-match modal component
+- **`src/pages/tmdb-modal.tsx`** - Shared TMDB fix-match modal component
+- **`src/pages/theatre-card.tsx`** - Shared venue/showtimes card used by the By Movie page
+
+Shared helpers: `src/theatres.ts` (`THEATRE_ORDER`, `CINEPLEX_VENUES`/`CINEPLEX_PREFIXES`, `buildListingGroup`), `src/routes/api.ts` (admin API routes), `src/utils/{time,html,movie-url,letterboxd}.ts`.
 
 ### API Endpoints
 
@@ -178,12 +189,17 @@ If adding a new scraper that returns UTC times, use the same pattern as Rio to c
 1. If the movie already has a `tmdb_id`: searches TMDB for the note content and checks if any result matches the existing `tmdb_id`. If so, the parens are an alternate title — keep them.
 2. If no `tmdb_id`: searches TMDB for the full uncleaned title, checks for exact title match OR whether searching the note content returns the same movie as the uncleaned title search.
 
+**Colon-annotation extraction** (also in `verifyTitleCleaning()`): handles titles of the form `"{Real Title}: {annotation}"` (e.g. `"Grave of the Fireflies: Bleak Week"` → title `"Grave of the Fireflies"`, note `"Bleak Week"`). To avoid mangling real colon titles, it splits on the **last** colon and only does so when TMDB has **no** movie titled exactly like the full string, **but does** have one titled exactly like the part before the colon — and the full string is **not** a known alternative title of that movie, and TMDB doesn't return a different, more-specific movie for the full string. This keeps "Dune: Part Two", "Star Wars: Episode IV - A New Hope", "Three Colours: Blue", etc. intact.
+
 This is the **single verification function** used by both scrape and repair.
+
+**Where notes get written**: the `note` lives on the **screening** row, not the movie. Both the scrape's new-movie path (`scrape.ts`) and the re-clean path (`reclean.ts`) call `verifyTitleCleaning` and then write the extracted note onto the movie's screenings (only where `note IS NULL`, so existing notes aren't clobbered). Scrapers themselves only strip parens, so colon splitting happens in these two paths — **a scrape alone is sufficient; no repair needed afterward.**
 
 **Re-cleaning** (`recleanExistingTitles()` in `src/utils/reclean.ts`): Both scrape and repair runs re-clean all existing movie titles in the DB using the shared re-clean logic:
 1. Calls `verifyTitleCleaning()` for each existing title
-2. If the cleaned title matches another existing movie, screenings are merged and the stale record is deleted
-3. If TMDB or Letterboxd data is missing on the renamed movie, it retries the lookup with the cleaned title
+2. If the cleaned title matches another existing movie, screenings are merged (note applied) and the stale record is deleted
+3. Otherwise renames in place (note applied to its screenings)
+4. If TMDB or Letterboxd data is missing on the renamed movie, it retries the lookup with the cleaned title
 
 This means adding a new pattern to the title cleaner is safe — just add the regex and the next scrape or repair run fixes everything up.
 
@@ -376,11 +392,16 @@ ADMIN_TOKEN=your_token_here     # Required for TMDB/Letterboxd fix-match endpoin
 
 ## UI Design
 
-**Color scheme** (dark mode):
-- Background: `#1e1e1e`
-- Content areas: `#262626`
-- Text: `#c5c5c5`
-- Muted text: `#707070` - `#888`
-- Borders: `#353535`
-- Accent (screening blocks, buttons): `#4a7c7c` (muted teal)
-- Links: `#6a9a9a`
+**"Neon Night / Glass"** design system (dark mode). All styling is driven by CSS custom properties on `:root` in `public/css/global.css` — themes are intended to be swappable token blocks. Fonts: **Space Grotesk** (display) + **Inter** (body), loaded from Google Fonts in `layout.tsx`. Frosted-glass cards (`backdrop-filter: blur`), violet→cyan gradient accent.
+
+Core tokens (`public/css/global.css`):
+- Background: `--bg: #0a0a14` (deep indigo)
+- Glass surfaces: `--glass: rgba(255,255,255,.045)`, `--glass2: rgba(255,255,255,.07)`
+- Text: `--ink: #eef0ff`; muted: `--muted: #9a9ec2`; faint: `--faint: #646891`
+- Borders/lines: `--line: rgba(255,255,255,.09)`
+- Accent: `--violet: #8b5cf6`, `--cyan: #22d3ee`, `--pink: #f472b6` (notes), gradient `--grad: linear-gradient(100deg,#8b5cf6,#22d3ee)`
+- Radii: `--radius-card: 20px`, `--radius-chip: 999px`
+
+Per-page CSS lives in `public/css/{global,index,movie,movies,theatre,theatre-card,tmdb-modal}.css`. Favicon is `public/favicon.svg` (+ `.png` fallback) matching the gradient. The three earlier design explorations are kept under `design-prototypes/` (reference only, not wired in) as seeds for a future theme switcher.
+
+**Note**: `/internal-movies` is intentionally left on the old teal styling and was not redesigned.

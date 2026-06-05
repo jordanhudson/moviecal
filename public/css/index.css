@@ -210,9 +210,11 @@
 }
 .screening-overlay { position: absolute; inset: 0; z-index: 1; }
 .screening-title {
+  font-family: 'Inter Tight', 'Inter', sans-serif;
   font-size: 12px;
   font-weight: 600;
   line-height: 1.15;
+  letter-spacing: -.03em;
   color: var(--ink);
   white-space: nowrap;
   text-overflow: ellipsis;

@@ -78,7 +78,11 @@ function calculatePosition(datetime: Date, runtime: number | null): { left: stri
   const minutesFromStart = screeningMinutes - startMinutes;
   const leftPercent = (minutesFromStart / totalMinutes) * 100;
 
-  const movieRuntime = runtime || DEFAULT_RUNTIME_MINUTES;
+  // Pad the runtime by 15 min for the block width only (accounts for trailers /
+  // turnover so cells don't visually butt up against the next showing). This is
+  // the ONLY place 15 min is added — display runtimes elsewhere stay unmodified.
+  const TIMELINE_CELL_PADDING_MINUTES = 15;
+  const movieRuntime = (runtime || DEFAULT_RUNTIME_MINUTES) + TIMELINE_CELL_PADDING_MINUTES;
   const effectiveRuntime = Math.max(movieRuntime, MIN_DISPLAY_RUNTIME_MINUTES);
   const widthPercent = (effectiveRuntime / totalMinutes) * 100;
 

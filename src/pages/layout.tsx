@@ -103,7 +103,7 @@ export function renderPage({ title, description, canonicalPath, ogImage, jsonLd,
         <link rel="icon" type="image/png" href="/favicon.png" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
-        <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=Inter+Tight:wght@500;600;700&display=swap" rel="stylesheet" />
         {cssFiles.map(href => <link rel="stylesheet" href={href} />)}
         {jsonLdItems.map(item => (
           <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(item) }} />
