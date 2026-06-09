@@ -211,30 +211,24 @@ footer a {
   font-weight: 600;
 }
 
-/* ---- mobile: nav becomes fixed bottom tab bar ---- */
+/* ---- mobile: drop the logo, fold search into the top nav ---- */
 @media (max-width: 720px) {
-  body { padding-bottom: 68px; background-attachment: scroll; }
+  body { background-attachment: scroll; }
 
-  /* drop the logo + top search bar; nav becomes the whole header (a bottom tab bar) */
-  .top-bar {
-    position: static;
-    background: none;
-    backdrop-filter: none;
-    border-bottom: none;
-  }
-  .top-bar-inner { padding: 0; gap: 0; }
+  /* the top bar stays put as the header; just drop the logo and center the nav */
+  .top-bar-inner { padding: 12px 16px; gap: 14px; justify-content: center; }
   .top-bar-logo { display: none; }
 
-  /* search input: hidden panel that slides up above the bottom nav when toggled */
+  /* search input: panel that drops down below the header when toggled */
   .top-bar-search {
-    position: fixed;
-    left: 0; right: 0; bottom: 60px;
-    z-index: 119;
+    position: absolute;
+    top: 100%;
+    left: 0; right: 0;
     margin: 0;
     padding: 10px 16px;
     background: rgba(10, 10, 20, .95);
     backdrop-filter: blur(18px);
-    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
     display: none;
   }
   body.search-open .top-bar-search { display: block; }
@@ -242,37 +236,14 @@ footer a {
   .top-bar-search input,
   .top-bar-search input:focus { width: 100%; }
   .top-bar-search .search-results {
-    top: auto;
-    bottom: calc(100% - 10px);
+    top: 100%;
+    bottom: auto;
     left: 16px; right: 16px;
     width: auto;
-    margin: 0 0 8px 0;
+    margin: 8px 0 0 0;
   }
 
-  .top-bar-nav {
-    position: fixed;
-    left: 0; right: 0; bottom: 0;
-    z-index: 120;
-    border: none;
-    border-top: 1px solid var(--line);
-    border-radius: 0;
-    background: rgba(10, 10, 20, .9);
-    backdrop-filter: blur(18px);
-    padding: 8px 10px;
-    gap: 6px;
-    justify-content: space-around;
-  }
-  .top-bar-nav a {
-    flex: 1;
-    justify-content: center;
-    padding: 10px 0;
-    font-size: 13px;
-  }
-  .nav-search-btn {
-    display: inline-flex;
-    flex: 0 0 auto;
-    padding: 10px 22px;
-  }
+  .nav-search-btn { display: inline-flex; }
   body.search-open .nav-search-btn { color: var(--ink); }
 
   .page-content { padding: 0 16px; }

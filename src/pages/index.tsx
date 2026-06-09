@@ -104,6 +104,14 @@ function formatTime(d: Date): string {
   return `${h}:${m}${ampm}`;
 }
 
+// Balance showtime buttons across rows: at most 3 per row, but pick a column
+// count that evens out the last row (e.g. 4 → 2×2 instead of 3+1).
+function showTimeCols(n: number): number {
+  if (n <= 1) return 1;
+  const rows = Math.ceil(n / 3);
+  return Math.ceil(n / rows);
+}
+
 function metaLine(year?: number | null, runtime?: number | null): string {
   return [year, runtime ? `${runtime} min` : null].filter(Boolean).join(' · ');
 }
@@ -326,7 +334,7 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[], listingGroup
                       <a class="film-title" href={movieUrl(movie.movie_id, movie.movie_title)}>{movie.movie_title}</a>
                       <div class="film-meta">{metaLine(movie.movie_year, movie.movie_runtime)}</div>
                     </div>
-                    <div class="show-times">
+                    <div class="show-times" style={`grid-template-columns: repeat(${showTimeCols(movie.showtimes.length)}, auto)`}>
                       {movie.showtimes.map(st => (
                         <a class="show-time" href={safeHref(st.booking_url)} target="_blank">{formatTime(new Date(st.datetime))}</a>
                       ))}

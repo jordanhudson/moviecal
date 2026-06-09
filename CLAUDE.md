@@ -24,6 +24,23 @@ npm run drop         # Drop all tables from database
 npm run server       # Start web server on http://localhost:3000
 ```
 
+## Local Development
+
+**Use `podman`, not `docker`** for local containers (e.g. spinning up Postgres). Docker is not the preferred runtime on this machine.
+
+To run the app locally with real data, bring up a Postgres matching `.env` (`DB_NAME=moviecal`, user/password `postgres`, port 5432), then migrate + scrape:
+
+```bash
+podman run -d --name moviecal-pg \
+  -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=moviecal \
+  -p 5432:5432 docker.io/library/postgres:16
+npm run migrate      # apply schema
+npm run scrape       # populate real screenings (hits live venue sites + TMDB)
+npm run server       # serve at http://localhost:3000
+```
+
+Note: `npm run server` uses nodemon watching `--ext ts`, which does **not** match `.tsx` — restart the server manually after editing pages.
+
 ## Deployment
 
 Deployed on Fly.io as `movieclock`.

@@ -291,7 +291,7 @@
 .film-title { font-weight: 600; font-size: 15.5px; }
 .film-title:hover { color: var(--cyan); }
 .film-meta { color: var(--muted); font-size: 12.5px; margin-top: 3px; }
-.show-times { display: flex; flex-wrap: wrap; gap: 7px; justify-content: flex-end; max-width: 280px; }
+.show-times { display: grid; gap: 7px; justify-content: end; }
 .show-time {
   font-family: var(--font-disp);
   font-weight: 600;
@@ -313,5 +313,5 @@
   #viewsWrapper .timeline-view { display: none !important; }
   #viewsWrapper .listing-view { display: grid !important; grid-template-columns: 1fr; }
   .film-row { grid-template-columns: 46px 1fr; row-gap: 11px; }
-  .show-times { grid-column: 1 / -1; justify-content: flex-start; max-width: none; }
+  .show-times { grid-column: 1 / -1; justify-content: start; }
 }
