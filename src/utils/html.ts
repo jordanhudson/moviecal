@@ -1,19 +1,11 @@
-// HTML escaping utilities to prevent XSS
-
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
+// Validates the URL protocol only. Escaping is left to the JSX renderer:
+// hono/jsx escapes attribute values, so escaping here would double-escape
+// (`&` became `&amp;amp;` in the HTML, breaking multi-param booking URLs).
 export function safeHref(url: string): string {
   try {
     const parsed = new URL(url);
     if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
-      return escapeHtml(url);
+      return url;
     }
   } catch {}
   return '#';
