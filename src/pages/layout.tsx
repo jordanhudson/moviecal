@@ -34,9 +34,20 @@ export interface PageOptions {
 
 const SEARCH_SCRIPT = `
 (function() {
-  if (typeof __movies === 'undefined') return;
+  var btn = document.getElementById('navSearchBtn');
   var input = document.getElementById('searchInput');
   var results = document.getElementById('searchResults');
+
+  if (btn) {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var open = document.body.classList.toggle('search-open');
+      if (open) { setTimeout(function() { input.focus(); }, 0); }
+      else { results.classList.remove('open'); input.value = ''; }
+    });
+  }
+
+  if (typeof __movies === 'undefined') return;
 
   function slug(t) {
     return t.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
@@ -62,13 +73,18 @@ const SEARCH_SCRIPT = `
   });
 
   document.addEventListener('click', function(e) {
-    if (!e.target.closest('.top-bar-search')) results.classList.remove('open');
+    if (!e.target.closest('.top-bar-search') && !e.target.closest('#navSearchBtn')) {
+      results.classList.remove('open');
+      document.body.classList.remove('search-open');
+    }
   });
 })();`;
 
 const calendarIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 256 256" style="vertical-align: -2px; margin-right: 4px;"><path fill="currentColor" d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Zm-68-76a12,12,0,1,1-12-12A12,12,0,0,1,140,132Zm44,0a12,12,0,1,1-12-12A12,12,0,0,1,184,132ZM96,172a12,12,0,1,1-12-12A12,12,0,0,1,96,172Zm44,0a12,12,0,1,1-12-12A12,12,0,0,1,140,172Zm44,0a12,12,0,1,1-12-12A12,12,0,0,1,184,172Z"/></svg>';
 
 const filmIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 256 256" style="vertical-align: -2px; margin-right: 4px;"><path fill="currentColor" d="M232,216H183.36A103.95,103.95,0,1,0,128,232H232a8,8,0,0,0,0-16ZM40,128a88,88,0,1,1,88,88A88.1,88.1,0,0,1,40,128Zm88-24a24,24,0,1,0-24-24A24,24,0,0,0,128,104Zm0-32a8,8,0,1,1-8,8A8,8,0,0,1,128,72Zm24,104a24,24,0,1,0-24,24A24,24,0,0,0,152,176Zm-32,0a8,8,0,1,1,8,8A8,8,0,0,1,120,176Zm56-24a24,24,0,1,0-24-24A24,24,0,0,0,176,152Zm0-32a8,8,0,1,1-8,8A8,8,0,0,1,176,120ZM80,104a24,24,0,1,0,24,24A24,24,0,0,0,80,104Zm0,32a8,8,0,1,1,8-8A8,8,0,0,1,80,136Z"/></svg>';
+
+const searchIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 256 256"><path fill="currentColor" d="M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z"/></svg>';
 
 export function renderPage({ title, description, canonicalPath, ogImage, jsonLd, styles, body, activePage }: PageOptions): string {
   const searchMovies = _searchMovies;
@@ -121,6 +137,9 @@ export function renderPage({ title, description, canonicalPath, ogImage, jsonLd,
               <a href="/movies" class={activePage === 'movies' ? 'active' : undefined}>
                 <span dangerouslySetInnerHTML={{ __html: filmIcon }} />By Movie
               </a>
+              <button type="button" class="nav-search-btn" id="navSearchBtn" aria-label="Search">
+                <span dangerouslySetInnerHTML={{ __html: searchIcon }} />
+              </button>
             </div>
             <div class="top-bar-search">
               <input type="text" id="searchInput" placeholder="Search" autocomplete="off" />

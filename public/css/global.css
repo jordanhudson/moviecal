@@ -105,6 +105,20 @@ a { color: inherit; text-decoration: none; }
 }
 .top-bar-nav a.active svg { color: #0a0a14; }
 
+/* search toggle button — mobile only (hidden on desktop, where the input is in the bar) */
+.nav-search-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 7px 16px;
+  border-radius: var(--radius-chip);
+}
+.nav-search-btn svg { display: block; }
+
 /* ---- search ---- */
 .top-bar-search {
   margin-left: auto;
@@ -201,11 +215,39 @@ footer a {
 @media (max-width: 720px) {
   body { padding-bottom: 68px; background-attachment: scroll; }
 
-  .top-bar-inner { padding: 12px 16px; gap: 14px; }
+  /* drop the logo + top search bar; nav becomes the whole header (a bottom tab bar) */
+  .top-bar {
+    position: static;
+    background: none;
+    backdrop-filter: none;
+    border-bottom: none;
+  }
+  .top-bar-inner { padding: 0; gap: 0; }
+  .top-bar-logo { display: none; }
 
-  .top-bar-search { flex: 1; margin-left: auto; }
+  /* search input: hidden panel that slides up above the bottom nav when toggled */
+  .top-bar-search {
+    position: fixed;
+    left: 0; right: 0; bottom: 60px;
+    z-index: 119;
+    margin: 0;
+    padding: 10px 16px;
+    background: rgba(10, 10, 20, .95);
+    backdrop-filter: blur(18px);
+    border-top: 1px solid var(--line);
+    display: none;
+  }
+  body.search-open .top-bar-search { display: block; }
+  .top-bar-search::before { left: 29px; top: 17px; }
   .top-bar-search input,
   .top-bar-search input:focus { width: 100%; }
+  .top-bar-search .search-results {
+    top: auto;
+    bottom: calc(100% - 10px);
+    left: 16px; right: 16px;
+    width: auto;
+    margin: 0 0 8px 0;
+  }
 
   .top-bar-nav {
     position: fixed;
@@ -226,6 +268,12 @@ footer a {
     padding: 10px 0;
     font-size: 13px;
   }
+  .nav-search-btn {
+    display: inline-flex;
+    flex: 0 0 auto;
+    padding: 10px 22px;
+  }
+  body.search-open .nav-search-btn { color: var(--ink); }
 
   .page-content { padding: 0 16px; }
 }
