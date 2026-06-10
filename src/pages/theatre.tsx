@@ -17,6 +17,21 @@ export function renderTheatrePage(theatreName: string, screenings: TheatreScreen
   const now = pacificNow();
   const futureScreenings = screenings.filter(s => new Date(s.datetime) >= now);
 
+  const dayGroups: { dateStr: string; items: TheatreScreening[] }[] = [];
+  for (const screening of futureScreenings) {
+    const dateStr = new Date(screening.datetime).toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+    }).replace(',', '');
+    const lastGroup = dayGroups[dayGroups.length - 1];
+    if (lastGroup && lastGroup.dateStr === dateStr) {
+      lastGroup.items.push(screening);
+    } else {
+      dayGroups.push({ dateStr, items: [screening] });
+    }
+  }
+
   return renderPage({
     title: `${theatreName} Showtimes Vancouver — MovieClock`,
     description: `Upcoming movie showtimes at ${theatreName} in Vancouver.`,
@@ -35,38 +50,33 @@ export function renderTheatrePage(theatreName: string, screenings: TheatreScreen
 
         {futureScreenings.length === 0
           ? <p class="no-screenings">No upcoming screenings</p>
-          : <ul class="screening-list">
-              {futureScreenings.map(screening => {
-                const screeningDate = new Date(screening.datetime);
-                const dateStr = screeningDate.toLocaleDateString('en-US', {
-                  weekday: 'short',
-                  month: 'short',
-                  day: 'numeric',
-                }).replace(',', '');
-                const timeStr = screeningDate.toLocaleTimeString('en-US', {
-                  hour: 'numeric',
-                  minute: '2-digit',
-                });
+          : dayGroups.map(group => (
+              <section class="day-group">
+                <h2 class="day-header">{group.dateStr}</h2>
+                <ul class="screening-list">
+                  {group.items.map(screening => {
+                    const timeStr = new Date(screening.datetime).toLocaleTimeString('en-US', {
+                      hour: 'numeric',
+                      minute: '2-digit',
+                    });
 
-                return (
-                  <li class="screening-item">
-                    <div class="screening-date">
-                      <span class="date-part">{dateStr}</span>
-                      <span class="at-separator"> at </span>
-                      <span class="time-part">{timeStr}</span>
-                    </div>
-                    <div class="screening-movie">
-                      <a href={movieUrl(screening.movie_id, screening.movie_title)}>{screening.movie_title}</a>
-                      {screening.note && <div class="screening-note">{screening.note}</div>}
-                    </div>
-                    <a href={safeHref(screening.booking_url)} target="_blank" class="screening-book">
-                      <span class="full-text">Book Tickets</span>
-                      <span class="short-text">Tix</span>
-                    </a>
-                  </li>
-                );
-              })}
-            </ul>
+                    return (
+                      <li class="screening-item">
+                        <div class="screening-time">{timeStr}</div>
+                        <div class="screening-movie">
+                          <a href={movieUrl(screening.movie_id, screening.movie_title)}>{screening.movie_title}</a>
+                          {screening.note && <div class="screening-note">{screening.note}</div>}
+                        </div>
+                        <a href={safeHref(screening.booking_url)} target="_blank" class="screening-book">
+                          <span class="full-text">Book Tickets</span>
+                          <span class="short-text">Tix</span>
+                        </a>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            ))
         }
       </div>
     ),

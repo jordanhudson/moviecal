@@ -182,6 +182,42 @@
 }
 .theatre-label a { color: var(--muted); }
 .theatre-label a:hover { color: var(--cyan); }
+
+.row-hide {
+  margin-left: auto;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--faint);
+  cursor: pointer;
+  opacity: 0;
+  padding: 2px 4px;
+}
+.theatre-row:hover .row-hide { opacity: 1; }
+.row-hide:hover { color: var(--pink); }
+
+.hidden-screens {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  font-size: 12.5px;
+}
+.hidden-screens-label { color: var(--faint); }
+.hidden-screen-chip {
+  border: 1px solid var(--line);
+  background: var(--glass);
+  color: var(--muted);
+  border-radius: var(--radius-chip);
+  padding: 3px 10px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.hidden-screen-chip:hover { color: var(--ink); border-color: var(--cyan); }
 .timeline {
   position: relative;
   flex: 1;

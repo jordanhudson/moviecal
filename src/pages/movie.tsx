@@ -30,6 +30,21 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
   const now = pacificNow();
   const futureScreenings = screenings.filter(s => new Date(s.datetime) >= now);
 
+  const dayGroups: { dateStr: string; items: ScreeningDetail[] }[] = [];
+  for (const screening of futureScreenings) {
+    const dateStr = new Date(screening.datetime).toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+    }).replace(',', '');
+    const lastGroup = dayGroups[dayGroups.length - 1];
+    if (lastGroup && lastGroup.dateStr === dateStr) {
+      lastGroup.items.push(screening);
+    } else {
+      dayGroups.push({ dateStr, items: [screening] });
+    }
+  }
+
   const metaParts = [movie.year, movie.director, movie.runtime ? `${movie.runtime} min` : null].filter(Boolean);
   const metaSuffix = metaParts.length ? ` (${metaParts.join(', ')})` : '';
   const screeningCount = futureScreenings.length;
@@ -103,7 +118,15 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
         });
         if (hiddenCount === 0) return;
 
-        var list = document.querySelector('.screening-list');
+        document.querySelectorAll('.day-group').forEach(function(group) {
+          var groupItems = group.querySelectorAll('.screening-item');
+          var groupHidden = group.querySelectorAll('.screening-item.hidden-by-theatre');
+          if (groupItems.length && groupItems.length === groupHidden.length) {
+            group.classList.add('all-hidden');
+          }
+        });
+
+        var section = document.querySelector('.screenings-section');
         var heading = document.querySelector('.screenings-section h2');
         if (!heading) return;
 
@@ -117,12 +140,12 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
         }
 
         var showing = allHidden;
-        if (list && allHidden) list.classList.add('show-hidden');
+        if (section && allHidden) section.classList.add('show-hidden');
         render(showing);
 
         toggle.addEventListener('click', function() {
           showing = !showing;
-          if (list) list.classList.toggle('show-hidden', showing);
+          if (section) section.classList.toggle('show-hidden', showing);
           render(showing);
         });
 
@@ -165,38 +188,33 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
             <h2>Screenings</h2>
             {futureScreenings.length === 0
               ? <p class="no-screenings">No upcoming screenings</p>
-              : <ul class="screening-list">
-                  {futureScreenings.map(screening => {
-                    const screeningDate = new Date(screening.datetime);
-                    const dateStr = screeningDate.toLocaleDateString('en-US', {
-                      weekday: 'short',
-                      month: 'short',
-                      day: 'numeric',
-                    }).replace(',', '');
-                    const timeStr = screeningDate.toLocaleTimeString('en-US', {
-                      hour: 'numeric',
-                      minute: '2-digit',
-                    });
+              : dayGroups.map(group => (
+                  <section class="day-group">
+                    <h3 class="day-header">{group.dateStr}</h3>
+                    <ul class="screening-list">
+                      {group.items.map(screening => {
+                        const timeStr = new Date(screening.datetime).toLocaleTimeString('en-US', {
+                          hour: 'numeric',
+                          minute: '2-digit',
+                        });
 
-                    return (
-                      <li class="screening-item" data-theatre={screening.theatre_name}>
-                        <div class="screening-date">
-                          <span class="date-part">{dateStr}</span>
-                          <span class="at-separator"> at </span>
-                          <span class="time-part">{timeStr}</span>
-                        </div>
-                        <div class="screening-theatre">
-                          <a href={`/theatre/${encodeURIComponent(screening.theatre_name)}`}>{screening.theatre_name}</a>
-                          {screening.note && <div class="screening-note">{screening.note}</div>}
-                        </div>
-                        <a href={safeHref(screening.booking_url)} target="_blank" class="screening-book">
-                          <span class="full-text">Book Tickets</span>
-                          <span class="short-text">Tix</span>
-                        </a>
-                      </li>
-                    );
-                  })}
-                </ul>
+                        return (
+                          <li class="screening-item" data-theatre={screening.theatre_name}>
+                            <div class="screening-time">{timeStr}</div>
+                            <div class="screening-theatre">
+                              <a href={`/theatre/${encodeURIComponent(screening.theatre_name)}`}>{screening.theatre_name}</a>
+                              {screening.note && <div class="screening-note">{screening.note}</div>}
+                            </div>
+                            <a href={safeHref(screening.booking_url)} target="_blank" class="screening-book">
+                              <span class="full-text">Book Tickets</span>
+                              <span class="short-text">Tix</span>
+                            </a>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </section>
+                ))
             }
           </div>
         </div>

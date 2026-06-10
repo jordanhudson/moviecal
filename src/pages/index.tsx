@@ -200,6 +200,7 @@ const INDEX_SCRIPT = `
       c.classList.toggle('off', off);
       c.classList.toggle('on', !off);
     });
+    renderHiddenScreens(hidden);
   }
   document.querySelectorAll('.chip').forEach(function(c){
     c.addEventListener('click', function(){
@@ -211,6 +212,40 @@ const INDEX_SCRIPT = `
       applyFilter();
     });
   });
+
+  // ---- per-screen hide links on timeline rows ----
+  document.querySelectorAll('.theatre-row .row-hide').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var name = btn.closest('[data-theatre]').dataset.theatre;
+      var hidden = getHidden();
+      if (hidden.indexOf(name) === -1) hidden.push(name);
+      saveHidden(hidden);
+      applyFilter();
+    });
+  });
+
+  // Strip under the timeline listing individually hidden screens (entries that
+  // aren't venue chips); click one to unhide it.
+  function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
+  function renderHiddenScreens(hidden){
+    var box = document.getElementById('hiddenScreens');
+    if (!box) return;
+    var chips = [];
+    document.querySelectorAll('.chip').forEach(function(c){ chips.push(c.dataset.theatre); });
+    var screens = hidden.filter(function(n){ return chips.indexOf(n) === -1; });
+    if (!screens.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
+    box.innerHTML = '<span class="hidden-screens-label">Hidden screens:</span> ' + screens.map(function(n){
+      return '<button class="hidden-screen-chip" data-name="' + esc(n) + '" title="Unhide ' + esc(n) + '">' + esc(n) + ' \\u2715</button>';
+    }).join('');
+    box.style.display = 'flex';
+  }
+  document.addEventListener('click', function(e){
+    var chip = e.target.closest('.hidden-screen-chip');
+    if (!chip) return;
+    saveHidden(getHidden().filter(function(n){ return n !== chip.dataset.name; }));
+    applyFilter();
+  });
+
   applyFilter();
 `;
 
@@ -287,6 +322,7 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[], listingGroup
                 <div class="theatre-row" data-theatre={theatre}>
                   <div class="theatre-label">
                     <a href={`/theatre/${encodeURIComponent(theatre)}`}>{displayName(theatre)}</a>
+                    <button class="row-hide" title={`Hide ${theatre}`}>hide</button>
                   </div>
                   <div class="timeline">
                     {screenings.map(screening => {
@@ -314,6 +350,7 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[], listingGroup
                 </div>
               ))}
             </div>
+            <div class="hidden-screens" id="hiddenScreens" style="display:none"></div>
           </div>
 
           {/* ---- Listing view (mobile always; desktop optional) ---- */}

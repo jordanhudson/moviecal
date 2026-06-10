@@ -96,27 +96,48 @@
 .hidden-toggle:hover { text-decoration: underline; }
 
 .screening-item.hidden-by-theatre { display: none; }
-.screening-list.show-hidden .screening-item.hidden-by-theatre { display: flex; opacity: .5; }
+.day-group.all-hidden { display: none; }
+.screenings-section.show-hidden .screening-item.hidden-by-theatre { display: flex; opacity: .5; }
+.screenings-section.show-hidden .day-group.all-hidden { display: block; }
 
-.screening-list { list-style: none; }
+.day-group { margin-bottom: 22px; }
+
+.day-header {
+  font-family: var(--font-disp);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+  padding-left: 2px;
+}
+
+.screening-list {
+  list-style: none;
+  background: var(--glass);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
 
 .screening-item {
   display: flex;
   align-items: center;
   gap: 14px;
   padding: 14px 16px;
-  margin-bottom: 10px;
-  background: var(--glass);
-  border: 1px solid var(--line);
-  border-radius: 14px;
 }
+/* divider above a row that follows another visible row (hidden rows leave no stray line) */
+.screening-item:not(.hidden-by-theatre) ~ .screening-item:not(.hidden-by-theatre) { border-top: 1px solid var(--line); }
+.screenings-section.show-hidden .screening-item + .screening-item { border-top: 1px solid var(--line); }
 
-.screening-date {
-  width: 200px;
+.screening-time {
+  width: 76px;
+  flex-shrink: 0;
+  white-space: nowrap;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+  color: var(--cyan);
 }
-.screening-date .time-part { color: var(--cyan); }
 
 .screening-theatre {
   flex: 1;
@@ -163,15 +184,6 @@
   .movie-poster img { width: 110px; border-radius: 12px; }
   .movie-poster-placeholder { width: 110px; height: 165px; font-size: 12px; }
   .screening-item { gap: 10px; padding: 12px; }
-  .screening-date {
-    width: auto;
-    min-width: 76px;
-    line-height: 1.3;
-    margin-right: 5px;
-  }
-  .screening-date .date-part { display: block; }
-  .screening-date .time-part { display: block; font-weight: 500; font-size: .9em; }
-  .screening-date .at-separator { display: none; }
   .screening-book { padding: 9px 11px; }
   .screening-book .full-text { display: none; }
   .screening-book .short-text { display: inline; }
