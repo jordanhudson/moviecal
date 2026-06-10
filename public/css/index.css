@@ -179,22 +179,30 @@
   padding-right: 12px;
   font-weight: 600;
   font-size: 13.5px;
+  position: relative;
 }
 .theatre-label a { color: var(--muted); }
 .theatre-label a:hover { color: var(--cyan); }
 
+/* Overlaid so it takes no layout space away from the theatre name */
 .row-hide {
-  margin-left: auto;
-  border: none;
-  background: none;
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 1px solid var(--line);
+  background: rgba(10, 10, 20, .85);
+  border-radius: var(--radius-chip);
   font: inherit;
   font-size: 11px;
   font-weight: 500;
   color: var(--faint);
   cursor: pointer;
   opacity: 0;
-  padding: 2px 4px;
+  pointer-events: none;
+  padding: 2px 8px;
 }
+.theatre-row:hover .row-hide { pointer-events: auto; }
 .theatre-row:hover .row-hide { opacity: 1; }
 .row-hide:hover { color: var(--pink); }
 
