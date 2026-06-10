@@ -187,4 +187,7 @@
   .screening-book { padding: 9px 11px; }
   .screening-book .full-text { display: none; }
   .screening-book .short-text { display: inline; }
+  .tmdb-link,
+  .letterboxd-link { display: block; width: fit-content; }
+  .letterboxd-link { margin-left: 0; margin-top: 8px; }
 }
