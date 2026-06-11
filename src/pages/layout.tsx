@@ -1,5 +1,6 @@
 /** @jsxImportSource hono/jsx */
 import type { Child } from 'hono/jsx';
+import { jsonForScript } from '../utils/html.js';
 
 function Footer() {
   return (
@@ -122,7 +123,7 @@ export function renderPage({ title, description, canonicalPath, ogImage, jsonLd,
         <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=Inter+Tight:wght@500;600;700&display=swap" rel="stylesheet" />
         {cssFiles.map(href => <link rel="stylesheet" href={href} />)}
         {jsonLdItems.map(item => (
-          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(item) }} />
+          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonForScript(item) }} />
         ))}
         <title>{title}</title>
       </head>
@@ -148,7 +149,7 @@ export function renderPage({ title, description, canonicalPath, ogImage, jsonLd,
           </div>
         </nav>
         {searchMovies.length > 0 && (
-          <script dangerouslySetInnerHTML={{ __html: `var __movies=${JSON.stringify(searchMovies)};` }} />
+          <script dangerouslySetInnerHTML={{ __html: `var __movies=${jsonForScript(searchMovies)};` }} />
         )}
         <div class="page-content">
           {body}

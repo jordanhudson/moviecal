@@ -1,7 +1,7 @@
 /** @jsxImportSource hono/jsx */
 import { renderPage } from './layout.js';
 import { TmdbModal } from './tmdb-modal.js';
-import { safeHref } from '../utils/html.js';
+import { safeHref, jsonForScript } from '../utils/html.js';
 import { pacificNow } from '../utils/time.js';
 import { movieUrl } from '../utils/movie-url.js';
 import { CINEPLEX_VENUES } from '../theatres.js';
@@ -85,7 +85,7 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
         clearTimeout(clickTimer);
         if (clickCount >= 10) {
           clickCount = 0;
-          TmdbModal.open(${movie.id}, ${JSON.stringify(movie.title)}, ${JSON.stringify(movie.letterboxd_url)});
+          TmdbModal.open(${movie.id}, ${jsonForScript(movie.title)}, ${jsonForScript(movie.letterboxd_url)});
         } else {
           clickTimer = setTimeout(function() { clickCount = 0; }, 3000);
         }
@@ -97,7 +97,7 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
       try {
         var hidden = JSON.parse(localStorage.getItem('hiddenTheatres') || '[]');
         if (!hidden.length) return;
-        var cineplex = ${JSON.stringify(CINEPLEX_VENUES)};
+        var cineplex = ${jsonForScript(CINEPLEX_VENUES)};
         var items = document.querySelectorAll('.screening-item[data-theatre]');
         var hiddenCount = 0;
         items.forEach(function(el) {

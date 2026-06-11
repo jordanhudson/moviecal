@@ -43,9 +43,9 @@ Note: `npm run server` uses nodemon watching `--ext ts`, which does **not** matc
 
 ## Deployment
 
-Deployed on Fly.io as `movieclock`.
+Deployed on Fly.io as `movieclock`, served at **https://movieclock.app** (the canonical domain — `movieclock.fly.dev` 301-redirects to it).
 
-**Auto-deploy**: Pushing to `main` triggers GitHub Actions (`.github/workflows/deploy.yml`) which runs `flyctl deploy --remote-only`. Do NOT run `fly deploy` manually — just push and GHA handles it.
+**Auto-deploy**: Pushing to `main` triggers GitHub Actions (`.github/workflows/deploy.yml`): a `test` job (build + `npm test`) gates the `flyctl deploy --remote-only` job, and deploys are serialized via a concurrency group. Do NOT run `fly deploy` manually — just push and GHA handles it.
 
 **Manual commands** (for debugging/repair only):
 ```bash
@@ -59,6 +59,7 @@ fly logs -a movieclock                        # View logs
 **Configuration** (`fly.toml`):
 - `min_machines_running = 1` - Keeps one machine always running for cron jobs
 - Release command runs migrations on deploy (`node dist/db/migrate.js`)
+- `[[http_service.checks]]` polls `GET /healthz` (DB `select 1`); the route is registered before the host-redirect middleware so it returns 200 regardless of Host header
 
 ## Architecture
 
@@ -82,6 +83,9 @@ fly logs -a movieclock                        # View logs
    - Re-cleans existing movie titles (see Title Cleaning below)
    - Enriches new movies with TMDB and Letterboxd data
    - Saves to PostgreSQL by **reconciling** screenings per scraper (`src/db/reconcile.ts`): within a date window, incoming screenings are matched/updated/rescheduled/inserted and stale ones deleted (not a blind delete-and-reinsert). Logged per scraper as `matched/updated/inserted/deleted`.
+   - Holds a Postgres advisory lock (`pg_try_advisory_lock`) for the duration; concurrent runs (e.g. cron on a second Fly machine) skip instead of racing
+   - Records each scraper's result (counts, duration, error) in the `scrape_run` table
+   - After a full run (not single-scraper runs), pings `SCRAPE_HEARTBEAT_URL` if set — success pings the URL, any scraper error or zero-screening result POSTs a summary to `{url}/fail` (healthchecks.io-style dead-man's switch)
    - Use `npm run scrape` to run, or `npm run scrape {name}` for a single scraper
 
 2. **`src/server.ts`** - Hono web server
@@ -152,6 +156,10 @@ Shared helpers: `src/theatres.ts` (`THEATRE_ORDER`, `CINEPLEX_VENUES`/`CINEPLEX_
 - `id`, `movie_id`, `datetime`, `theatre_name`, `booking_url`
 - `note` — extracted from title cleaning (e.g. "Advance Screening", "4K Restoration")
 - `created_at`, `updated_at`
+
+`scrape_run` table:
+- `id`, `scraper`, `started_at`, `finished_at`, `screening_count`, `error`, `created_at`
+- One row per scraper per scrape job — makes failures/zero-result runs queryable for monitoring
 
 **Files**:
 - `src/db/connection.ts` - Database connection and config (reads from `.env`)
@@ -393,6 +401,7 @@ DB_USER=postgres
 DB_PASSWORD=postgres
 TMDB_API_TOKEN=your_token_here  # Optional — scraper works without it
 ADMIN_TOKEN=your_token_here     # Required for TMDB/Letterboxd fix-match endpoints
+SCRAPE_HEARTBEAT_URL=...        # Optional — healthchecks.io-style ping URL, hit after each full scrape run
 ```
 
 ## Tech Stack

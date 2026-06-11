@@ -12,6 +12,7 @@ import { recleanExistingTitles } from './utils/reclean.js';
 import { searchLetterboxd } from './utils/letterboxd.js';
 import { db, closeDb } from './db/connection.js';
 import { reconcileScreenings } from './db/reconcile.js';
+import { sql } from 'kysely';
 
 interface TMDBMovieResult {
   id: number;
@@ -114,21 +115,58 @@ const scrapers: Record<string, () => Promise<Screening[]>> = {
   cineplex: scrapeCineplex,
 };
 
+// App-wide advisory lock key for the scrape job. Fly can run more than one
+// machine (auto_start_machines), and each runs the cron — the lock ensures only
+// one scrape job executes at a time across all machines.
+const SCRAPE_LOCK_KEY = 728742001;
+
+interface ScraperRunResult {
+  name: string;
+  screenings: Screening[];
+  startedAt: Date;
+  finishedAt: Date;
+  error: string | null;
+}
+
 /**
  * Exported scrape job function that can be called from other modules (e.g., cron scheduler).
  * Does not call process.exit() so it won't kill the parent process.
+ * Holds a Postgres advisory lock for the duration; if another machine/process
+ * already holds it, the run is skipped.
  * @param scraperName Optional scraper name to run only that scraper (e.g., "hollywood")
  */
 export async function runScrapeJob(scraperName?: string) {
-  // Determine which scrapers to run
-  const scrapersToRun = scraperName
-    ? { [scraperName]: scrapers[scraperName] }
-    : scrapers;
-
   if (scraperName && !scrapers[scraperName]) {
     const validNames = Object.keys(scrapers).join(', ');
     throw new Error(`Unknown scraper: "${scraperName}". Valid scrapers: ${validNames}`);
   }
+
+  // Pin one connection to hold the advisory lock while the job itself runs on
+  // the regular pool. pg_try_advisory_lock returns false (no queueing) if
+  // another connection — including one on another machine — holds the lock.
+  await db.connection().execute(async (lockConn) => {
+    const { rows } = await sql<{ locked: boolean }>`
+      select pg_try_advisory_lock(${SCRAPE_LOCK_KEY}) as locked
+    `.execute(lockConn);
+
+    if (!rows[0]?.locked) {
+      console.log('Another scrape job is already running (advisory lock held) — skipping this run.');
+      return;
+    }
+
+    try {
+      await runScrapeJobLocked(scraperName);
+    } finally {
+      await sql`select pg_advisory_unlock(${SCRAPE_LOCK_KEY})`.execute(lockConn);
+    }
+  });
+}
+
+async function runScrapeJobLocked(scraperName?: string) {
+  // Determine which scrapers to run
+  const scrapersToRun = scraperName
+    ? { [scraperName]: scrapers[scraperName] }
+    : scrapers;
 
   console.log(scraperName
     ? `Starting scrape job for ${scraperName}...`
@@ -136,14 +174,15 @@ export async function runScrapeJob(scraperName?: string) {
 
   // Run selected scrapers in parallel
   const scraperEntries = Object.entries(scrapersToRun);
-  const results = await Promise.all(
+  const results: ScraperRunResult[] = await Promise.all(
     scraperEntries.map(async ([name, scrapeFn]) => {
+      const startedAt = new Date();
       try {
         const screenings = await scrapeFn();
-        return { name, screenings };
+        return { name, screenings, startedAt, finishedAt: new Date(), error: null };
       } catch (err) {
         console.error(`${name} scraper failed:`, (err as Error).message);
-        return { name, screenings: [] as Screening[] };
+        return { name, screenings: [] as Screening[], startedAt, finishedAt: new Date(), error: (err as Error).message };
       }
     })
   );
@@ -160,6 +199,23 @@ export async function runScrapeJob(scraperName?: string) {
   console.log(`\nCollected ${allScreenings.length} total screenings:`);
   for (const { name, screenings } of results) {
     console.log(`  - ${name}: ${screenings.length}`);
+  }
+
+  // Record each scraper run so failures/zero-result runs are queryable, not
+  // just buried in logs. Tracking failure must not abort the job itself.
+  try {
+    await db
+      .insertInto('scrape_run')
+      .values(results.map(r => ({
+        scraper: r.name,
+        started_at: r.startedAt,
+        finished_at: r.finishedAt,
+        screening_count: r.screenings.length,
+        error: r.error,
+      })))
+      .execute();
+  } catch (err) {
+    console.warn('Failed to record scrape_run rows:', (err as Error).message);
   }
 
   // Re-clean existing movie titles in case new patterns were added to the title cleaner.
@@ -376,6 +432,36 @@ export async function runScrapeJob(scraperName?: string) {
   }
 
   console.log('Scrape job completed successfully');
+
+  // Dead-man's-switch heartbeat (full runs only — single-scraper CLI runs
+  // shouldn't reset the alarm). The monitor (e.g. healthchecks.io) alerts when
+  // pings stop arriving or a /fail ping comes in.
+  if (!scraperName) {
+    await pingHeartbeat(results);
+  }
+}
+
+async function pingHeartbeat(results: ScraperRunResult[]) {
+  const url = process.env.SCRAPE_HEARTBEAT_URL;
+  if (!url) return;
+
+  const problems = results
+    .filter(r => r.error || r.screenings.length === 0)
+    .map(r => `${r.name}: ${r.error ?? 'returned 0 screenings'}`);
+  const target = problems.length > 0 ? `${url.replace(/\/+$/, '')}/fail` : url;
+
+  try {
+    await fetch(target, {
+      method: 'POST',
+      body: problems.join('\n'),
+      signal: AbortSignal.timeout(10_000),
+    });
+    console.log(problems.length > 0
+      ? `Heartbeat: reported failure (${problems.join('; ')})`
+      : 'Heartbeat: reported success');
+  } catch (err) {
+    console.warn('Heartbeat ping failed:', (err as Error).message);
+  }
 }
 
 // CLI entry point - only runs when this file is executed directly (not imported)

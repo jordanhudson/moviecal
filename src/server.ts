@@ -4,6 +4,7 @@ import type { Context } from 'hono';
 import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { db } from './db/connection.js';
+import { sql } from 'kysely';
 import cron from 'node-cron';
 import { runScrapeJob } from './scrape.js';
 import { renderIndexPage, ScreeningWithMovie, TheatreRow, ListingGroup } from './pages/index.js';
@@ -18,6 +19,20 @@ import { apiRoutes } from './routes/api.js';
 import { movieUrl } from './utils/movie-url.js';
 
 const app = new Hono();
+
+// Health check for Fly (see [[http_service.checks]] in fly.toml). Registered
+// before the host-redirect middleware so it answers 200 regardless of the Host
+// header the checker sends. Verifies the DB is reachable so a machine with a
+// dead connection gets restarted.
+app.get('/healthz', async (c) => {
+  try {
+    await sql`select 1`.execute(db);
+    return c.text('ok');
+  } catch (err) {
+    console.error('Health check failed:', (err as Error).message);
+    return c.text('db unreachable', 503);
+  }
+});
 
 app.use('*', async (c, next) => {
   const host = c.req.header('host');
@@ -35,7 +50,7 @@ app.use('/favicon.svg', serveStatic({ root: './public' }));
 // Load search movies for the nav bar on every HTML page request
 app.use('*', async (c, next) => {
   const path = c.req.path;
-  if (path.startsWith('/api/') || path === '/favicon.png' || path === '/favicon.svg' || path === '/robots.txt' || path === '/sitemap.xml') {
+  if (path.startsWith('/api/') || path === '/healthz' || path === '/favicon.png' || path === '/favicon.svg' || path === '/robots.txt' || path === '/sitemap.xml') {
     return next();
   }
   const now = pacificNow();

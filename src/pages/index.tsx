@@ -1,6 +1,6 @@
 /** @jsxImportSource hono/jsx */
 import { renderPage } from './layout.js';
-import { safeHref } from '../utils/html.js';
+import { safeHref, jsonForScript } from '../utils/html.js';
 import { movieUrl } from '../utils/movie-url.js';
 import { CINEPLEX_VENUES } from '../theatres.js';
 
@@ -258,7 +258,7 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[], listingGroup
   const hasScreenings = theatres.some(t => t.screenings.length > 0) || listingGroups.length > 0;
   const totalScreenings = theatres.reduce((n, t) => n + t.screenings.length, 0);
 
-  const script = INDEX_SCRIPT.replace('__CINEPLEX__', JSON.stringify(CINEPLEX_VENUES));
+  const script = INDEX_SCRIPT.replace('__CINEPLEX__', jsonForScript(CINEPLEX_VENUES));
 
   return renderPage({
     title: `Vancouver Movie Showtimes ${displayDate} — MovieClock`,
