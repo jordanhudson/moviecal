@@ -1,5 +1,5 @@
 /** @jsxImportSource hono/jsx */
-import { renderPage } from './layout.js';
+import { renderPage, SearchMovie } from './layout.js';
 import { TmdbModal } from './tmdb-modal.js';
 import { safeHref, jsonForScript } from '../utils/html.js';
 import { pacificNow } from '../utils/time.js';
@@ -26,7 +26,7 @@ export interface ScreeningDetail {
   note: string | null;
 }
 
-export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[]): string {
+export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[], searchMovies: SearchMovie[]): string {
   const now = pacificNow();
   const futureScreenings = screenings.filter(s => new Date(s.datetime) >= now);
 
@@ -160,6 +160,7 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
     ogImage: movie.poster_url || undefined,
     jsonLd: [movieSchema, ...screeningSchemas],
     styles: ['/css/movie.css', '/css/tmdb-modal.css'],
+    searchMovies,
     body: (
       <>
         <div class="movie-container">

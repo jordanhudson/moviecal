@@ -1,5 +1,5 @@
 /** @jsxImportSource hono/jsx */
-import { renderPage } from './layout.js';
+import { renderPage, SearchMovie } from './layout.js';
 import { ScreeningWithMovie } from './index.js';
 import { TheatreCard } from './theatre-card.js';
 import { movieUrl } from '../utils/movie-url.js';
@@ -115,7 +115,7 @@ const SORT_SCRIPT = `
       });
     })();`;
 
-export function renderMoviesPage(screenings: ScreeningWithMovie[]): string {
+export function renderMoviesPage(screenings: ScreeningWithMovie[], searchMovies: SearchMovie[]): string {
   const hasScreenings = screenings.length > 0;
 
   const movieMap = new Map<number, ScreeningWithMovie[]>();
@@ -135,6 +135,7 @@ export function renderMoviesPage(screenings: ScreeningWithMovie[]): string {
     canonicalPath: '/movies',
     styles: ['/css/theatre-card.css', '/css/movies.css'],
     activePage: 'movies',
+    searchMovies,
     body: (
       <>
         <div class="movie-view">

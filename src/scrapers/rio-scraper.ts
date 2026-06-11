@@ -39,7 +39,7 @@ function utcToPacificNaive(utcDate: Date): Date {
 }
 
 // Rio Theatre API response types
-interface RioApiEvent {
+export interface RioApiEvent {
   id: number;
   event: {
     id: number;
@@ -50,6 +50,37 @@ interface RioApiEvent {
   end_time: string;
   tickets_link: string;
   premiere: boolean;
+}
+
+// Pure parse step, separated from fetching so it can be tested against fixtures.
+export function parseRioEvents(events: RioApiEvent[]): Screening[] {
+  return events.map(event => {
+    const { title, note } = cleanMovieTitle(event.event.title);
+
+    const movie: Movie = {
+      id: null,
+      title,
+      year: null,
+      director: null,
+      runtime: null,
+    };
+
+    // Prefer tickets_link, fall back to event.link
+    const bookingUrl = event.tickets_link || event.event.link;
+
+    // Convert UTC time to Pacific-naive format to match other scrapers
+    const utcDate = new Date(event.start_time);
+    const pacificNaive = utcToPacificNaive(utcDate);
+
+    return {
+      id: null,
+      datetime: pacificNaive,
+      theatreName: 'The Rio',
+      bookingUrl,
+      note,
+      movie,
+    };
+  });
 }
 
 export async function scrapeRio(): Promise<Screening[]> {
@@ -79,37 +110,7 @@ export async function scrapeRio(): Promise<Screening[]> {
     }
 
     const events: RioApiEvent[] = await response.json();
-
-    // Convert to global Screening models
-    const screenings: Screening[] = events.map(event => {
-      const { title, note } = cleanMovieTitle(event.event.title);
-
-      const movie: Movie = {
-        id: null,
-        title,
-        year: null,
-        director: null,
-        runtime: null,
-      };
-
-      // Prefer tickets_link, fall back to event.link
-      const bookingUrl = event.tickets_link || event.event.link;
-
-      // Convert UTC time to Pacific-naive format to match other scrapers
-      const utcDate = new Date(event.start_time);
-      const pacificNaive = utcToPacificNaive(utcDate);
-
-      return {
-        id: null,
-        datetime: pacificNaive,
-        theatreName: 'The Rio',
-        bookingUrl,
-        note,
-        movie,
-      };
-    });
-
-    return screenings;
+    return parseRioEvents(events);
 
   } catch (error) {
     console.error('Error scraping Rio Theatre:', error);

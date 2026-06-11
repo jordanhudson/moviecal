@@ -1,5 +1,5 @@
 /** @jsxImportSource hono/jsx */
-import { renderPage } from './layout.js';
+import { renderPage, SearchMovie } from './layout.js';
 import { safeHref } from '../utils/html.js';
 import { pacificNow } from '../utils/time.js';
 import { movieUrl } from '../utils/movie-url.js';
@@ -13,7 +13,7 @@ export interface TheatreScreening {
   movie_title: string;
 }
 
-export function renderTheatrePage(theatreName: string, screenings: TheatreScreening[]): string {
+export function renderTheatrePage(theatreName: string, screenings: TheatreScreening[], searchMovies: SearchMovie[]): string {
   const now = pacificNow();
   const futureScreenings = screenings.filter(s => new Date(s.datetime) >= now);
 
@@ -44,6 +44,7 @@ export function renderTheatrePage(theatreName: string, screenings: TheatreScreen
       url: `https://movieclock.app/theatre/${encodeURIComponent(theatreName)}`,
     },
     styles: ['/css/theatre.css'],
+    searchMovies,
     body: (
       <div class="theatre-container">
         <h1 class="theatre-title">{theatreName}</h1>

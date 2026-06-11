@@ -66,7 +66,7 @@ interface CineplexDate {
   movies: CineplexMovie[];
 }
 
-interface CineplexTheatreResponse {
+export interface CineplexTheatreResponse {
   theatre: string;
   theatreId: number;
   dates: CineplexDate[];
@@ -99,6 +99,64 @@ async function fetchShowtimes(theatreId: number, date: Date): Promise<CineplexTh
   return JSON.parse(text);
 }
 
+// Pure parse step, separated from fetching so it can be tested against
+// fixtures. `venueName` is the short venue prefix (e.g. "Fifth Ave") that gets
+// combined with the session's auditorium into the theatre name.
+export function parseCineplexResponses(theatreResponses: CineplexTheatreResponse[], venueName: string): Screening[] {
+  const screenings: Screening[] = [];
+
+  for (const theatreResponse of theatreResponses) {
+    for (const dateData of theatreResponse.dates) {
+      for (const movie of dateData.movies) {
+        for (const experience of movie.experiences) {
+          for (const session of experience.sessions) {
+            // Build theatre name with auditorium
+            const theatreName = `${venueName} ${session.auditorium}`;
+
+            // Parse showStartDateTime as Pacific-naive timestamp
+            // The API returns local Pacific time without timezone info
+            const datetime = parsePacificNaive(session.showStartDateTime);
+
+            const { title, note } = cleanMovieTitle(movie.name);
+
+            const movieModel: Movie = {
+              id: null,
+              title,
+              year: null,
+              director: null,
+              runtime: movie.runtimeInMinutes,
+            };
+
+            screenings.push({
+              id: null,
+              datetime,
+              theatreName,
+              bookingUrl: session.deeplinkUrl,
+              note,
+              movie: movieModel,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  return screenings;
+}
+
+// Deduplicate: the API can return the same showtime in responses for adjacent
+// days (the `dates` array spans multiple days), so fetching day-by-day
+// produces duplicates at the overlap.
+export function dedupeScreenings(screenings: Screening[]): Screening[] {
+  const seen = new Set<string>();
+  return screenings.filter(s => {
+    const key = `${s.theatreName}\t${s.movie.title}\t${s.datetime.getTime()}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 export async function scrapeCineplex(): Promise<Screening[]> {
   const screenings: Screening[] = [];
 
@@ -112,44 +170,7 @@ export async function scrapeCineplex(): Promise<Screening[]> {
 
         try {
           const theatreResponses = await fetchShowtimes(theatre.id, date);
-
-          for (const theatreResponse of theatreResponses) {
-            for (const dateData of theatreResponse.dates) {
-              for (const movie of dateData.movies) {
-                for (const experience of movie.experiences) {
-                  for (const session of experience.sessions) {
-                    // Build theatre name with auditorium
-                    const theatreName = `${theatre.name} ${session.auditorium}`;
-
-                    // Parse showStartDateTime as Pacific-naive timestamp
-                    // The API returns local Pacific time without timezone info
-                    const datetime = parsePacificNaive(session.showStartDateTime);
-
-                    const { title, note } = cleanMovieTitle(movie.name);
-
-                    const movieModel: Movie = {
-                      id: null,
-                      title,
-                      year: null,
-                      director: null,
-                      runtime: movie.runtimeInMinutes,
-                    };
-
-                    const screening: Screening = {
-                      id: null,
-                      datetime,
-                      theatreName,
-                      bookingUrl: session.deeplinkUrl,
-                      note,
-                      movie: movieModel,
-                    };
-
-                    screenings.push(screening);
-                  }
-                }
-              }
-            }
-          }
+          screenings.push(...parseCineplexResponses(theatreResponses, theatre.name));
 
           // Small delay between requests to be polite
           await new Promise(resolve => setTimeout(resolve, 100));
@@ -161,16 +182,7 @@ export async function scrapeCineplex(): Promise<Screening[]> {
       }
     }
 
-    // Deduplicate: the API can return the same showtime in responses for
-    // adjacent days (the `dates` array spans multiple days), so fetching
-    // day-by-day produces duplicates at the overlap.
-    const seen = new Set<string>();
-    return screenings.filter(s => {
-      const key = `${s.theatreName}\t${s.movie.title}\t${s.datetime.getTime()}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
+    return dedupeScreenings(screenings);
 
   } catch (error) {
     console.error('Error scraping Cineplex:', error);

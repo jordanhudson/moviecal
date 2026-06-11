@@ -90,7 +90,9 @@ fly logs -a movieclock                        # View logs
 
 2. **`src/server.ts`** - Hono web server
    - Routes requests to page renderers
-   - Hosts admin API endpoints for TMDB/Letterboxd fix-match
+   - Hosts admin API endpoints for TMDB/Letterboxd fix-match (token compared with `crypto.timingSafeEqual`, see `src/routes/api.ts`)
+   - Security headers via Hono `secure-headers` middleware on every response (no CSP — pages rely on inline scripts; `Referrer-Policy` relaxed to `strict-origin-when-cross-origin` so venues see booking referrals)
+   - Branded 404/500 pages via `app.notFound`/`app.onError` (`src/pages/error.tsx`); `/api/*` paths get JSON errors instead. Error pages render even when the DB is down (search list falls back to empty)
    - Runs cron job every 2 hours to scrape
    - After 10pm Pacific, home page auto-shows tomorrow's screenings
    - Runs on port 3000
@@ -123,8 +125,8 @@ Page rendering is in `src/pages/` (all `.tsx`, see JSX Rendering above):
 - **`src/pages/all-movies.tsx`** - Internal movies page (`/internal-movies`)
   - Admin-oriented movie list with TMDB fix-match modal (intentionally left on the old styling)
 
-- **`src/pages/layout.tsx`** - Shared page layout/shell (`renderPage`, `setSearchMovies`)
-  - Nav bar with **By Date / By Movie** + search (searches movies with upcoming screenings)
+- **`src/pages/layout.tsx`** - Shared page layout/shell (`renderPage`)
+  - Nav bar with **By Date / By Movie** + search (searches movies with upcoming screenings). The search list comes from `getSearchMovies()` (`src/db/search-movies.ts` — in-memory cache, 5-min TTL, invalidated after each cron scrape) and is passed explicitly through every page renderer into `renderPage`; there is no module-global state
   - `color-scheme: dark` + `darkreader-lock` meta, Google Fonts (Space Grotesk + Inter), Cloudflare Web Analytics
 
 - **`src/pages/tmdb-modal.tsx`** - Shared TMDB fix-match modal component
@@ -254,7 +256,7 @@ Scrapers use one of two approaches depending on whether the venue has an API:
 1. **Define venue-specific interfaces** matching the API response structure
 2. **Export async function**: `export async function scrape{Venue}(): Promise<Screening[]>`
 3. **Fetch from API**: Use `fetch()` to call the API endpoint
-4. **Parse response**: Extract film title, datetime (usually ISO 8601), booking URL, venue
+4. **Parse response in a separate exported pure function** (e.g. `parseVenueEvents(events): Screening[]`): extract film title, datetime (usually ISO 8601), booking URL, venue. Keeping parse separate from fetch lets it be tested — save a trimmed real API response to `src/scrapers/fixtures/` and add a test in `src/scrapers/parsers.test.ts`
 5. **Clean title**: Use `cleanMovieTitle()` to extract title and note
 6. **Convert to global models**: Map API data to `Screening[]`
 

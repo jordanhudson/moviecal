@@ -11,16 +11,8 @@ function Footer() {
   );
 }
 
-export interface SearchMovie {
-  id: number;
-  title: string;
-}
-
-let _searchMovies: SearchMovie[] = [];
-
-export function setSearchMovies(movies: SearchMovie[]) {
-  _searchMovies = movies;
-}
+export type { SearchMovie } from '../db/search-movies.js';
+import type { SearchMovie } from '../db/search-movies.js';
 
 export interface PageOptions {
   title: string;
@@ -31,6 +23,7 @@ export interface PageOptions {
   styles?: string[];
   body: Child;
   activePage?: string;
+  searchMovies?: SearchMovie[];
 }
 
 const SEARCH_SCRIPT = `
@@ -87,8 +80,7 @@ const filmIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15"
 
 const searchIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 256 256"><path fill="currentColor" d="M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z"/></svg>';
 
-export function renderPage({ title, description, canonicalPath, ogImage, jsonLd, styles, body, activePage }: PageOptions): string {
-  const searchMovies = _searchMovies;
+export function renderPage({ title, description, canonicalPath, ogImage, jsonLd, styles, body, activePage, searchMovies = [] }: PageOptions): string {
   const BASE_URL = 'https://movieclock.app';
   const metaDesc = description || 'Movie showtimes for Vancouver independent cinemas — Cinematheque, VIFF, Rio Theatre, Park Theatre, and more.';
   const jsonLdItems = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];

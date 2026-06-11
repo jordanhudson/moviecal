@@ -12,13 +12,21 @@ import { renderMoviePage } from './pages/movie.js';
 import { renderTheatrePage } from './pages/theatre.js';
 import { renderAllMoviesPage } from './pages/all-movies.js';
 import { renderMoviesPage } from './pages/movies.js';
-import { setSearchMovies } from './pages/layout.js';
+import { renderErrorPage } from './pages/error.js';
+import { getSearchMovies, invalidateSearchMovies } from './db/search-movies.js';
+import { secureHeaders } from 'hono/secure-headers';
 import { pacificNow, pacificToday, pacificHour as getPacificHour } from './utils/time.js';
 import { THEATRE_ORDER, CINEPLEX_VENUES, CINEPLEX_PREFIXES, buildListingGroup } from './theatres.js';
 import { apiRoutes } from './routes/api.js';
 import { movieUrl } from './utils/movie-url.js';
 
 const app = new Hono();
+
+// Security headers on every response. Hono's defaults cover X-Content-Type-Options,
+// X-Frame-Options, COOP/CORP, etc. Referrer-Policy is relaxed from the default
+// no-referrer so venues still see movieclock.app referrals on booking links.
+// No CSP yet — the pages rely on inline scripts (would need nonces).
+app.use('*', secureHeaders({ referrerPolicy: 'strict-origin-when-cross-origin' }));
 
 // Health check for Fly (see [[http_service.checks]] in fly.toml). Registered
 // before the host-redirect middleware so it answers 200 regardless of the Host
@@ -47,23 +55,36 @@ app.use('/css/*', serveStatic({ root: './public' }));
 app.use('/favicon.png', serveStatic({ root: './public' }));
 app.use('/favicon.svg', serveStatic({ root: './public' }));
 
-// Load search movies for the nav bar on every HTML page request
-app.use('*', async (c, next) => {
-  const path = c.req.path;
-  if (path.startsWith('/api/') || path === '/healthz' || path === '/favicon.png' || path === '/favicon.svg' || path === '/robots.txt' || path === '/sitemap.xml') {
-    return next();
+// Search movies for the nav bar — cached in db/search-movies.ts. Error pages
+// must render even when the DB is down, so they use this fallback.
+async function searchMoviesOrEmpty() {
+  try {
+    return await getSearchMovies();
+  } catch (err) {
+    console.error('Failed to load search movies:', (err as Error).message);
+    return [];
   }
-  const now = pacificNow();
-  const movies = await db
-    .selectFrom('movie')
-    .innerJoin('screening', 'screening.movie_id', 'movie.id')
-    .select(['movie.id', 'movie.title'])
-    .where('screening.datetime', '>=', now)
-    .groupBy(['movie.id', 'movie.title'])
-    .orderBy('movie.title', 'asc')
-    .execute();
-  setSearchMovies(movies);
-  return next();
+}
+
+app.notFound(async (c) => {
+  if (c.req.path.startsWith('/api/')) {
+    return c.json({ error: 'Not found' }, 404);
+  }
+  const html = renderErrorPage(404, 'Page not found', "That page doesn't exist — maybe the movie left town.", await searchMoviesOrEmpty());
+  return c.html(html, 404);
+});
+
+app.onError(async (err, c) => {
+  console.error(`Unhandled error on ${c.req.method} ${c.req.path}:`, err);
+  if (c.req.path.startsWith('/api/')) {
+    return c.json({ error: 'Internal server error' }, 500);
+  }
+  try {
+    const html = renderErrorPage(500, 'Something went wrong', 'An unexpected error occurred. Please try again in a moment.', await searchMoviesOrEmpty());
+    return c.html(html, 500);
+  } catch {
+    return c.text('Internal Server Error', 500);
+  }
 });
 
 const NEXT_DAY_FLIP_HOUR = 22; // Show tomorrow's screenings starting at 10pm
@@ -156,7 +177,8 @@ app.get('/movie/:id', async (c) => {
   const movieId = parseInt(c.req.param('id'), 10);
 
   if (isNaN(movieId)) {
-    return c.text('Invalid movie ID', 400);
+    const html = renderErrorPage(404, 'Movie not found', "We don't have a movie at this address.", await searchMoviesOrEmpty());
+    return c.html(html, 404);
   }
 
   // Get movie details
@@ -177,7 +199,8 @@ app.get('/movie/:id', async (c) => {
     .executeTakeFirst();
 
   if (!movie) {
-    return c.text('Movie not found', 404);
+    const html = renderErrorPage(404, 'Movie not found', "We don't have a movie at this address.", await searchMoviesOrEmpty());
+    return c.html(html, 404);
   }
 
   // Get all screenings for this movie
@@ -194,7 +217,7 @@ app.get('/movie/:id', async (c) => {
     .orderBy('datetime', 'asc')
     .execute();
 
-  const html = renderMoviePage(movie, screenings);
+  const html = renderMoviePage(movie, screenings, await getSearchMovies());
   return c.html(html);
 });
 
@@ -218,7 +241,7 @@ app.get('/theatre/:name', async (c) => {
     .orderBy('screening.datetime', 'asc')
     .execute();
 
-  const html = renderTheatrePage(theatreName, screenings);
+  const html = renderTheatrePage(theatreName, screenings, await getSearchMovies());
   return c.html(html);
 });
 
@@ -249,7 +272,7 @@ app.get('/internal-movies', async (c) => {
 
   const movies = await query.execute();
 
-  const html = renderAllMoviesPage(movies, sort);
+  const html = renderAllMoviesPage(movies, sort, await getSearchMovies());
   return c.html(html);
 });
 
@@ -279,7 +302,7 @@ app.get('/movies', async (c) => {
     .orderBy('screening.datetime', 'asc')
     .execute();
 
-  const html = renderMoviesPage(results);
+  const html = renderMoviesPage(results, await getSearchMovies());
   return c.html(html);
 });
 
@@ -350,7 +373,7 @@ async function renderHome(c: Context, dateParam?: string) {
   }
 
   // Render HTML
-  const html = renderIndexPage(date, theatres, listingGroups);
+  const html = renderIndexPage(date, theatres, listingGroups, await getSearchMovies());
   return c.html(html);
 }
 
@@ -377,6 +400,7 @@ cron.schedule('0 */2 * * *', async () => {
   console.log('[CRON] Starting scheduled scrape job...');
   try {
     await runScrapeJob();
+    invalidateSearchMovies();
     console.log('[CRON] Scheduled scrape job completed successfully');
   } catch (error) {
     console.error('[CRON] Scheduled scrape job failed:', error);

@@ -1,5 +1,5 @@
 /** @jsxImportSource hono/jsx */
-import { renderPage } from './layout.js';
+import { renderPage, SearchMovie } from './layout.js';
 import { safeHref, jsonForScript } from '../utils/html.js';
 import { movieUrl } from '../utils/movie-url.js';
 import { CINEPLEX_VENUES } from '../theatres.js';
@@ -249,7 +249,7 @@ const INDEX_SCRIPT = `
   applyFilter();
 `;
 
-export function renderIndexPage(date: Date, theatres: TheatreRow[], listingGroups: ListingGroup[] = []): string {
+export function renderIndexPage(date: Date, theatres: TheatreRow[], listingGroups: ListingGroup[], searchMovies: SearchMovie[]): string {
   const prevDay = getPrevDay(date);
   const nextDay = getNextDay(date);
   const displayDate = formatDate(date);
@@ -273,6 +273,7 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[], listingGroup
     },
     styles: ['/css/index.css'],
     activePage: 'home',
+    searchMovies,
     body: (
       <>
         <div class="datebar">

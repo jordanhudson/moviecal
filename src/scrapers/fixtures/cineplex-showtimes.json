@@ -1,0 +1,166 @@
+[
+  {
+    "theatre": "Fifth Avenue Cinemas (age restricted 19+)",
+    "theatreId": 1149,
+    "dates": [
+      {
+        "startDate": "2026-06-12T00:00:00",
+        "movies": [
+          {
+            "id": 60594,
+            "presentationType": "Film Presentation",
+            "name": "Disclosure Day",
+            "filmUrl": "disclosure-day",
+            "isEvent": false,
+            "runtimeInMinutes": 145,
+            "smallPosterImageUrl": "https://mediafiles.cineplex.com/Central/Film/Posters/60594_130_193.jpg",
+            "mediumPosterImageUrl": "https://mediafiles.cineplex.com/Central/Film/Posters/60594_320_470.jpg",
+            "largePosterImageUrl": "https://mediafiles.cineplex.com/Central/Film/Posters/60594_768_1024.jpg",
+            "genres": [],
+            "experiences": [
+              {
+                "experienceTypes": [
+                  "Regular"
+                ],
+                "order": 2,
+                "isCcEnabled": true,
+                "isDsEnabled": true,
+                "sessions": [
+                  {
+                    "seatMapUrl": "https://www.cineplex.com/en-Mobile/ticketing/preview?theatreId=1149&showtimeId=113866&dbox=False",
+                    "ticketingUrl": "https://apis.cineplex.com/prod/ticketing/api/v1/routing/redirect-to-ticketing?VistaSessionId=113866&VISTAHOCategoryCode=0000000001&LocationId=1149&IsSeriesShowtime=False",
+                    "ticketingRedesignUrl": "https://apis.cineplex.com/prod/ticketing/api/v1/routing/redirect-to-ticketing?VistaSessionId=113866&VISTAHOCategoryCode=0000000001&LocationId=1149&IsSeriesShowtime=False",
+                    "getTicketingUrlApi": "https://apis.cineplex.com/prod/ticketing/api/v1/routing/ticketing-url?VistaSessionId=113866&VISTAHOCategoryCode=0000000001&LocationId=1149&IsSeriesShowtime=False",
+                    "deeplinkUrl": "https://apis.cineplex.com/prod/cpx/theatrical/deeplink?s=113866&a=0000000001&l=1149&m=disclosure-day&ss=False",
+                    "showtimeShareKey": "v:113866_t:1149_a:0000000001",
+                    "vistaSessionId": 113866,
+                    "areaCode": "0000000001",
+                    "showStartDateTime": "2026-06-12T12:00:00",
+                    "showStartDateTimeUtc": "2026-06-12T19:00:00Z",
+                    "isInThePast": false,
+                    "isReservedSeating": true,
+                    "isShowtimeEnabledOnline": true,
+                    "seatsRemaining": 303,
+                    "isSoldOut": false,
+                    "auditorium": "Aud #3"
+                  },
+                  {
+                    "seatMapUrl": "https://www.cineplex.com/en-Mobile/ticketing/preview?theatreId=1149&showtimeId=113864&dbox=False",
+                    "ticketingUrl": "https://apis.cineplex.com/prod/ticketing/api/v1/routing/redirect-to-ticketing?VistaSessionId=113864&VISTAHOCategoryCode=0000000001&LocationId=1149&IsSeriesShowtime=False",
+                    "ticketingRedesignUrl": "https://apis.cineplex.com/prod/ticketing/api/v1/routing/redirect-to-ticketing?VistaSessionId=113864&VISTAHOCategoryCode=0000000001&LocationId=1149&IsSeriesShowtime=False",
+                    "getTicketingUrlApi": "https://apis.cineplex.com/prod/ticketing/api/v1/routing/ticketing-url?VistaSessionId=113864&VISTAHOCategoryCode=0000000001&LocationId=1149&IsSeriesShowtime=False",
+                    "deeplinkUrl": "https://apis.cineplex.com/prod/cpx/theatrical/deeplink?s=113864&a=0000000001&l=1149&m=disclosure-day&ss=False",
+                    "showtimeShareKey": "v:113864_t:1149_a:0000000001",
+                    "vistaSessionId": 113864,
+                    "areaCode": "0000000001",
+                    "showStartDateTime": "2026-06-12T15:15:00",
+                    "showStartDateTimeUtc": "2026-06-12T22:15:00Z",
+                    "isInThePast": false,
+                    "isReservedSeating": true,
+                    "isShowtimeEnabledOnline": true,
+                    "seatsRemaining": 289,
+                    "isSoldOut": false,
+                    "auditorium": "Aud #3"
+                  }
+                ]
+              }
+            ],
+            "brightcoveVideoId": "ref:Disclosure Day EN Trailer 4",
+            "localRating": "PG",
+            "ratingDescription": "Parental guidance advised.",
+            "warnings": [
+              "Violence",
+              "Coarse Language"
+            ],
+            "languageCode": "EN",
+            "language": "English",
+            "subtitleLanguage": "",
+            "marketLanguageCode": "EN",
+            "detailPageUrl": "https://www.cineplex.com/Movie/disclosure-day",
+            "passesAllowed": false,
+            "hasSeriesTicketing": false,
+            "hasPosterImage": true
+          },
+          {
+            "id": 60470,
+            "presentationType": "Film Presentation",
+            "name": "Obsession",
+            "filmUrl": "obsession-2026",
+            "isEvent": false,
+            "runtimeInMinutes": 108,
+            "smallPosterImageUrl": "https://mediafiles.cineplex.com/Central/Film/Posters/60470_130_193.jpg",
+            "mediumPosterImageUrl": "https://mediafiles.cineplex.com/Central/Film/Posters/60470_320_470.jpg",
+            "largePosterImageUrl": "https://mediafiles.cineplex.com/Central/Film/Posters/60470_768_1024.jpg",
+            "genres": [
+              "Horror"
+            ],
+            "experiences": [
+              {
+                "experienceTypes": [
+                  "Regular"
+                ],
+                "order": 2,
+                "isCcEnabled": true,
+                "isDsEnabled": true,
+                "sessions": [
+                  {
+                    "seatMapUrl": "https://www.cineplex.com/en-Mobile/ticketing/preview?theatreId=1149&showtimeId=114407&dbox=False",
+                    "ticketingUrl": "https://apis.cineplex.com/prod/ticketing/api/v1/routing/redirect-to-ticketing?VistaSessionId=114407&VISTAHOCategoryCode=0000000001&LocationId=1149&IsSeriesShowtime=False",
+                    "ticketingRedesignUrl": "https://apis.cineplex.com/prod/ticketing/api/v1/routing/redirect-to-ticketing?VistaSessionId=114407&VISTAHOCategoryCode=0000000001&LocationId=1149&IsSeriesShowtime=False",
+                    "getTicketingUrlApi": "https://apis.cineplex.com/prod/ticketing/api/v1/routing/ticketing-url?VistaSessionId=114407&VISTAHOCategoryCode=0000000001&LocationId=1149&IsSeriesShowtime=False",
+                    "deeplinkUrl": "https://apis.cineplex.com/prod/cpx/theatrical/deeplink?s=114407&a=0000000001&l=1149&m=obsession-2026&ss=False",
+                    "showtimeShareKey": "v:114407_t:1149_a:0000000001",
+                    "vistaSessionId": 114407,
+                    "areaCode": "0000000001",
+                    "showStartDateTime": "2026-06-12T13:00:00",
+                    "showStartDateTimeUtc": "2026-06-12T20:00:00Z",
+                    "isInThePast": false,
+                    "isReservedSeating": true,
+                    "isShowtimeEnabledOnline": true,
+                    "seatsRemaining": 128,
+                    "isSoldOut": false,
+                    "auditorium": "Aud #4"
+                  },
+                  {
+                    "seatMapUrl": "https://www.cineplex.com/en-Mobile/ticketing/preview?theatreId=1149&showtimeId=114409&dbox=False",
+                    "ticketingUrl": "https://apis.cineplex.com/prod/ticketing/api/v1/routing/redirect-to-ticketing?VistaSessionId=114409&VISTAHOCategoryCode=0000000001&LocationId=1149&IsSeriesShowtime=False",
+                    "ticketingRedesignUrl": "https://apis.cineplex.com/prod/ticketing/api/v1/routing/redirect-to-ticketing?VistaSessionId=114409&VISTAHOCategoryCode=0000000001&LocationId=1149&IsSeriesShowtime=False",
+                    "getTicketingUrlApi": "https://apis.cineplex.com/prod/ticketing/api/v1/routing/ticketing-url?VistaSessionId=114409&VISTAHOCategoryCode=0000000001&LocationId=1149&IsSeriesShowtime=False",
+                    "deeplinkUrl": "https://apis.cineplex.com/prod/cpx/theatrical/deeplink?s=114409&a=0000000001&l=1149&m=obsession-2026&ss=False",
+                    "showtimeShareKey": "v:114409_t:1149_a:0000000001",
+                    "vistaSessionId": 114409,
+                    "areaCode": "0000000001",
+                    "showStartDateTime": "2026-06-12T16:15:00",
+                    "showStartDateTimeUtc": "2026-06-12T23:15:00Z",
+                    "isInThePast": false,
+                    "isReservedSeating": true,
+                    "isShowtimeEnabledOnline": true,
+                    "seatsRemaining": 128,
+                    "isSoldOut": false,
+                    "auditorium": "Aud #4"
+                  }
+                ]
+              }
+            ],
+            "brightcoveVideoId": "ref:Obsession EN Trailer 3",
+            "localRating": "14A",
+            "ratingDescription": "Suitable for persons 14 years of age or older.",
+            "warnings": [
+              "Violence",
+              "Coarse Language",
+              "Sexually suggestive scenes"
+            ],
+            "languageCode": "EN",
+            "language": "English",
+            "subtitleLanguage": "",
+            "marketLanguageCode": "EN",
+            "detailPageUrl": "https://www.cineplex.com/Movie/obsession-2026",
+            "passesAllowed": true,
+            "hasSeriesTicketing": false,
+            "hasPosterImage": true
+          }
+        ]
+      }
+    ]
+  }
+]

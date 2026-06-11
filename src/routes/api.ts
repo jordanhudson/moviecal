@@ -1,13 +1,26 @@
 import { Hono } from 'hono';
+import type { Context } from 'hono';
+import { timingSafeEqual } from 'node:crypto';
 import { db } from '../db/connection.js';
 import { getTMDBMovieDetails, tmdbDetailsToMovieFields } from '../utils/tmdb.js';
 
 export const apiRoutes = new Hono();
 
+// Constant-time comparison so the admin token can't be guessed byte-by-byte
+// via response timing. (timingSafeEqual requires equal lengths; a length
+// mismatch short-circuits, which only leaks the token's length.)
+function isAdminAuthorized(c: Context): boolean {
+  const adminToken = process.env.ADMIN_TOKEN;
+  const header = c.req.header('authorization');
+  if (!adminToken || !header) return false;
+  const expected = Buffer.from(`Bearer ${adminToken}`);
+  const actual = Buffer.from(header);
+  return expected.length === actual.length && timingSafeEqual(expected, actual);
+}
+
 // TMDB search API for fix-match modal
 apiRoutes.get('/api/movie/:id/tmdb-search', async (c) => {
-  const adminToken = process.env.ADMIN_TOKEN;
-  if (!adminToken || c.req.header('authorization') !== `Bearer ${adminToken}`) return c.json({ error: 'Unauthorized' }, 401);
+  if (!isAdminAuthorized(c)) return c.json({ error: 'Unauthorized' }, 401);
 
   const movieId = parseInt(c.req.param('id'), 10);
   if (isNaN(movieId)) return c.json({ error: 'Invalid movie ID' }, 400);
@@ -44,8 +57,7 @@ apiRoutes.get('/api/movie/:id/tmdb-search', async (c) => {
 
 // TMDB update API for fix-match modal
 apiRoutes.post('/api/movie/:id/tmdb-update', async (c) => {
-  const adminToken = process.env.ADMIN_TOKEN;
-  if (!adminToken || c.req.header('authorization') !== `Bearer ${adminToken}`) return c.json({ error: 'Unauthorized' }, 401);
+  if (!isAdminAuthorized(c)) return c.json({ error: 'Unauthorized' }, 401);
 
   const movieId = parseInt(c.req.param('id'), 10);
   if (isNaN(movieId)) return c.json({ error: 'Invalid movie ID' }, 400);
@@ -70,8 +82,7 @@ apiRoutes.post('/api/movie/:id/tmdb-update', async (c) => {
 
 // Letterboxd update API for fix-match modal
 apiRoutes.post('/api/movie/:id/letterboxd-update', async (c) => {
-  const adminToken = process.env.ADMIN_TOKEN;
-  if (!adminToken || c.req.header('authorization') !== `Bearer ${adminToken}`) return c.json({ error: 'Unauthorized' }, 401);
+  if (!isAdminAuthorized(c)) return c.json({ error: 'Unauthorized' }, 401);
 
   const movieId = parseInt(c.req.param('id'), 10);
   if (isNaN(movieId)) return c.json({ error: 'Invalid movie ID' }, 400);
