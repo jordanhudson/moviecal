@@ -48,6 +48,10 @@ RUN npm run build
 # Remove dev dependencies
 RUN npm prune --omit=dev
 
+# Set after npm ci/build so dev dependencies still install for the TS build.
+# The server uses this to enable production-only behavior (asset cache headers).
+ENV NODE_ENV=production
+
 # Expose port
 EXPOSE 3000
 

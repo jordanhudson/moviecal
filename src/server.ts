@@ -15,6 +15,8 @@ import { renderMoviesPage } from './pages/movies.js';
 import { renderErrorPage } from './pages/error.js';
 import { getSearchMovies, invalidateSearchMovies } from './db/search-movies.js';
 import { secureHeaders } from 'hono/secure-headers';
+import { compress } from 'hono/compress';
+import type { MiddlewareHandler } from 'hono';
 import { pacificNow, pacificToday, pacificHour as getPacificHour } from './utils/time.js';
 import { THEATRE_ORDER, CINEPLEX_VENUES, CINEPLEX_PREFIXES, buildListingGroup } from './theatres.js';
 import { apiRoutes } from './routes/api.js';
@@ -27,6 +29,10 @@ const app = new Hono();
 // no-referrer so venues still see movieclock.app referrals on booking links.
 // No CSP yet — the pages rely on inline scripts (would need nonces).
 app.use('*', secureHeaders({ referrerPolicy: 'strict-origin-when-cross-origin' }));
+
+// Gzip responses — the app is served straight from Fly (no CDN in front), so
+// nothing else compresses for us.
+app.use('*', compress());
 
 // Health check for Fly (see [[http_service.checks]] in fly.toml). Registered
 // before the host-redirect middleware so it answers 200 regardless of the Host
@@ -51,9 +57,25 @@ app.use('*', async (c, next) => {
   return next();
 });
 
-app.use('/css/*', serveStatic({ root: './public' }));
-app.use('/favicon.png', serveStatic({ root: './public' }));
-app.use('/favicon.svg', serveStatic({ root: './public' }));
+// Cache headers for static assets, production only (in dev a plain browser
+// refresh must pick up CSS edits). CSS URLs are content-hashed (`?v=` via
+// assetUrl in layout.tsx) and font files are effectively immutable, so both
+// get a year; favicons and the og-image keep their URLs, so just a day.
+const isProd = process.env.NODE_ENV === 'production';
+function cacheControl(value: string): MiddlewareHandler {
+  return async (c, next) => {
+    await next();
+    if (isProd && c.res.ok) c.res.headers.set('Cache-Control', value);
+  };
+}
+const CACHE_IMMUTABLE = 'public, max-age=31536000, immutable';
+const CACHE_DAY = 'public, max-age=86400';
+
+app.use('/css/*', cacheControl(CACHE_IMMUTABLE), serveStatic({ root: './public' }));
+app.use('/fonts/*', cacheControl(CACHE_IMMUTABLE), serveStatic({ root: './public' }));
+app.use('/favicon.png', cacheControl(CACHE_DAY), serveStatic({ root: './public' }));
+app.use('/favicon.svg', cacheControl(CACHE_DAY), serveStatic({ root: './public' }));
+app.use('/og-image.png', cacheControl(CACHE_DAY), serveStatic({ root: './public' }));
 
 // Search movies for the nav bar — cached in db/search-movies.ts. Error pages
 // must render even when the DB is down, so they use this fallback.
@@ -129,41 +151,43 @@ Sitemap: ${BASE_URL}/sitemap.xml
 app.get('/sitemap.xml', async (c) => {
   const BASE_URL = process.env.BASE_URL || 'https://movieclock.app';
   const now = new Date().toISOString().split('T')[0];
+  const toLastmod = (d: Date) => new Date(d).toISOString().split('T')[0];
 
-  // Get all movies that have future screenings
+  // Movies with future screenings; lastmod is the latest change to the movie
+  // or any of its screenings (crawlers ignore a sitemap whose lastmod is
+  // always today)
   const movies = await db
     .selectFrom('movie')
-    .select(['movie.id', 'movie.title'])
-    .where((eb) =>
-      eb.exists(
-        eb.selectFrom('screening')
-          .select('screening.id')
-          .whereRef('screening.movie_id', '=', 'movie.id')
-          .where('screening.datetime', '>=', new Date())
-      )
-    )
+    .innerJoin('screening', 'screening.movie_id', 'movie.id')
+    .select((eb) => [
+      'movie.id',
+      'movie.title',
+      sql<Date>`greatest(movie.updated_at, max(screening.updated_at))`.as('lastmod'),
+    ])
+    .where('screening.datetime', '>=', new Date())
+    .groupBy(['movie.id', 'movie.title'])
     .execute();
 
-  // Get all theatre names that have future screenings
+  // Theatre names with future screenings; lastmod from their screenings
   const theatres = await db
     .selectFrom('screening')
-    .select('theatre_name')
+    .select(['theatre_name', sql<Date>`max(updated_at)`.as('lastmod')])
     .where('datetime', '>=', new Date())
     .groupBy('theatre_name')
     .execute();
 
   const urls = [
-    { loc: '/', changefreq: 'hourly', priority: '1.0' },
-    { loc: '/movies', changefreq: 'hourly', priority: '0.8' },
-    ...movies.map(m => ({ loc: movieUrl(m.id, m.title), changefreq: 'daily', priority: '0.6' })),
-    ...theatres.map(t => ({ loc: `/theatre/${encodeURIComponent(t.theatre_name)}`, changefreq: 'daily', priority: '0.5' })),
+    { loc: '/', lastmod: now, changefreq: 'hourly', priority: '1.0' },
+    { loc: '/movies', lastmod: now, changefreq: 'hourly', priority: '0.8' },
+    ...movies.map(m => ({ loc: movieUrl(m.id, m.title), lastmod: toLastmod(m.lastmod), changefreq: 'daily', priority: '0.6' })),
+    ...theatres.map(t => ({ loc: `/theatre/${encodeURIComponent(t.theatre_name)}`, lastmod: toLastmod(t.lastmod), changefreq: 'daily', priority: '0.5' })),
   ];
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${urls.map(u => `  <url>
     <loc>${BASE_URL}${u.loc}</loc>
-    <lastmod>${now}</lastmod>
+    <lastmod>${u.lastmod}</lastmod>
     <changefreq>${u.changefreq}</changefreq>
     <priority>${u.priority}</priority>
   </url>`).join('\n')}

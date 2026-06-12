@@ -1,6 +1,7 @@
 /** @jsxImportSource hono/jsx */
 import type { Child } from 'hono/jsx';
 import { jsonForScript } from '../utils/html.js';
+import { assetUrl } from '../utils/assets.js';
 
 function Footer() {
   return (
@@ -84,7 +85,7 @@ export function renderPage({ title, description, canonicalPath, ogImage, jsonLd,
   const BASE_URL = 'https://movieclock.app';
   const metaDesc = description || 'Movie showtimes for Vancouver independent cinemas — Cinematheque, VIFF, Rio Theatre, Park Theatre, and more.';
   const jsonLdItems = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
-  const cssFiles = ['/css/global.css', ...(styles || [])];
+  const cssFiles = ['/css/global.css', ...(styles || [])].map(assetUrl);
   const ogImageUrl = ogImage || `${BASE_URL}/og-image.png`;
   const canonicalUrl = canonicalPath != null ? `${BASE_URL}${canonicalPath}` : BASE_URL;
 
@@ -110,9 +111,8 @@ export function renderPage({ title, description, canonicalPath, ogImage, jsonLd,
         {canonicalPath != null && <link rel="canonical" href={`${BASE_URL}${canonicalPath}`} />}
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
         <link rel="icon" type="image/png" href="/favicon.png" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
-        <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=Inter+Tight:wght@500;600;700&display=swap" rel="stylesheet" />
+        <link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin="" />
+        <link rel="preload" href="/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin="" />
         {cssFiles.map(href => <link rel="stylesheet" href={href} />)}
         {jsonLdItems.map(item => (
           <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonForScript(item) }} />

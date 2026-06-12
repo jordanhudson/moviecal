@@ -15,7 +15,6 @@ MovieCal is a TypeScript web scraper that collects movie screening times from Va
 ```bash
 npm install          # Install dependencies
 npm run build        # Compile TypeScript to dist/
-npm start            # Run compiled JavaScript from dist/
 npm run scrape       # Run full scraping job (all venues + TMDB + DB save)
 npm run migrate      # Run database migrations
 npm run repair       # Re-clean titles + backfill missing TMDB data
@@ -92,6 +91,8 @@ fly logs -a movieclock                        # View logs
    - Routes requests to page renderers
    - Hosts admin API endpoints for TMDB/Letterboxd fix-match (token compared with `crypto.timingSafeEqual`, see `src/routes/api.ts`)
    - Security headers via Hono `secure-headers` middleware on every response (no CSP — pages rely on inline scripts; `Referrer-Policy` relaxed to `strict-origin-when-cross-origin` so venues see booking referrals)
+   - Gzip compression via Hono `compress` middleware (the app is served straight from Fly, no CDN in front)
+   - Static assets get cache headers in production only (gated on `NODE_ENV=production`, set in the Dockerfile): CSS and fonts are immutable for a year (CSS URLs carry a content hash via `assetUrl` in `src/utils/assets.ts`; font filenames never change), favicons and og-image a day
    - Branded 404/500 pages via `app.notFound`/`app.onError` (`src/pages/error.tsx`); `/api/*` paths get JSON errors instead. Error pages render even when the DB is down (search list falls back to empty)
    - Runs cron job every 2 hours to scrape
    - After 10pm Pacific, home page auto-shows tomorrow's screenings
@@ -127,7 +128,7 @@ Page rendering is in `src/pages/` (all `.tsx`, see JSX Rendering above):
 
 - **`src/pages/layout.tsx`** - Shared page layout/shell (`renderPage`)
   - Nav bar with **By Date / By Movie** + search (searches movies with upcoming screenings). The search list comes from `getSearchMovies()` (`src/db/search-movies.ts` — in-memory cache, 5-min TTL, invalidated after each cron scrape) and is passed explicitly through every page renderer into `renderPage`; there is no module-global state
-  - `color-scheme: dark` + `darkreader-lock` meta, Google Fonts (Space Grotesk + Inter), Cloudflare Web Analytics
+  - `color-scheme: dark` + `darkreader-lock` meta, self-hosted fonts (Space Grotesk + Inter, see UI Design), Cloudflare Web Analytics
 
 - **`src/pages/tmdb-modal.tsx`** - Shared TMDB fix-match modal component
 - **`src/pages/theatre-card.tsx`** - Shared venue/showtimes card used by the By Movie page
@@ -420,7 +421,7 @@ SCRAPE_HEARTBEAT_URL=...        # Optional — healthchecks.io-style ping URL, h
 
 ## UI Design
 
-**"Neon Night / Glass"** design system (dark mode). All styling is driven by CSS custom properties on `:root` in `public/css/global.css` — themes are intended to be swappable token blocks. Fonts: **Space Grotesk** (display) + **Inter** (body), loaded from Google Fonts in `layout.tsx`. Frosted-glass cards (`backdrop-filter: blur`), violet→cyan gradient accent.
+**"Neon Night / Glass"** design system (dark mode). All styling is driven by CSS custom properties on `:root` in `public/css/global.css` — themes are intended to be swappable token blocks. Fonts: **Space Grotesk** (display) + **Inter** (body), self-hosted as variable woff2 files in `public/fonts/` (`@font-face` blocks at the top of `global.css`; latin + latin-ext subsets, originally from Google Fonts). Frosted-glass cards (`backdrop-filter: blur`), violet→cyan gradient accent.
 
 Core tokens (`public/css/global.css`):
 - Background: `--bg: #0a0a14` (deep indigo)
