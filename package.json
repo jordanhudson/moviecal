@@ -10,6 +10,7 @@
     "clear": "tsx src/db/clear.ts",
     "drop": "tsx src/db/drop.ts",
     "repair": "tsx src/db/repair.ts",
+    "backfill-letterboxd": "tsx src/db/backfill-letterboxd.ts",
     "server": "nodemon --watch src --ext ts --exec 'tsx src/server.ts'",
     "test": "node --import tsx --test src/**/*.test.ts"
   },
