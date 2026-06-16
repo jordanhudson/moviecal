@@ -18,7 +18,7 @@ async function repair() {
     process.exit(1);
   }
 
-  // Pass 0: Re-clean existing titles (same logic as scrape, without Letterboxd retry)
+  // Pass 0: Re-clean existing titles (same logic as scrape)
   console.log('Pass 0: Re-cleaning existing movie titles...\n');
   await recleanExistingTitles();
   console.log('');

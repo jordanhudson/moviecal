@@ -14,11 +14,6 @@ import {
   tmdbDetailsToMovieFields,
 } from './tmdb.js';
 
-interface RecleanOptions {
-  /** Optional callback to retry Letterboxd search for renamed movies */
-  searchLetterboxd?: (title: string, year: number | null) => Promise<string | null>;
-}
-
 /**
  * Apply a note extracted during re-cleaning to a movie's screenings. Only fills
  * screenings whose note is still null, so existing notes are never clobbered.
@@ -33,10 +28,10 @@ async function applyNoteToScreenings(movieId: number, note: string | null) {
     .execute();
 }
 
-export async function recleanExistingTitles(options: RecleanOptions = {}) {
+export async function recleanExistingTitles() {
   const existingMovies = await db
     .selectFrom('movie')
-    .select(['id', 'title', 'year', 'tmdb_id', 'letterboxd_url'])
+    .select(['id', 'title', 'year', 'tmdb_id'])
     .execute();
 
   for (const existing of existingMovies) {
@@ -95,17 +90,6 @@ export async function recleanExistingTitles(options: RecleanOptions = {}) {
           }
         } else {
           console.log(`    ✗ Not found on TMDB`);
-        }
-      }
-
-      if (options.searchLetterboxd && (!existing.letterboxd_url || existing.letterboxd_url === 'MISS')) {
-        console.log(`  → Retrying Letterboxd for cleaned title "${verified.title}"...`);
-        const letterboxdUrl = await options.searchLetterboxd(verified.title, existing.year);
-        if (letterboxdUrl) {
-          updates.letterboxd_url = letterboxdUrl;
-          console.log(`    ✓ Found on Letterboxd: ${letterboxdUrl}`);
-        } else {
-          console.log(`    ✗ Not found on Letterboxd`);
         }
       }
 

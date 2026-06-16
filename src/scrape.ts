@@ -9,7 +9,7 @@ import type { Screening, Movie } from './models.js';
 import { getTMDBMovieDetails, tmdbDetailsToMovieFields, verifyTitleCleaning } from './utils/tmdb.js';
 import type { TMDBMovieDetails } from './utils/tmdb.js';
 import { recleanExistingTitles } from './utils/reclean.js';
-import { searchLetterboxd } from './utils/letterboxd.js';
+import { searchLetterboxdByTmdbId } from './utils/letterboxd.js';
 import { db, closeDb } from './db/connection.js';
 import { reconcileScreenings } from './db/reconcile.js';
 import { sql } from 'kysely';
@@ -220,7 +220,7 @@ async function runScrapeJobLocked(scraperName?: string) {
 
   // Re-clean existing movie titles in case new patterns were added to the title cleaner.
   // Uses shared re-clean logic with TMDB verification to avoid stripping real title parts.
-  await recleanExistingTitles({ searchLetterboxd });
+  await recleanExistingTitles();
 
   // Extract unique movies (dedupe on title)
   const uniqueMoviesMap = new Map<string, Movie>();
@@ -341,13 +341,18 @@ async function runScrapeJobLocked(scraperName?: string) {
       console.log(`    ✗ Not found on TMDB${runtime ? ` (using scraped runtime: ${runtime} min)` : ''}`);
     }
 
-    // Search Letterboxd (use year which may have been enriched by TMDB)
-    console.log(`  → Searching Letterboxd for "${movie.title}"...`);
-    const letterboxdUrl = await searchLetterboxd(movie.title, year);
-    if (letterboxdUrl) {
-      console.log(`    ✓ Found on Letterboxd: ${letterboxdUrl}`);
-    } else {
-      console.log(`    ✗ Not found on Letterboxd`);
+    // Look up Letterboxd via TMDB id (its /tmdb/{id}/ endpoint redirects to the
+    // canonical film page). Only possible when we matched the movie on TMDB;
+    // without a tmdb_id we leave letterboxd_url null (not yet searched).
+    let letterboxdUrl: string | null = null;
+    if (tmdbFields.tmdb_id) {
+      console.log(`  → Looking up Letterboxd for TMDB id ${tmdbFields.tmdb_id}...`);
+      letterboxdUrl = await searchLetterboxdByTmdbId(tmdbFields.tmdb_id);
+      if (letterboxdUrl) {
+        console.log(`    ✓ Found on Letterboxd: ${letterboxdUrl}`);
+      } else {
+        console.log(`    ✗ Not found on Letterboxd`);
+      }
     }
 
     // Insert movie into database (with or without TMDB/Letterboxd data)
@@ -362,7 +367,8 @@ async function runScrapeJobLocked(scraperName?: string) {
         tmdb_url: tmdbFields.tmdb_url ?? null,
         poster_url: tmdbFields.poster_url ?? null,
         tmdb_popularity: tmdbFields.tmdb_popularity ?? null,
-        letterboxd_url: letterboxdUrl ?? 'MISS',
+        // null = never searched (no tmdb_id to look up); 'MISS' = searched, not on Letterboxd.
+        letterboxd_url: tmdbFields.tmdb_id ? (letterboxdUrl ?? 'MISS') : null,
       })
       .execute();
 
@@ -374,32 +380,6 @@ async function runScrapeJobLocked(scraperName?: string) {
   console.log(`  - New movies added: ${newMoviesCount}`);
   console.log(`  - Already existed: ${existingMoviesCount}`);
   console.log(`  - Found on TMDB: ${tmdbFoundCount}/${newMoviesCount}`);
-
-  // Backfill Letterboxd URLs for existing movies that haven't been checked
-  const uncheckedMovies = await db
-    .selectFrom('movie')
-    .select(['id', 'title', 'year'])
-    .where('letterboxd_url', 'is', null)
-    .limit(30)
-    .execute();
-
-  if (uncheckedMovies.length > 0) {
-    console.log(`\nBackfilling Letterboxd URLs for ${uncheckedMovies.length} unchecked movies...`);
-    for (const movie of uncheckedMovies) {
-      console.log(`  → Searching Letterboxd for "${movie.title}"...`);
-      const letterboxdUrl = await searchLetterboxd(movie.title, movie.year);
-      if (letterboxdUrl) {
-        console.log(`    ✓ Found on Letterboxd: ${letterboxdUrl}`);
-      } else {
-        console.log(`    ✗ Not found on Letterboxd`);
-      }
-      await db
-        .updateTable('movie')
-        .set({ letterboxd_url: letterboxdUrl ?? 'MISS' })
-        .where('id', '=', movie.id)
-        .execute();
-    }
-  }
 
   // Save screenings per scraper using in-memory reconciliation.
   console.log(`\nReconciling screenings per scraper...`);

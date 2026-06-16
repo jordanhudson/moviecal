@@ -1,54 +1,29 @@
-import { decodeHtmlEntities } from './title-cleaner.js';
-
-function slugify(title: string): string {
-  return decodeHtmlEntities(title)
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
-
-function extractYearFromLetterboxd(html: string): number | null {
-  const match = html.match(/<title>[^<]*\((\d{4})\)/);
-  return match ? parseInt(match[1], 10) : null;
-}
-
-export async function searchLetterboxd(title: string, year: number | null): Promise<string | null> {
-  const slug = slugify(title);
-
+// Letterboxd exposes a redirect endpoint that maps a TMDB id to the canonical
+// film page: GET https://letterboxd.com/tmdb/{id}/ responds 302 with a
+// Location header pointing at /film/{slug}/. We resolve (not follow) the
+// redirect so we capture the canonical URL without loading the film page.
+export async function searchLetterboxdByTmdbId(tmdbId: number): Promise<string | null> {
   try {
-    const url = `https://letterboxd.com/film/${slug}/`;
-    const response = await fetch(url, {
+    const response = await fetch(`https://letterboxd.com/tmdb/${tmdbId}/`, {
       signal: AbortSignal.timeout(10_000),
-      redirect: 'follow',
+      redirect: 'manual',
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36',
+      },
     });
 
-    if (response.ok) {
-      const html = await response.text();
-      const pageYear = extractYearFromLetterboxd(html);
-
-      if (year && pageYear && pageYear !== year) {
-        // Year mismatch — likely a different film with same title, try slug-year
-      } else {
-        return response.url;
-      }
-    }
-
-    // Try slug-year if we have a year
-    if (year) {
-      const yearUrl = `https://letterboxd.com/film/${slug}-${year}/`;
-      const yearResponse = await fetch(yearUrl, {
-        signal: AbortSignal.timeout(10_000),
-        redirect: 'follow',
-      });
-
-      if (yearResponse.ok) {
-        return yearResponse.url;
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get('location');
+      if (location && location.includes('/film/')) {
+        // Normalize to an absolute URL (Location may be relative).
+        return new URL(location, 'https://letterboxd.com').toString();
       }
     }
 
     return null;
   } catch (error) {
-    console.warn(`Error searching Letterboxd for "${title}":`, error);
+    console.warn(`Error searching Letterboxd for TMDB id ${tmdbId}:`, error);
     return null;
   }
 }
