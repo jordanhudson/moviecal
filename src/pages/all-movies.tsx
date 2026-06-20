@@ -1,5 +1,5 @@
 /** @jsxImportSource hono/jsx */
-import { renderPage, SearchMovie } from './layout.js';
+import { renderPage } from './layout.js';
 import { TmdbModal } from './tmdb-modal.js';
 import { safeHref } from '../utils/html.js';
 import { movieUrl } from '../utils/movie-url.js';
@@ -23,13 +23,12 @@ const FIX_MATCH_SCRIPT = `
       TmdbModal.open(movieId, title);
     });`;
 
-export function renderAllMoviesPage(movies: MovieRow[], sort: string, searchMovies: SearchMovie[]): string {
+export function renderAllMoviesPage(movies: MovieRow[], sort: string): string {
   return renderPage({
     title: 'All Upcoming Movies — MovieClock',
     description: 'Complete list of all movies with upcoming screenings in Vancouver cinemas.',
     styles: ['/css/all-movies.css', '/css/tmdb-modal.css'],
     activePage: 'movies',
-    searchMovies,
     body: (
       <>
         <a href="/" class="back-link">{'\u2190'} Back to Calendar</a>

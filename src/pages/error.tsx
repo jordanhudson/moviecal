@@ -1,15 +1,13 @@
 /** @jsxImportSource hono/jsx */
-import { renderPage, SearchMovie } from './layout.js';
+import { renderPage } from './layout.js';
 
 export function renderErrorPage(
   status: number,
   heading: string,
-  message: string,
-  searchMovies: SearchMovie[]
+  message: string
 ): string {
   return renderPage({
     title: `${heading} — MovieClock`,
-    searchMovies,
     body: (
       <div style="max-width: 560px; margin: 0 auto; padding: 96px 24px; text-align: center;">
         <div style="font-family: 'Space Grotesk', sans-serif; font-size: 72px; font-weight: 700; background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; line-height: 1;">

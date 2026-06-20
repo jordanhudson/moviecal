@@ -127,7 +127,7 @@ Page rendering is in `src/pages/` (all `.tsx`, see JSX Rendering above):
   - Admin-oriented movie list with TMDB fix-match modal (intentionally left on the old styling)
 
 - **`src/pages/layout.tsx`** - Shared page layout/shell (`renderPage`)
-  - Nav bar with **By Date / By Movie** + search (searches movies with upcoming screenings). The search list comes from `getSearchMovies()` (`src/db/search-movies.ts` — in-memory cache, 5-min TTL, invalidated after each cron scrape) and is passed explicitly through every page renderer into `renderPage`; there is no module-global state
+  - Nav bar with **By Date / By Movie** + search. Search is **server-side**: the client debounces input and fetches `GET /api/search?q=` (see API Endpoints), which queries the whole `movie` table — so films with no upcoming screenings are still findable. There is no embedded movie list and no `searchMovies` plumbing through the renderers
   - `color-scheme: dark` + `darkreader-lock` meta, self-hosted fonts (Space Grotesk + Inter, see UI Design), Cloudflare Web Analytics
 
 - **`src/pages/tmdb-modal.tsx`** - Shared TMDB fix-match modal component
@@ -137,9 +137,9 @@ Shared helpers: `src/theatres.ts` (`THEATRE_ORDER`, `CINEPLEX_VENUES`/`CINEPLEX_
 
 ### API Endpoints
 
+- `GET /api/search?q=` - Nav-bar movie search; `title ILIKE '%q%'` over all movies, alphabetical, capped at 20. Backed by a `pg_trgm` GIN index (`migrations/007`)
 - `GET /api/movie/:id/tmdb-search` - Search TMDB (requires `ADMIN_TOKEN`)
-- `POST /api/movie/:id/tmdb-update` - Fix TMDB match for a movie (requires `ADMIN_TOKEN`)
-- `POST /api/movie/:id/letterboxd-update` - Fix Letterboxd URL for a movie (requires `ADMIN_TOKEN`)
+- `POST /api/movie/:id/tmdb-update` - Fix TMDB match for a movie (requires `ADMIN_TOKEN`); also re-derives `letterboxd_url` from the new TMDB id via `letterboxdUrlByTmdbId()` (Letterboxd's `/tmdb/{id}/` redirect)
 - `GET /robots.txt` - Robots file with sitemap reference
 - `GET /sitemap.xml` - Dynamic sitemap of movies and theatres with future screenings
 

@@ -10,21 +10,10 @@ var TmdbModal = (function() {
 
   function getToken() { return tokenInput.value; }
 
-  var letterboxdStatus = document.getElementById('letterboxdStatus');
-  var letterboxdUrlInput = document.getElementById('letterboxdUrlInput');
-
-  function open(movieId, title, letterboxdUrl) {
+  function open(movieId, title) {
     currentMovieId = movieId;
     input.value = title;
     results.innerHTML = '';
-    letterboxdUrlInput.value = '';
-    if (letterboxdUrl === 'MISS') {
-      letterboxdStatus.textContent = 'Fix Letterboxd - Current: not found (MISS)';
-    } else if (letterboxdUrl) {
-      letterboxdStatus.textContent = 'Fix Letterboxd - Current: ' + letterboxdUrl;
-    } else {
-      letterboxdStatus.textContent = 'Fix Letterboxd - Current: not checked';
-    }
     modal.classList.add('active');
   }
 
@@ -110,32 +99,6 @@ var TmdbModal = (function() {
     applyTmdbId(parseInt(item.getAttribute('data-tmdb-id'), 10));
   });
 
-  function updateLetterboxd(url) {
-    letterboxdStatus.textContent = 'Updating...';
-    fetch('/api/movie/' + currentMovieId + '/letterboxd-update', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getToken() },
-      body: JSON.stringify({ url: url })
-    }).then(function(r) { return r.json(); })
-      .then(function(data) {
-        if (data.error) {
-          letterboxdStatus.textContent = 'Error: ' + data.error;
-          return;
-        }
-        window.location.reload();
-      });
-  }
-
-  document.getElementById('letterboxdApplyBtn').addEventListener('click', function() {
-    var url = letterboxdUrlInput.value.trim();
-    if (!url) return;
-    updateLetterboxd(url);
-  });
-
-  document.getElementById('letterboxdClearBtn').addEventListener('click', function() {
-    updateLetterboxd(null);
-  });
-
   return { open: open, close: close };
 })();`;
 
@@ -165,14 +128,7 @@ export function TmdbModal() {
               <button id="tmdbIdBtn">Apply</button>
             </div>
           </div>
-          <div class="letterboxd-section">
-            <div class="tmdb-id-label" id="letterboxdStatus"></div>
-            <div class="tmdb-search-row">
-              <input type="text" id="letterboxdUrlInput" placeholder="https://letterboxd.com/film/..." />
-              <button id="letterboxdApplyBtn">Apply</button>
-              <button id="letterboxdClearBtn" style="background:#353535;color:#c5c5c5;">Clear</button>
-            </div>
-          </div>
+          <div class="tmdb-id-label" style="margin-top: 12px;">Applying a match also refreshes the Letterboxd link from the new TMDB id.</div>
           <button class="tmdb-modal-close" id="tmdbModalClose">Cancel</button>
         </div>
       </div>

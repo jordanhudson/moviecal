@@ -114,12 +114,10 @@
 
 .tmdb-loading { color: var(--muted); text-align: center; padding: 20px; }
 
-.tmdb-id-section,
-.letterboxd-section {
+.tmdb-id-section {
   border-top: 1px solid var(--line);
   margin-top: 12px;
   padding-top: 12px;
 }
 
-.tmdb-id-label,
-.letterboxd-status { color: var(--muted); font-size: 13px; margin-bottom: 8px; }
+.tmdb-id-label { color: var(--muted); font-size: 13px; margin-bottom: 8px; }

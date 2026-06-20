@@ -12,9 +12,6 @@ function Footer() {
   );
 }
 
-export type { SearchMovie } from '../db/search-movies.js';
-import type { SearchMovie } from '../db/search-movies.js';
-
 export interface PageOptions {
   title: string;
   description?: string;
@@ -24,7 +21,6 @@ export interface PageOptions {
   styles?: string[];
   body: Child;
   activePage?: string;
-  searchMovies?: SearchMovie[];
 }
 
 const SEARCH_SCRIPT = `
@@ -42,29 +38,41 @@ const SEARCH_SCRIPT = `
     });
   }
 
-  if (typeof __movies === 'undefined') return;
+  if (!input) return;
 
   function slug(t) {
     return t.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
   }
 
+  var debounce = null;
+  var seq = 0;
+
+  function run(q) {
+    // Tag each request so out-of-order responses can be dropped.
+    var mine = ++seq;
+    fetch('/api/search?q=' + encodeURIComponent(q)).then(function(r) {
+      return r.ok ? r.json() : [];
+    }).then(function(matches) {
+      if (mine !== seq) return;
+      if (!matches.length) {
+        results.innerHTML = '<div class="search-no-results">No matches</div>';
+      } else {
+        results.innerHTML = matches.map(function(m) {
+          var s = slug(m.title);
+          var href = '/movie/' + m.id + (s ? '-' + s : '');
+          return '<a class="search-result" href="' + href + '">' +
+            m.title.replace(/</g, '&lt;') + '</a>';
+        }).join('');
+      }
+      results.classList.add('open');
+    }).catch(function() {});
+  }
+
   input.addEventListener('input', function() {
-    var q = input.value.trim().toLowerCase();
-    if (!q) { results.classList.remove('open'); return; }
-    var matches = __movies.filter(function(m) {
-      return m.title.toLowerCase().includes(q);
-    }).slice(0, 20);
-    if (matches.length === 0) {
-      results.innerHTML = '<div class="search-no-results">No matches</div>';
-    } else {
-      results.innerHTML = matches.map(function(m) {
-        var s = slug(m.title);
-        var href = '/movie/' + m.id + (s ? '-' + s : '');
-        return '<a class="search-result" href="' + href + '">' +
-          m.title.replace(/</g, '&lt;') + '</a>';
-      }).join('');
-    }
-    results.classList.add('open');
+    var q = input.value.trim();
+    clearTimeout(debounce);
+    if (!q) { seq++; results.classList.remove('open'); return; }
+    debounce = setTimeout(function() { run(q); }, 150);
   });
 
   document.addEventListener('click', function(e) {
@@ -81,7 +89,7 @@ const filmIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15"
 
 const searchIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 256 256"><path fill="currentColor" d="M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z"/></svg>';
 
-export function renderPage({ title, description, canonicalPath, ogImage, jsonLd, styles, body, activePage, searchMovies = [] }: PageOptions): string {
+export function renderPage({ title, description, canonicalPath, ogImage, jsonLd, styles, body, activePage }: PageOptions): string {
   const BASE_URL = 'https://movieclock.app';
   const metaDesc = description || 'Movie showtimes for Vancouver independent cinemas — Cinematheque, VIFF, Rio Theatre, Park Theatre, and more.';
   const jsonLdItems = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
@@ -140,9 +148,6 @@ export function renderPage({ title, description, canonicalPath, ogImage, jsonLd,
             </div>
           </div>
         </nav>
-        {searchMovies.length > 0 && (
-          <script dangerouslySetInnerHTML={{ __html: `var __movies=${jsonForScript(searchMovies)};` }} />
-        )}
         <div class="page-content">
           {body}
         </div>

@@ -3,8 +3,27 @@ import type { Context } from 'hono';
 import { timingSafeEqual } from 'node:crypto';
 import { db } from '../db/connection.js';
 import { getTMDBMovieDetails, tmdbDetailsToMovieFields } from '../utils/tmdb.js';
+import { searchLetterboxdByTmdbId } from '../utils/letterboxd.js';
 
 export const apiRoutes = new Hono();
+
+// Nav-bar movie search. Queries every movie in the DB (not just those with
+// upcoming screenings), so films that have left town are still findable. Sorted
+// alphabetically; capped so a short query can't return the whole table.
+apiRoutes.get('/api/search', async (c) => {
+  const q = (c.req.query('q') || '').trim();
+  if (!q) return c.json([]);
+  // Escape LIKE wildcards so a literal % or _ in the query isn't treated as one.
+  const pattern = '%' + q.replace(/[\\%_]/g, '\\$&') + '%';
+  const movies = await db
+    .selectFrom('movie')
+    .select(['id', 'title'])
+    .where('title', 'ilike', pattern)
+    .orderBy('title', 'asc')
+    .limit(20)
+    .execute();
+  return c.json(movies);
+});
 
 // Constant-time comparison so the admin token can't be guessed byte-by-byte
 // via response timing. (timingSafeEqual requires equal lengths; a length
@@ -71,28 +90,14 @@ apiRoutes.post('/api/movie/:id/tmdb-update', async (c) => {
 
   const fields = tmdbDetailsToMovieFields(details);
 
-  await db
-    .updateTable('movie')
-    .set(fields)
-    .where('id', '=', movieId)
-    .execute();
-
-  return c.json({ success: true });
-});
-
-// Letterboxd update API for fix-match modal
-apiRoutes.post('/api/movie/:id/letterboxd-update', async (c) => {
-  if (!isAdminAuthorized(c)) return c.json({ error: 'Unauthorized' }, 401);
-
-  const movieId = parseInt(c.req.param('id'), 10);
-  if (isNaN(movieId)) return c.json({ error: 'Invalid movie ID' }, 400);
-
-  const body = await c.req.json() as { url: string | null };
-  const url = body.url;
+  // Re-derive the Letterboxd URL from the new TMDB id (exact match via the
+  // /tmdb/ redirect). 'MISS' = searched but not found, matching the scrape
+  // convention, so a later repair/re-clean can retry.
+  const letterboxdUrl = await searchLetterboxdByTmdbId(tmdbId);
 
   await db
     .updateTable('movie')
-    .set({ letterboxd_url: url })
+    .set({ ...fields, letterboxd_url: letterboxdUrl ?? 'MISS' })
     .where('id', '=', movieId)
     .execute();
 
