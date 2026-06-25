@@ -7,11 +7,15 @@ export interface CleanTitleResult {
 
 export function decodeHtmlEntities(str: string): string {
   const named: Record<string, string> = {
-    '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"',
-    '&#039;': "'", '&apos;': "'",
+    '&amp;': '&',
+    '&lt;': '<',
+    '&gt;': '>',
+    '&quot;': '"',
+    '&#039;': "'",
+    '&apos;': "'",
   };
   return str
-    .replace(/&(?:amp|lt|gt|quot|apos|#039);/g, m => named[m])
+    .replace(/&(?:amp|lt|gt|quot|apos|#039);/g, (m) => named[m])
     .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(parseInt(n, 10)))
     .replace(/&#x([0-9a-fA-F]+);/g, (_, n) => String.fromCharCode(parseInt(n, 16)));
 }

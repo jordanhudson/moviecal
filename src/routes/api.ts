@@ -61,15 +61,33 @@ apiRoutes.get('/api/movie/:id/tmdb-search', async (c) => {
     signal: AbortSignal.timeout(10_000),
   });
   if (!resp.ok) return c.json({ error: 'TMDB search failed' }, 502);
-  const data = await resp.json() as { results: Array<{ id: number; title: string; release_date: string; poster_path: string | null; overview: string }> };
+  const data = (await resp.json()) as {
+    results: Array<{
+      id: number;
+      title: string;
+      release_date: string;
+      poster_path: string | null;
+      overview: string;
+    }>;
+  };
 
-  const results = (data.results || []).slice(0, 10).map((r: { id: number; title: string; release_date: string; poster_path: string | null; overview: string }) => ({
-    id: r.id,
-    title: r.title,
-    release_date: r.release_date,
-    poster_path: r.poster_path ? `https://image.tmdb.org/t/p/w92${r.poster_path}` : null,
-    overview: r.overview,
-  }));
+  const results = (data.results || [])
+    .slice(0, 10)
+    .map(
+      (r: {
+        id: number;
+        title: string;
+        release_date: string;
+        poster_path: string | null;
+        overview: string;
+      }) => ({
+        id: r.id,
+        title: r.title,
+        release_date: r.release_date,
+        poster_path: r.poster_path ? `https://image.tmdb.org/t/p/w92${r.poster_path}` : null,
+        overview: r.overview,
+      }),
+    );
 
   return c.json(results);
 });
@@ -81,7 +99,7 @@ apiRoutes.post('/api/movie/:id/tmdb-update', async (c) => {
   const movieId = parseInt(c.req.param('id'), 10);
   if (isNaN(movieId)) return c.json({ error: 'Invalid movie ID' }, 400);
 
-  const body = await c.req.json() as { tmdbId: number };
+  const body = (await c.req.json()) as { tmdbId: number };
   const tmdbId = body.tmdbId;
   if (!tmdbId) return c.json({ error: 'tmdbId required' }, 400);
 

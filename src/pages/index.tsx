@@ -7,7 +7,7 @@ import { CINEPLEX_VENUES } from '../theatres.js';
 const DEFAULT_RUNTIME_MINUTES = 105;
 const MIN_DISPLAY_RUNTIME_MINUTES = 90;
 const TIMELINE_START_HOUR = 10; // 10am
-const TIMELINE_END_HOUR = 26;   // 2am next day (24 + 2)
+const TIMELINE_END_HOUR = 26; // 2am next day (24 + 2)
 
 // Home page — By Date. Timeline view (desktop) + Listing view (mobile always, desktop optional).
 
@@ -63,7 +63,10 @@ function getNextDay(date: Date): string {
   return next.toISOString().split('T')[0];
 }
 
-function calculatePosition(datetime: Date, runtime: number | null): { left: string; width: string } {
+function calculatePosition(
+  datetime: Date,
+  runtime: number | null,
+): { left: string; width: string } {
   const hours = datetime.getHours();
   const minutes = datetime.getMinutes();
 
@@ -116,7 +119,24 @@ function metaLine(year?: number | null, runtime?: number | null): string {
   return [year, runtime ? `${runtime} min` : null].filter(Boolean).join(' · ');
 }
 
-const TIME_LABELS = ['10am', '11am', '12pm', '1pm', '2pm', '3pm', '4pm', '5pm', '6pm', '7pm', '8pm', '9pm', '10pm', '11pm', '12am', '1am'];
+const TIME_LABELS = [
+  '10am',
+  '11am',
+  '12pm',
+  '1pm',
+  '2pm',
+  '3pm',
+  '4pm',
+  '5pm',
+  '6pm',
+  '7pm',
+  '8pm',
+  '9pm',
+  '10pm',
+  '11pm',
+  '12am',
+  '1am',
+];
 
 // Distinct gradient per movie for poster placeholders (stable by id)
 const POSTER_GRADS = [
@@ -249,14 +269,17 @@ const INDEX_SCRIPT = `
   applyFilter();
 `;
 
-export function renderIndexPage(date: Date, theatres: TheatreRow[], listingGroups: ListingGroup[]): string {
+export function renderIndexPage(
+  date: Date,
+  theatres: TheatreRow[],
+  listingGroups: ListingGroup[],
+): string {
   const prevDay = getPrevDay(date);
   const nextDay = getNextDay(date);
   const displayDate = formatDate(date);
   const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
-  const hasScreenings = theatres.some(t => t.screenings.length > 0) || listingGroups.length > 0;
-  const totalScreenings = theatres.reduce((n, t) => n + t.screenings.length, 0);
+  const hasScreenings = theatres.some((t) => t.screenings.length > 0) || listingGroups.length > 0;
 
   const script = INDEX_SCRIPT.replace('__CINEPLEX__', jsonForScript(CINEPLEX_VENUES));
 
@@ -282,18 +305,28 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[], listingGroup
               <h1 class="date-h1">{displayDate}</h1>
             </div>
             <div class="view-toggle">
-              <button class="active" data-view="listing">Listing</button>
+              <button class="active" data-view="listing">
+                Listing
+              </button>
               <button data-view="timeline">Timeline</button>
             </div>
           </div>
 
           <div class="rail-wrap">
-            <a class="rail-arrow" href={`/date/${prevDay}`} aria-label="Previous day">{'‹'}</a>
+            <a class="rail-arrow" href={`/date/${prevDay}`} aria-label="Previous day">
+              {'‹'}
+            </a>
             <div class="rail" id="dateRail" data-selected={dateStr}>
               {/* filled client-side; SEO/no-JS fallback below */}
-              <noscript><a class="day on"><span class="num">{date.getDate()}</span></a></noscript>
+              <noscript>
+                <a class="day on">
+                  <span class="num">{date.getDate()}</span>
+                </a>
+              </noscript>
             </div>
-            <a class="rail-arrow" href={`/date/${nextDay}`} aria-label="Next day">{'›'}</a>
+            <a class="rail-arrow" href={`/date/${nextDay}`} aria-label="Next day">
+              {'›'}
+            </a>
             <label class="rail-cal" title="Pick a date">
               {'📅'}
               <input type="date" id="datePicker" value={dateStr} />
@@ -302,44 +335,79 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[], listingGroup
 
           {listingGroups.length > 0 && (
             <div class="chips" id="chips">
-              {listingGroups.map(g => (
-                <button class="chip on" data-theatre={g.venue}>{displayName(g.venue)}</button>
+              {listingGroups.map((g) => (
+                <button class="chip on" data-theatre={g.venue}>
+                  {displayName(g.venue)}
+                </button>
               ))}
             </div>
           )}
         </div>
 
         <div id="viewsWrapper" data-view="listing">
-          {!hasScreenings && <div class="no-screenings">No screenings for this day — try another date.</div>}
+          {!hasScreenings && (
+            <div class="no-screenings">No screenings for this day — try another date.</div>
+          )}
 
           {/* ---- Timeline view (desktop only) ---- */}
           <div class="timeline-view">
             <div class="timeline-container">
               <div class="time-labels">
-                {TIME_LABELS.map(label => <div class="time-label">{label}</div>)}
+                {TIME_LABELS.map((label) => (
+                  <div class="time-label">{label}</div>
+                ))}
               </div>
               {theatres.map(({ theatre, screenings }) => (
                 <div class="theatre-row" data-theatre={theatre}>
                   <div class="theatre-label">
                     <a href={`/theatre/${encodeURIComponent(theatre)}`}>{displayName(theatre)}</a>
-                    <button class="row-hide" title={`Hide ${theatre}`}>hide</button>
+                    <button class="row-hide" title={`Hide ${theatre}`}>
+                      hide
+                    </button>
                   </div>
                   <div class="timeline">
-                    {screenings.map(screening => {
-                      const { left, width } = calculatePosition(new Date(screening.datetime), screening.movie_runtime);
+                    {screenings.map((screening) => {
+                      const { left, width } = calculatePosition(
+                        new Date(screening.datetime),
+                        screening.movie_runtime,
+                      );
                       const time = formatTime(new Date(screening.datetime)).replace(/(am|pm)$/, '');
-                      const lookupUrl = screening.letterboxd_url && screening.letterboxd_url !== 'MISS'
-                        ? screening.letterboxd_url : screening.tmdb_url;
+                      const lookupUrl =
+                        screening.letterboxd_url && screening.letterboxd_url !== 'MISS'
+                          ? screening.letterboxd_url
+                          : screening.tmdb_url;
                       return (
                         <div class="screening" style={`left: ${left}; width: ${width};`}>
-                          <a href={movieUrl(screening.movie_id, screening.movie_title)} class="screening-overlay" title={screening.movie_title}></a>
+                          <a
+                            href={movieUrl(screening.movie_id, screening.movie_title)}
+                            class="screening-overlay"
+                            title={screening.movie_title}
+                          ></a>
                           <span class="screening-title">{screening.movie_title}</span>
                           <div class="screening-bottom">
                             <div class="screening-time">{time}</div>
                             <div class="screening-links">
-                              <a href={safeHref(screening.booking_url)} target="_blank" class="screening-link" title="Book tickets">{'🎟️'}</a>
+                              <a
+                                href={safeHref(screening.booking_url)}
+                                target="_blank"
+                                class="screening-link"
+                                title="Book tickets"
+                              >
+                                {'🎟️'}
+                              </a>
                               {lookupUrl && (
-                                <a href={safeHref(lookupUrl)} target="_blank" class="screening-link" title={screening.letterboxd_url && screening.letterboxd_url !== 'MISS' ? 'View on Letterboxd' : 'View on TMDB'}>{'🔍'}</a>
+                                <a
+                                  href={safeHref(lookupUrl)}
+                                  target="_blank"
+                                  class="screening-link"
+                                  title={
+                                    screening.letterboxd_url && screening.letterboxd_url !== 'MISS'
+                                      ? 'View on Letterboxd'
+                                      : 'View on TMDB'
+                                  }
+                                >
+                                  {'🔍'}
+                                </a>
                               )}
                             </div>
                           </div>
@@ -355,25 +423,42 @@ export function renderIndexPage(date: Date, theatres: TheatreRow[], listingGroup
 
           {/* ---- Listing view (mobile always; desktop optional) ---- */}
           <div class="listing-view">
-            {listingGroups.map(group => (
+            {listingGroups.map((group) => (
               <section class="venue-card" data-theatre={group.venue}>
                 <div class="venue-head">
-                  {group.theatreName
-                    ? <a href={`/theatre/${encodeURIComponent(group.theatreName)}`}>{displayName(group.venue)}</a>
-                    : <span>{displayName(group.venue)}</span>}
+                  {group.theatreName ? (
+                    <a href={`/theatre/${encodeURIComponent(group.theatreName)}`}>
+                      {displayName(group.venue)}
+                    </a>
+                  ) : (
+                    <span>{displayName(group.venue)}</span>
+                  )}
                 </div>
-                {group.movies.map(movie => (
+                {group.movies.map((movie) => (
                   <div class="film-row">
-                    <a class="film-poster" href={movieUrl(movie.movie_id, movie.movie_title)} style={movie.poster_url ? '' : `background:${posterGrad(movie.movie_id)}`}>
-                      {movie.poster_url && <img src={safeHref(movie.poster_url)} alt="" loading="lazy" />}
+                    <a
+                      class="film-poster"
+                      href={movieUrl(movie.movie_id, movie.movie_title)}
+                      style={movie.poster_url ? '' : `background:${posterGrad(movie.movie_id)}`}
+                    >
+                      {movie.poster_url && (
+                        <img src={safeHref(movie.poster_url)} alt="" loading="lazy" />
+                      )}
                     </a>
                     <div class="film-body">
-                      <a class="film-title" href={movieUrl(movie.movie_id, movie.movie_title)}>{movie.movie_title}</a>
+                      <a class="film-title" href={movieUrl(movie.movie_id, movie.movie_title)}>
+                        {movie.movie_title}
+                      </a>
                       <div class="film-meta">{metaLine(movie.movie_year, movie.movie_runtime)}</div>
                     </div>
-                    <div class="show-times" style={`grid-template-columns: repeat(${showTimeCols(movie.showtimes.length)}, auto)`}>
-                      {movie.showtimes.map(st => (
-                        <a class="show-time" href={safeHref(st.booking_url)} target="_blank">{formatTime(new Date(st.datetime))}</a>
+                    <div
+                      class="show-times"
+                      style={`grid-template-columns: repeat(${showTimeCols(movie.showtimes.length)}, auto)`}
+                    >
+                      {movie.showtimes.map((st) => (
+                        <a class="show-time" href={safeHref(st.booking_url)} target="_blank">
+                          {formatTime(new Date(st.datetime))}
+                        </a>
                       ))}
                     </div>
                   </div>

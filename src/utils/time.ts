@@ -22,13 +22,23 @@ export function pacificToday(): string {
  */
 export function pacificHour(): number {
   return parseInt(
-    new Date().toLocaleTimeString('en-GB', { timeZone: PACIFIC_TZ, hour12: false }).split(':')[0]
+    new Date().toLocaleTimeString('en-GB', { timeZone: PACIFIC_TZ, hour12: false }).split(':')[0],
   );
 }
 
 const MONTHS_LONG = [
-  'january', 'february', 'march', 'april', 'may', 'june',
-  'july', 'august', 'september', 'october', 'november', 'december',
+  'january',
+  'february',
+  'march',
+  'april',
+  'may',
+  'june',
+  'july',
+  'august',
+  'september',
+  'october',
+  'november',
+  'december',
 ];
 
 /**
@@ -37,7 +47,7 @@ const MONTHS_LONG = [
  */
 export function parseMonthName(name: string): number {
   const lower = name.toLowerCase();
-  const index = MONTHS_LONG.findIndex(m => m.startsWith(lower.substring(0, 3)));
+  const index = MONTHS_LONG.findIndex((m) => m.startsWith(lower.substring(0, 3)));
   return index;
 }
 
@@ -46,7 +56,10 @@ export function parseMonthName(name: string): number {
  * Returns null if the string can't be parsed.
  */
 export function parse12HourTime(timeStr: string): { hour: number; minute: number } | null {
-  const match = timeStr.toLowerCase().trim().match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)/);
+  const match = timeStr
+    .toLowerCase()
+    .trim()
+    .match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)/);
   if (!match) return null;
 
   let hour = parseInt(match[1], 10);

@@ -8,19 +8,14 @@ async function clearDatabase() {
     console.log('Clearing database...\n');
 
     // Delete all screenings first (due to foreign key constraint)
-    const screeningsResult = await db
-      .deleteFrom('screening')
-      .execute();
+    await db.deleteFrom('screening').execute();
     console.log('✓ Deleted all screenings');
 
     // Delete all movies
-    const moviesResult = await db
-      .deleteFrom('movie')
-      .execute();
+    await db.deleteFrom('movie').execute();
     console.log('✓ Deleted all movies');
 
     console.log('\nDatabase cleared successfully');
-
   } catch (error) {
     console.error('Error clearing database:', error);
     process.exit(1);

@@ -28,15 +28,17 @@ export interface ScreeningDetail {
 
 export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[]): string {
   const now = pacificNow();
-  const futureScreenings = screenings.filter(s => new Date(s.datetime) >= now);
+  const futureScreenings = screenings.filter((s) => new Date(s.datetime) >= now);
 
   const dayGroups: { dateStr: string; items: ScreeningDetail[] }[] = [];
   for (const screening of futureScreenings) {
-    const dateStr = new Date(screening.datetime).toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-    }).replace(',', '');
+    const dateStr = new Date(screening.datetime)
+      .toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+      })
+      .replace(',', '');
     const lastGroup = dayGroups[dayGroups.length - 1];
     if (lastGroup && lastGroup.dateStr === dateStr) {
       lastGroup.items.push(screening);
@@ -45,7 +47,11 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
     }
   }
 
-  const metaParts = [movie.year, movie.director, movie.runtime ? `${movie.runtime} min` : null].filter(Boolean);
+  const metaParts = [
+    movie.year,
+    movie.director,
+    movie.runtime ? `${movie.runtime} min` : null,
+  ].filter(Boolean);
   const metaSuffix = metaParts.length ? ` (${metaParts.join(', ')})` : '';
   const screeningCount = futureScreenings.length;
   const movieDesc = `${movie.title}${metaSuffix} — ${screeningCount} upcoming screening${screeningCount !== 1 ? 's' : ''} in Vancouver.`;
@@ -61,7 +67,7 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
     url: `https://movieclock.app${movieUrl(movie.id, movie.title)}`,
   };
 
-  const screeningSchemas = futureScreenings.map(s => ({
+  const screeningSchemas = futureScreenings.map((s) => ({
     '@context': 'https://schema.org',
     '@type': 'ScreeningEvent',
     name: movie.title,
@@ -69,7 +75,12 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
     location: {
       '@type': 'MovieTheater',
       name: s.theatre_name,
-      address: { '@type': 'PostalAddress', addressLocality: 'Vancouver', addressRegion: 'BC', addressCountry: 'CA' },
+      address: {
+        '@type': 'PostalAddress',
+        addressLocality: 'Vancouver',
+        addressRegion: 'BC',
+        addressCountry: 'CA',
+      },
     },
     workPresented: { '@type': 'Movie', name: movie.title },
     ...(s.booking_url && { url: s.booking_url }),
@@ -165,10 +176,11 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
         <div class="movie-container">
           <div class="movie-header">
             <div class="movie-poster">
-              {movie.poster_url
-                ? <img src={safeHref(movie.poster_url)} alt={`${movie.title} poster`} />
-                : <div class="movie-poster-placeholder">No poster</div>
-              }
+              {movie.poster_url ? (
+                <img src={safeHref(movie.poster_url)} alt={`${movie.title} poster`} />
+              ) : (
+                <div class="movie-poster-placeholder">No poster</div>
+              )}
             </div>
             <div class="movie-info">
               <h1 class="movie-title">{movie.title}</h1>
@@ -177,45 +189,58 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
                 {movie.runtime && <span>{movie.runtime} min</span>}
                 {movie.director && <span>Dir: {movie.director}</span>}
               </div>
-              {movie.tmdb_url && <a href={safeHref(movie.tmdb_url)} target="_blank" class="tmdb-link">View on TMDB</a>}
+              {movie.tmdb_url && (
+                <a href={safeHref(movie.tmdb_url)} target="_blank" class="tmdb-link">
+                  View on TMDB
+                </a>
+              )}
               {movie.letterboxd_url && movie.letterboxd_url !== 'MISS' && (
-                <a href={safeHref(movie.letterboxd_url)} target="_blank" class="letterboxd-link">View on Letterboxd</a>
+                <a href={safeHref(movie.letterboxd_url)} target="_blank" class="letterboxd-link">
+                  View on Letterboxd
+                </a>
               )}
             </div>
           </div>
 
           <div class="screenings-section">
             <h2>Screenings</h2>
-            {futureScreenings.length === 0
-              ? <p class="no-screenings">No upcoming screenings</p>
-              : dayGroups.map(group => (
-                  <section class="day-group">
-                    <h3 class="day-header">{group.dateStr}</h3>
-                    <ul class="screening-list">
-                      {group.items.map(screening => {
-                        const timeStr = new Date(screening.datetime).toLocaleTimeString('en-US', {
-                          hour: 'numeric',
-                          minute: '2-digit',
-                        });
+            {futureScreenings.length === 0 ? (
+              <p class="no-screenings">No upcoming screenings</p>
+            ) : (
+              dayGroups.map((group) => (
+                <section class="day-group">
+                  <h3 class="day-header">{group.dateStr}</h3>
+                  <ul class="screening-list">
+                    {group.items.map((screening) => {
+                      const timeStr = new Date(screening.datetime).toLocaleTimeString('en-US', {
+                        hour: 'numeric',
+                        minute: '2-digit',
+                      });
 
-                        return (
-                          <li class="screening-item" data-theatre={screening.theatre_name}>
-                            <div class="screening-time">{timeStr}</div>
-                            <div class="screening-theatre">
-                              <a href={`/theatre/${encodeURIComponent(screening.theatre_name)}`}>{screening.theatre_name}</a>
-                              {screening.note && <div class="screening-note">{screening.note}</div>}
-                            </div>
-                            <a href={safeHref(screening.booking_url)} target="_blank" class="screening-book">
-                              <span class="full-text">Book Tickets</span>
-                              <span class="short-text">Tix</span>
+                      return (
+                        <li class="screening-item" data-theatre={screening.theatre_name}>
+                          <div class="screening-time">{timeStr}</div>
+                          <div class="screening-theatre">
+                            <a href={`/theatre/${encodeURIComponent(screening.theatre_name)}`}>
+                              {screening.theatre_name}
                             </a>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </section>
-                ))
-            }
+                            {screening.note && <div class="screening-note">{screening.note}</div>}
+                          </div>
+                          <a
+                            href={safeHref(screening.booking_url)}
+                            target="_blank"
+                            class="screening-book"
+                          >
+                            <span class="full-text">Book Tickets</span>
+                            <span class="short-text">Tix</span>
+                          </a>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
+              ))
+            )}
           </div>
         </div>
 

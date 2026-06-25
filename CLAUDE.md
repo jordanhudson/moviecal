@@ -21,7 +21,17 @@ npm run repair       # Re-clean titles + backfill missing TMDB data
 npm run clear        # Clear all data from database
 npm run drop         # Drop all tables from database
 npm run server       # Start web server on http://localhost:3000
+npm test             # Run the test suite (node --test)
+npm run lint         # ESLint (typescript-eslint, flat config)
+npm run format       # Prettier --write across the repo
+npm run format:check # Prettier --check (what CI gates on)
 ```
+
+**Lint/format**: ESLint 9 flat config (`eslint.config.js`) + Prettier
+(`.prettierrc.json`). The CI `test` job gates deploys on `npm run lint` and
+`npm run format:check` before build/test, so run `npm run format` before
+pushing. Config files and the page `.tsx` files are all covered; `dist/`,
+`public/`, and `design-prototypes/` are ignored.
 
 ## Local Development
 
@@ -167,12 +177,12 @@ Shared helpers: `src/theatres.ts` (`THEATRE_ORDER`, `CINEPLEX_VENUES`/`CINEPLEX_
 **Files**:
 - `src/db/connection.ts` - Database connection and config (reads from `.env`)
 - `src/db/schema.ts` - TypeScript types for Kysely matching the DB tables
-- `src/db/migrate.ts` - Migration runner (runs SQL files in `migrations/`)
+- `src/db/migrate.ts` - Migration runner. Records applied filenames in a `schema_migrations` table and runs each unapplied `migrations/*.sql` file once, in its own transaction (rollback + abort on failure). Existing DBs bootstrap safely because the migrations are idempotent — the first tracked run re-applies and records them, then they never re-run.
 - `src/db/repair.ts` - Re-cleans existing titles (shared logic with scrape), then backfills missing TMDB data
 - `src/utils/reclean.ts` - Shared re-clean logic used by both scrape and repair
 - `src/db/clear.ts` - Deletes all data
 - `src/db/drop.ts` - Drops all tables
-- Migrations stored in `migrations/*.sql` (use `IF NOT EXISTS`/`IF EXISTS` for idempotency)
+- Migrations stored in `migrations/*.sql` (still use `IF NOT EXISTS`/`IF EXISTS` so the bootstrap re-apply on existing DBs is safe; `migrate.ts` then tracks them so each runs once going forward)
 
 ### Global Data Models
 

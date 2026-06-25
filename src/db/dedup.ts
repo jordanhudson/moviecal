@@ -61,7 +61,9 @@ async function main() {
 
   console.log('\nSample (top 10 groups):');
   for (const r of groups.rows.slice(0, 10)) {
-    console.log(`  ${r.theatre_name} | movie_id=${r.movie_id} | ${new Date(r.datetime).toISOString()} | count=${r.count} | keep_id=${r.keep_id}`);
+    console.log(
+      `  ${r.theatre_name} | movie_id=${r.movie_id} | ${new Date(r.datetime).toISOString()} | count=${r.count} | keep_id=${r.keep_id}`,
+    );
   }
 
   if (!apply) {

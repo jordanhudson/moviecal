@@ -3,7 +3,11 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { parseVIFFEvents, VIFFApiEvent } from './viff-scraper.js';
 import { parseRioEvents, RioApiEvent } from './rio-scraper.js';
-import { parseCineplexResponses, dedupeScreenings, CineplexTheatreResponse } from './cineplex-scraper.js';
+import {
+  parseCineplexResponses,
+  dedupeScreenings,
+  CineplexTheatreResponse,
+} from './cineplex-scraper.js';
 
 // Real API responses saved as fixtures (June 2026). If a venue changes its
 // response format, re-capture the fixture and update the expectations here.
@@ -42,7 +46,10 @@ test('Rio: converts UTC offsets to Pacific-naive and extracts notes', () => {
   assert.equal(first.movie.title, "John Woo's 'A Better Tomorrow'");
   assert.equal(first.note, '40th Anniversary Restoration');
   assert.equal(first.theatreName, 'The Rio');
-  assert.equal(first.bookingUrl, 'https://riotheatretickets.ca/events/41803-john-woo-s-a-better-tomorrow-40th-anniversary-restoration');
+  assert.equal(
+    first.bookingUrl,
+    'https://riotheatretickets.ca/events/41803-john-woo-s-a-better-tomorrow-40th-anniversary-restoration',
+  );
   // "2026-05-31T19:00:00-07:00" is 7pm Pacific → stored as a naive timestamp
   // whose UTC components read 7pm
   assert.equal(first.datetime.toISOString(), '2026-05-31T19:00:00.000Z');

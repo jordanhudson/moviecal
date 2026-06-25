@@ -25,7 +25,7 @@ export async function scrapeCinematheque(): Promise<Screening[]> {
     });
 
     // Wait a bit for dynamic content
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    await new Promise((resolve) => setTimeout(resolve, 3000));
 
     // Extract all screenings from the calendar
     const cinemathequeScreenings = await page.evaluate(() => {
@@ -63,7 +63,7 @@ export async function scrapeCinematheque(): Promise<Screening[]> {
         // Iterate through each screening
         const screeningElements = screeningsList.querySelectorAll('li');
 
-        screeningElements.forEach((screeningEl, sIndex) => {
+        screeningElements.forEach((screeningEl) => {
           // Get all links - first is usually time, rest might be title + "Tickets"
           const links = screeningEl.querySelectorAll('a');
 
@@ -74,22 +74,22 @@ export async function scrapeCinematheque(): Promise<Screening[]> {
           // First link is the time - extract from span inside it
           const timeLink = links[0];
           const timeSpan = timeLink.querySelector('span');
-          const time = timeSpan ? timeSpan.textContent?.trim() || '' : timeLink.textContent?.trim() || '';
+          const time = timeSpan
+            ? timeSpan.textContent?.trim() || ''
+            : timeLink.textContent?.trim() || '';
 
           // Check if the span has "am" or "pm" class
           const isAM = timeSpan?.classList.contains('am');
           const isPM = timeSpan?.classList.contains('pm');
-          const ampm = isPM ? 'pm' : (isAM ? 'am' : '');
+          const ampm = isPM ? 'pm' : isAM ? 'am' : '';
 
           // Find the title link - it's usually the second link, but skip "Tickets" links
-          let titleLink = null;
           let title = '';
           let url = '';
 
           for (let i = 1; i < links.length; i++) {
             const linkText = links[i].textContent?.trim() || '';
             if (linkText && linkText !== 'Tickets') {
-              titleLink = links[i];
               title = linkText;
               url = links[i].href;
               break;
@@ -138,7 +138,6 @@ export async function scrapeCinematheque(): Promise<Screening[]> {
     }
 
     return screenings;
-
   } finally {
     await browser.close();
   }

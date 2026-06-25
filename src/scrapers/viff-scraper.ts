@@ -22,7 +22,7 @@ const VENUE_NAMES: Record<string, string> = {
 function formatVenueName(venueId: string): string {
   return venueId
     .split('-')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
 }
 
@@ -32,7 +32,9 @@ export function parseVIFFEvents(events: VIFFApiEvent[]): Screening[] {
 
   for (const event of events) {
     // Extract film title from HTML (in h3.c-calendar-instance__title)
-    const titleMatch = event.title.match(/<h3 class="c-calendar-instance__title">\s*(.+?)\s*<\/h3>/s);
+    const titleMatch = event.title.match(
+      /<h3 class="c-calendar-instance__title">\s*(.+?)\s*<\/h3>/s,
+    );
     if (!titleMatch) {
       console.warn(`Could not extract title from event: ${event.title.substring(0, 100)}`);
       continue;
@@ -41,7 +43,9 @@ export function parseVIFFEvents(events: VIFFApiEvent[]): Screening[] {
     const filmTitle = titleMatch[1].trim();
 
     // Extract booking URL from HTML (look for <a> tag with class containing "c-btn--ghost")
-    const bookingUrlMatch = event.title.match(/<a[^>]+class="[^"]*c-btn--ghost[^"]*"[^>]+href="([^"]+)"/);
+    const bookingUrlMatch = event.title.match(
+      /<a[^>]+class="[^"]*c-btn--ghost[^"]*"[^>]+href="([^"]+)"/,
+    );
     if (!bookingUrlMatch) {
       // Skip events without booking URLs (might be past events or special cases)
       continue;
@@ -95,7 +99,6 @@ export async function scrapeVIFF(): Promise<Screening[]> {
 
     const events: VIFFApiEvent[] = await response.json();
     return parseVIFFEvents(events);
-
   } catch (error) {
     console.error('Error scraping VIFF:', error);
     throw error;

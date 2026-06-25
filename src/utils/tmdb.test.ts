@@ -29,15 +29,23 @@ function mockTmdbFetch(mock: MockTmdb) {
     }
     const alt = url.pathname.match(/^\/3\/movie\/(\d+)\/alternative_titles$/);
     if (alt) {
-      const titles = (mock.altTitles?.[Number(alt[1])] ?? []).map(title => ({ title }));
+      const titles = (mock.altTitles?.[Number(alt[1])] ?? []).map((title) => ({ title }));
       return json({ titles });
     }
     const details = url.pathname.match(/^\/3\/movie\/(\d+)$/);
     if (details) {
       const id = Number(details[1]);
       // Find the title from the search mock so details stay consistent
-      const found = Object.values(mock.search ?? {}).flat().find(r => r.id === id);
-      return json({ id, title: found?.title ?? 'unknown', release_date: '2000-01-01', poster_path: null, runtime: 100 });
+      const found = Object.values(mock.search ?? {})
+        .flat()
+        .find((r) => r.id === id);
+      return json({
+        id,
+        title: found?.title ?? 'unknown',
+        release_date: '2000-01-01',
+        poster_path: null,
+        runtime: 100,
+      });
     }
     throw new Error(`Unexpected fetch in test: ${url}`);
   }) as typeof fetch;
@@ -122,7 +130,7 @@ test('does not split when the full title surfaces a different, more specific mov
   mockTmdbFetch({
     search: {
       'Mission: Impossible': [{ id: 200, title: 'Mission: Impossible - Fallout' }],
-      'Mission': [{ id: 7, title: 'Mission' }],
+      Mission: [{ id: 7, title: 'Mission' }],
     },
   });
   const result = await verifyTitleCleaning('Mission: Impossible');
@@ -134,7 +142,7 @@ test('with an existing TMDB id, only splits when the base resolves to that movie
   mockTmdbFetch({
     search: {
       'Oppenheimer: 70mm Presentation': [],
-      'Oppenheimer': [{ id: 50, title: 'Oppenheimer' }],
+      Oppenheimer: [{ id: 50, title: 'Oppenheimer' }],
     },
     altTitles: { 50: [] },
   });

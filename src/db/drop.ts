@@ -17,7 +17,6 @@ async function dropTables() {
     console.log('✓ Dropped movie table');
 
     console.log('\nAll tables dropped successfully');
-
   } catch (error) {
     console.error('Error dropping tables:', error);
     process.exit(1);

@@ -33,7 +33,7 @@ async function repair() {
         eb('tmdb_popularity', 'is', null),
         eb('poster_url', 'is', null),
         eb('runtime', 'is', null),
-      ])
+      ]),
     )
     .execute();
 
@@ -66,11 +66,7 @@ async function repair() {
 
       if (Object.keys(updates).length === 0) continue;
 
-      await db
-        .updateTable('movie')
-        .set(updates)
-        .where('id', '=', movie.id)
-        .execute();
+      await db.updateTable('movie').set(updates).where('id', '=', movie.id).execute();
 
       const fields = Object.keys(updates).join(', ');
       console.log(`  ✓ ${movie.title} — backfilled ${fields}`);
@@ -113,11 +109,7 @@ async function repair() {
       }
 
       const fields = tmdbDetailsToMovieFields(details);
-      await db
-        .updateTable('movie')
-        .set(fields)
-        .where('id', '=', movie.id)
-        .execute();
+      await db.updateTable('movie').set(fields).where('id', '=', movie.id).execute();
 
       console.log(`  ✓ ${movie.title} — matched TMDB: ${fields.tmdb_url}`);
       foundCount++;

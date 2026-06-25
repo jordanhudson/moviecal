@@ -1,11 +1,7 @@
 /** @jsxImportSource hono/jsx */
 import { renderPage } from './layout.js';
 
-export function renderErrorPage(
-  status: number,
-  heading: string,
-  message: string
-): string {
+export function renderErrorPage(status: number, heading: string, message: string): string {
   return renderPage({
     title: `${heading} — MovieClock`,
     body: (
@@ -13,7 +9,9 @@ export function renderErrorPage(
         <div style="font-family: 'Space Grotesk', sans-serif; font-size: 72px; font-weight: 700; background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; line-height: 1;">
           {status}
         </div>
-        <h1 style="font-family: 'Space Grotesk', sans-serif; font-size: 24px; margin: 16px 0 8px;">{heading}</h1>
+        <h1 style="font-family: 'Space Grotesk', sans-serif; font-size: 24px; margin: 16px 0 8px;">
+          {heading}
+        </h1>
         <p style="color: var(--muted); margin: 0 0 28px;">{message}</p>
         <a
           href="/"

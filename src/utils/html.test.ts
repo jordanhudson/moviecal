@@ -8,7 +8,7 @@ test('escapes </script> so embedded JSON cannot break out of a script tag', () =
   assert.ok(!out.includes('>'));
   assert.equal(
     JSON.parse(out.replace(/\\u003c/g, '<').replace(/\\u003e/g, '>')).title,
-    'Evil</script><script>alert(1)</script>'
+    'Evil</script><script>alert(1)</script>',
   );
 });
 

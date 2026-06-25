@@ -24,21 +24,19 @@ export function TheatreCard({ header, headerLink, dataTheatre, hideLink, rows }:
   return (
     <div class="theatre-card" {...(dataTheatre ? { 'data-theatre': dataTheatre } : {})}>
       <div class="theatre-card-header">
-        {headerLink
-          ? <a href={headerLink}>{header}</a>
-          : <span>{header}</span>}
+        {headerLink ? <a href={headerLink}>{header}</a> : <span>{header}</span>}
         {hideLink && <span class="hide-link">Hide</span>}
       </div>
-      {rows.map(row => (
+      {rows.map((row) => (
         <div class="theatre-card-row">
           <div class="theatre-card-label">
-            {row.labelLink
-              ? <a href={row.labelLink}>{row.label}</a>
-              : row.label}
+            {row.labelLink ? <a href={row.labelLink}>{row.label}</a> : row.label}
           </div>
           <div class="theatre-card-times">
-            {row.times.map(t => (
-              <a href={safeHref(t.bookingUrl)} target="_blank" class="theatre-card-time">{t.display}</a>
+            {row.times.map((t) => (
+              <a href={safeHref(t.bookingUrl)} target="_blank" class="theatre-card-time">
+                {t.display}
+              </a>
             ))}
           </div>
         </div>

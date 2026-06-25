@@ -23,9 +23,8 @@ export async function scrapePark(): Promise<Screening[]> {
       timeout: 30000,
     });
 
-
     // Wait a bit for dynamic content
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    await new Promise((resolve) => setTimeout(resolve, 3000));
 
     // Extract all screenings from the page
     const parkScreenings = await page.evaluate(() => {
@@ -72,7 +71,6 @@ export async function scrapePark(): Promise<Screening[]> {
       return results;
     });
 
-
     // Convert to global Screening models
     const screenings: Screening[] = [];
 
@@ -100,7 +98,6 @@ export async function scrapePark(): Promise<Screening[]> {
     }
 
     return screenings;
-
   } finally {
     await browser.close();
   }
@@ -109,10 +106,14 @@ export async function scrapePark(): Promise<Screening[]> {
 // Helper function to parse Park Theatre datetime strings into a Date object
 function parseDateTime(datetimeStr: string): Date {
   // Old format: "6:20pm - Thursday, Jan 8, 2026"
-  const oldMatch = datetimeStr.match(/(\d{1,2}:\d{2}\s*(?:am|pm)?)\s*-\s*\w+,?\s*([A-Za-z]+)\s+(\d{1,2}),?\s*(\d{4})/i);
+  const oldMatch = datetimeStr.match(
+    /(\d{1,2}:\d{2}\s*(?:am|pm)?)\s*-\s*\w+,?\s*([A-Za-z]+)\s+(\d{1,2}),?\s*(\d{4})/i,
+  );
 
   // New format: "Wed, Mar 18, 6:30 pm"
-  const newMatch = datetimeStr.match(/\w+,\s*([A-Za-z]+)\s+(\d{1,2}),\s*(\d{1,2}:\d{2}\s*(?:am|pm))/i);
+  const newMatch = datetimeStr.match(
+    /\w+,\s*([A-Za-z]+)\s+(\d{1,2}),\s*(\d{1,2}:\d{2}\s*(?:am|pm))/i,
+  );
 
   if (oldMatch) {
     const timeStr = oldMatch[1];

@@ -54,7 +54,7 @@ export interface RioApiEvent {
 
 // Pure parse step, separated from fetching so it can be tested against fixtures.
 export function parseRioEvents(events: RioApiEvent[]): Screening[] {
-  return events.map(event => {
+  return events.map((event) => {
     const { title, note } = cleanMovieTitle(event.event.title);
 
     const movie: Movie = {
@@ -111,7 +111,6 @@ export async function scrapeRio(): Promise<Screening[]> {
 
     const events: RioApiEvent[] = await response.json();
     return parseRioEvents(events);
-
   } catch (error) {
     console.error('Error scraping Rio Theatre:', error);
     throw error;

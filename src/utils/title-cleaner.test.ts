@@ -42,6 +42,9 @@ test('decodes HTML entities before cleaning', () => {
 });
 
 test('decodeHtmlEntities handles named, decimal, and hex entities', () => {
-  assert.equal(decodeHtmlEntities('&lt;b&gt; &quot;hi&quot; &apos;there&apos;'), '<b> "hi" \'there\'');
+  assert.equal(
+    decodeHtmlEntities('&lt;b&gt; &quot;hi&quot; &apos;there&apos;'),
+    '<b> "hi" \'there\'',
+  );
   assert.equal(decodeHtmlEntities('&#65;&#x42;'), 'AB');
 });

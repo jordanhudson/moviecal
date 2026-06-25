@@ -1,27 +1,23 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { Screening } from '../models.js';
-import {
-  computeReconcileWindow,
-  planReconciliation,
-  type ExistingScreening,
-} from './reconcile.js';
+import { computeReconcileWindow, planReconciliation, type ExistingScreening } from './reconcile.js';
 
 // --- test helpers --------------------------------------------------------
-
-const HOUR = 60 * 60 * 1000;
 
 function dt(iso: string): Date {
   return new Date(iso);
 }
 
-function makeScreening(overrides: {
-  title?: string;
-  datetime?: Date;
-  theatreName?: string;
-  bookingUrl?: string;
-  note?: string | null;
-} = {}): Screening {
+function makeScreening(
+  overrides: {
+    title?: string;
+    datetime?: Date;
+    theatreName?: string;
+    bookingUrl?: string;
+    note?: string | null;
+  } = {},
+): Screening {
   return {
     id: null,
     datetime: overrides.datetime ?? dt('2026-05-01T19:00:00Z'),
@@ -141,12 +137,8 @@ test('pass 1: exact match on (theatre, movie, datetime) → matched, no ops', ()
 });
 
 test('pass 1: exact match with drifted booking_url → metadata update queued', () => {
-  const incoming = [
-    makeScreening({ title: 'Test Movie', bookingUrl: 'https://example.com/NEW' }),
-  ];
-  const existing = [
-    makeExisting({ id: 10, movieId: 1, bookingUrl: 'https://example.com/OLD' }),
-  ];
+  const incoming = [makeScreening({ title: 'Test Movie', bookingUrl: 'https://example.com/NEW' })];
+  const existing = [makeExisting({ id: 10, movieId: 1, bookingUrl: 'https://example.com/OLD' })];
   const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, existing, PAST_NOW);
   assert.equal(plan.stats.matched, 1);
   assert.equal(plan.metadataUpdates.length, 1);
@@ -199,12 +191,8 @@ test('pass 1: exact match requires theatre to match — different theatre does n
 // --- pass 2: time-shift (reschedule) -------------------------------------
 
 test('pass 2: same theatre+movie within 1h → reschedule', () => {
-  const incoming = [
-    makeScreening({ title: 'Test Movie', datetime: dt('2026-05-01T19:30:00Z') }),
-  ];
-  const existing = [
-    makeExisting({ id: 10, movieId: 1, datetime: dt('2026-05-01T19:00:00Z') }),
-  ];
+  const incoming = [makeScreening({ title: 'Test Movie', datetime: dt('2026-05-01T19:30:00Z') })];
+  const existing = [makeExisting({ id: 10, movieId: 1, datetime: dt('2026-05-01T19:00:00Z') })];
   const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, existing, PAST_NOW);
   assert.equal(plan.stats.matched, 0);
   assert.equal(plan.stats.updated, 1);
@@ -216,35 +204,23 @@ test('pass 2: same theatre+movie within 1h → reschedule', () => {
 });
 
 test('pass 2: reschedule works symmetrically (existing later than incoming)', () => {
-  const incoming = [
-    makeScreening({ title: 'Test Movie', datetime: dt('2026-05-01T19:00:00Z') }),
-  ];
-  const existing = [
-    makeExisting({ id: 10, movieId: 1, datetime: dt('2026-05-01T19:45:00Z') }),
-  ];
+  const incoming = [makeScreening({ title: 'Test Movie', datetime: dt('2026-05-01T19:00:00Z') })];
+  const existing = [makeExisting({ id: 10, movieId: 1, datetime: dt('2026-05-01T19:45:00Z') })];
   const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, existing, PAST_NOW);
   assert.equal(plan.stats.updated, 1);
   assert.equal(plan.reschedules[0].id, 10);
 });
 
 test('pass 2: exactly 1h diff is within window', () => {
-  const incoming = [
-    makeScreening({ title: 'Test Movie', datetime: dt('2026-05-01T20:00:00Z') }),
-  ];
-  const existing = [
-    makeExisting({ id: 10, movieId: 1, datetime: dt('2026-05-01T19:00:00Z') }),
-  ];
+  const incoming = [makeScreening({ title: 'Test Movie', datetime: dt('2026-05-01T20:00:00Z') })];
+  const existing = [makeExisting({ id: 10, movieId: 1, datetime: dt('2026-05-01T19:00:00Z') })];
   const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, existing, PAST_NOW);
   assert.equal(plan.stats.updated, 1);
 });
 
 test('pass 2: > 1h diff is not a reschedule → insert + delete', () => {
-  const incoming = [
-    makeScreening({ title: 'Test Movie', datetime: dt('2026-05-01T21:00:01Z') }),
-  ];
-  const existing = [
-    makeExisting({ id: 10, movieId: 1, datetime: dt('2026-05-01T20:00:00Z') }),
-  ];
+  const incoming = [makeScreening({ title: 'Test Movie', datetime: dt('2026-05-01T21:00:01Z') })];
+  const existing = [makeExisting({ id: 10, movieId: 1, datetime: dt('2026-05-01T20:00:00Z') })];
   const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, existing, PAST_NOW);
   assert.equal(plan.stats.updated, 0);
   assert.equal(plan.stats.inserted, 1);
@@ -252,12 +228,8 @@ test('pass 2: > 1h diff is not a reschedule → insert + delete', () => {
 });
 
 test('pass 2: different movie at same theatre → not a reschedule', () => {
-  const incoming = [
-    makeScreening({ title: 'Test Movie', datetime: dt('2026-05-01T19:30:00Z') }),
-  ];
-  const existing = [
-    makeExisting({ id: 10, movieId: 2, datetime: dt('2026-05-01T19:00:00Z') }),
-  ];
+  const incoming = [makeScreening({ title: 'Test Movie', datetime: dt('2026-05-01T19:30:00Z') })];
+  const existing = [makeExisting({ id: 10, movieId: 2, datetime: dt('2026-05-01T19:00:00Z') })];
   const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, existing, PAST_NOW);
   assert.equal(plan.stats.updated, 0);
   assert.equal(plan.stats.inserted, 1);
@@ -289,9 +261,7 @@ test('pass 2: same movie at different theatre → not a reschedule', () => {
 test('pass 2: picks the closest existing when multiple candidates are within 1h', () => {
   // Incoming at 19:30. Two existing candidates at 19:00 (30min) and 20:15 (45min).
   // Should pair with 19:00.
-  const incoming = [
-    makeScreening({ title: 'Test Movie', datetime: dt('2026-05-01T19:30:00Z') }),
-  ];
+  const incoming = [makeScreening({ title: 'Test Movie', datetime: dt('2026-05-01T19:30:00Z') })];
   const existing = [
     makeExisting({ id: 20, movieId: 1, datetime: dt('2026-05-01T20:15:00Z') }),
     makeExisting({ id: 10, movieId: 1, datetime: dt('2026-05-01T19:00:00Z') }),
@@ -310,9 +280,7 @@ test('pass 2: each existing can only pair once (greedy, closest-time)', () => {
     makeScreening({ title: 'Test Movie', datetime: dt('2026-05-01T19:10:00Z') }), // 10min diff
     makeScreening({ title: 'Test Movie', datetime: dt('2026-05-01T19:45:00Z') }), // 45min diff
   ];
-  const existing = [
-    makeExisting({ id: 10, movieId: 1, datetime: dt('2026-05-01T19:00:00Z') }),
-  ];
+  const existing = [makeExisting({ id: 10, movieId: 1, datetime: dt('2026-05-01T19:00:00Z') })];
   const plan = planReconciliation(incoming, DEFAULT_MOVIE_IDS, existing, PAST_NOW);
   assert.equal(plan.stats.updated, 1);
   assert.equal(plan.stats.inserted, 1);
@@ -338,7 +306,7 @@ test('pass 2: two incoming + two existing for the same movie → both pair up', 
   assert.equal(plan.stats.inserted, 0);
   assert.equal(plan.stats.deleted, 0);
   // 19:15 pairs with id 10 (15min), 21:45 pairs with id 20 (15min).
-  const pairings = plan.reschedules.map(r => r.id).sort();
+  const pairings = plan.reschedules.map((r) => r.id).sort();
   assert.deepEqual(pairings, [10, 20]);
 });
 

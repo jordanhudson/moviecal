@@ -80,7 +80,7 @@ async function fetchShowtimes(theatreId: number, date: Date): Promise<CineplexTh
 
   const response = await fetch(url, {
     headers: {
-      'Accept': 'application/json',
+      Accept: 'application/json',
       'ocp-apim-subscription-key': API_KEY,
     },
     signal: AbortSignal.timeout(30_000),
@@ -102,7 +102,10 @@ async function fetchShowtimes(theatreId: number, date: Date): Promise<CineplexTh
 // Pure parse step, separated from fetching so it can be tested against
 // fixtures. `venueName` is the short venue prefix (e.g. "Fifth Ave") that gets
 // combined with the session's auditorium into the theatre name.
-export function parseCineplexResponses(theatreResponses: CineplexTheatreResponse[], venueName: string): Screening[] {
+export function parseCineplexResponses(
+  theatreResponses: CineplexTheatreResponse[],
+  venueName: string,
+): Screening[] {
   const screenings: Screening[] = [];
 
   for (const theatreResponse of theatreResponses) {
@@ -149,7 +152,7 @@ export function parseCineplexResponses(theatreResponses: CineplexTheatreResponse
 // produces duplicates at the overlap.
 export function dedupeScreenings(screenings: Screening[]): Screening[] {
   const seen = new Set<string>();
-  return screenings.filter(s => {
+  return screenings.filter((s) => {
     const key = `${s.theatreName}\t${s.movie.title}\t${s.datetime.getTime()}`;
     if (seen.has(key)) return false;
     seen.add(key);
@@ -173,17 +176,18 @@ export async function scrapeCineplex(): Promise<Screening[]> {
           screenings.push(...parseCineplexResponses(theatreResponses, theatre.name));
 
           // Small delay between requests to be polite
-          await new Promise(resolve => setTimeout(resolve, 100));
-
+          await new Promise((resolve) => setTimeout(resolve, 100));
         } catch (error) {
-          console.warn(`Failed to fetch showtimes for ${theatre.name} on ${date.toDateString()}:`, error);
+          console.warn(
+            `Failed to fetch showtimes for ${theatre.name} on ${date.toDateString()}:`,
+            error,
+          );
           // Continue with other dates
         }
       }
     }
 
     return dedupeScreenings(screenings);
-
   } catch (error) {
     console.error('Error scraping Cineplex:', error);
     throw error;

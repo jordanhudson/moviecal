@@ -37,8 +37,8 @@ export async function getTMDBMovieDetails(tmdbId: number): Promise<TMDBMovieDeta
     const url = `https://api.themoviedb.org/3/movie/${tmdbId}`;
     const response = await fetch(url, {
       headers: {
-        'Authorization': `Bearer ${apiToken}`,
-        'Accept': 'application/json'
+        Authorization: `Bearer ${apiToken}`,
+        Accept: 'application/json',
       },
       signal: AbortSignal.timeout(10_000),
     });
@@ -74,13 +74,13 @@ async function searchTMDBResults(title: string, year?: number | null): Promise<T
     if (year) url += `&year=${year}`;
 
     const response = await fetch(url, {
-      headers: { 'Authorization': `Bearer ${apiToken}`, 'Accept': 'application/json' },
+      headers: { Authorization: `Bearer ${apiToken}`, Accept: 'application/json' },
       signal: AbortSignal.timeout(10_000),
     });
 
     if (!response.ok) return [];
 
-    const data = await response.json() as { results: TMDBSearchResult[] };
+    const data = (await response.json()) as { results: TMDBSearchResult[] };
     return data.results;
   } catch {
     return [];
@@ -95,12 +95,12 @@ async function getAlternativeTitles(tmdbId: number): Promise<string[]> {
   try {
     const url = `https://api.themoviedb.org/3/movie/${tmdbId}/alternative_titles`;
     const response = await fetch(url, {
-      headers: { 'Authorization': `Bearer ${apiToken}`, 'Accept': 'application/json' },
+      headers: { Authorization: `Bearer ${apiToken}`, Accept: 'application/json' },
       signal: AbortSignal.timeout(10_000),
     });
     if (!response.ok) return [];
-    const data = await response.json() as { titles?: { title: string }[] };
-    return (data.titles ?? []).map(t => t.title);
+    const data = (await response.json()) as { titles?: { title: string }[] };
+    return (data.titles ?? []).map((t) => t.title);
   } catch {
     return [];
   }
@@ -110,7 +110,10 @@ async function getAlternativeTitles(tmdbId: number): Promise<string[]> {
  * Simple TMDB title search. Returns the first result, or null.
  * For more advanced matching (runtime, short filtering), use searchTMDB in scrape.ts.
  */
-export async function searchTMDBByTitle(title: string, year?: number | null): Promise<TMDBSearchResult | null> {
+export async function searchTMDBByTitle(
+  title: string,
+  year?: number | null,
+): Promise<TMDBSearchResult | null> {
   const results = await searchTMDBResults(title, year);
   return results[0] ?? null;
 }
@@ -123,9 +126,7 @@ export function tmdbDetailsToMovieFields(details: TMDBMovieDetails): TMDBMovieFi
       ? `https://image.tmdb.org/t/p/w500${details.poster_path}`
       : null,
     runtime: details.runtime,
-    year: details.release_date
-      ? parseInt(details.release_date.substring(0, 4), 10)
-      : null,
+    year: details.release_date ? parseInt(details.release_date.substring(0, 4), 10) : null,
     tmdb_popularity: details.popularity ?? null,
   };
 }
@@ -158,13 +159,13 @@ async function tryColonNote(
 
   // (1) If the full string is itself an exact TMDB title, it's a real title — keep it.
   const fullResults = await searchTMDBResults(title, year);
-  if (fullResults.some(r => r.title.toLowerCase() === title.toLowerCase())) {
+  if (fullResults.some((r) => r.title.toLowerCase() === title.toLowerCase())) {
     return null;
   }
 
   // (2) The part before the colon must itself be an exact TMDB title to be trusted.
   const baseResults = await searchTMDBResults(base, year);
-  const baseMatch = baseResults.find(r => r.title.toLowerCase() === base.toLowerCase());
+  const baseMatch = baseResults.find((r) => r.title.toLowerCase() === base.toLowerCase());
   if (!baseMatch) return null;
 
   // When the movie is already matched, only split if the base resolves to that same movie.
@@ -180,7 +181,7 @@ async function tryColonNote(
   // is part of the real title (e.g. TMDB lists "Star Wars" with the alternative title
   // "Star Wars: Episode IV - A New Hope") — keep it.
   const altTitles = await getAlternativeTitles(baseMatch.id);
-  if (altTitles.some(t => t.toLowerCase() === title.toLowerCase())) return null;
+  if (altTitles.some((t) => t.toLowerCase() === title.toLowerCase())) return null;
 
   const details = await getTMDBMovieDetails(baseMatch.id);
   return {
@@ -215,7 +216,7 @@ export async function verifyTitleCleaning(
     if (existingTmdbId) {
       // Already matched — check if note content resolves to the same movie
       const noteResults = await searchTMDBResults(note);
-      if (noteResults.some(r => r.id === existingTmdbId)) {
+      if (noteResults.some((r) => r.id === existingTmdbId)) {
         return { title: rawTitle, note: null };
       }
     } else {
@@ -236,7 +237,7 @@ export async function verifyTitleCleaning(
       // Check 2: note content resolves to the same movie as the raw title search
       if (rawMatch) {
         const noteResults = await searchTMDBResults(note);
-        if (noteResults.some(r => r.id === rawMatch.id)) {
+        if (noteResults.some((r) => r.id === rawMatch.id)) {
           const details = await getTMDBMovieDetails(rawMatch.id);
           return {
             title: rawTitle,

@@ -17,7 +17,12 @@ import { secureHeaders } from 'hono/secure-headers';
 import { compress } from 'hono/compress';
 import type { MiddlewareHandler } from 'hono';
 import { pacificNow, pacificToday, pacificHour as getPacificHour } from './utils/time.js';
-import { THEATRE_ORDER, CINEPLEX_VENUES, CINEPLEX_PREFIXES, buildListingGroup } from './theatres.js';
+import {
+  THEATRE_ORDER,
+  CINEPLEX_VENUES,
+  CINEPLEX_PREFIXES,
+  buildListingGroup,
+} from './theatres.js';
 import { apiRoutes } from './routes/api.js';
 import { movieUrl } from './utils/movie-url.js';
 
@@ -80,7 +85,11 @@ app.notFound(async (c) => {
   if (c.req.path.startsWith('/api/')) {
     return c.json({ error: 'Not found' }, 404);
   }
-  const html = renderErrorPage(404, 'Page not found', "That page doesn't exist — maybe the movie left town.");
+  const html = renderErrorPage(
+    404,
+    'Page not found',
+    "That page doesn't exist — maybe the movie left town.",
+  );
   return c.html(html, 404);
 });
 
@@ -90,7 +99,11 @@ app.onError(async (err, c) => {
     return c.json({ error: 'Internal server error' }, 500);
   }
   try {
-    const html = renderErrorPage(500, 'Something went wrong', 'An unexpected error occurred. Please try again in a moment.');
+    const html = renderErrorPage(
+      500,
+      'Something went wrong',
+      'An unexpected error occurred. Please try again in a moment.',
+    );
     return c.html(html, 500);
   } catch {
     return c.text('Internal Server Error', 500);
@@ -147,7 +160,7 @@ app.get('/sitemap.xml', async (c) => {
   const movies = await db
     .selectFrom('movie')
     .innerJoin('screening', 'screening.movie_id', 'movie.id')
-    .select((eb) => [
+    .select([
       'movie.id',
       'movie.title',
       sql<Date>`greatest(movie.updated_at, max(screening.updated_at))`.as('lastmod'),
@@ -167,18 +180,32 @@ app.get('/sitemap.xml', async (c) => {
   const urls = [
     { loc: '/', lastmod: now, changefreq: 'hourly', priority: '1.0' },
     { loc: '/movies', lastmod: now, changefreq: 'hourly', priority: '0.8' },
-    ...movies.map(m => ({ loc: movieUrl(m.id, m.title), lastmod: toLastmod(m.lastmod), changefreq: 'daily', priority: '0.6' })),
-    ...theatres.map(t => ({ loc: `/theatre/${encodeURIComponent(t.theatre_name)}`, lastmod: toLastmod(t.lastmod), changefreq: 'daily', priority: '0.5' })),
+    ...movies.map((m) => ({
+      loc: movieUrl(m.id, m.title),
+      lastmod: toLastmod(m.lastmod),
+      changefreq: 'daily',
+      priority: '0.6',
+    })),
+    ...theatres.map((t) => ({
+      loc: `/theatre/${encodeURIComponent(t.theatre_name)}`,
+      lastmod: toLastmod(t.lastmod),
+      changefreq: 'daily',
+      priority: '0.5',
+    })),
   ];
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${urls.map(u => `  <url>
+${urls
+  .map(
+    (u) => `  <url>
     <loc>${BASE_URL}${u.loc}</loc>
     <lastmod>${u.lastmod}</lastmod>
     <changefreq>${u.changefreq}</changefreq>
     <priority>${u.priority}</priority>
-  </url>`).join('\n')}
+  </url>`,
+  )
+  .join('\n')}
 </urlset>`;
 
   return c.body(xml, 200, { 'Content-Type': 'application/xml' });
@@ -218,13 +245,7 @@ app.get('/movie/:id', async (c) => {
   // Get all screenings for this movie
   const screenings = await db
     .selectFrom('screening')
-    .select([
-      'id',
-      'datetime',
-      'theatre_name',
-      'booking_url',
-      'note',
-    ])
+    .select(['id', 'datetime', 'theatre_name', 'booking_url', 'note'])
     .where('movie_id', '=', movieId)
     .orderBy('datetime', 'asc')
     .execute();
@@ -264,14 +285,23 @@ app.get('/internal-movies', async (c) => {
 
   let query = db
     .selectFrom('movie')
-    .select(['movie.id', 'movie.title', 'movie.year', 'movie.runtime', 'movie.poster_url', 'movie.tmdb_id', 'movie.letterboxd_url'])
+    .select([
+      'movie.id',
+      'movie.title',
+      'movie.year',
+      'movie.runtime',
+      'movie.poster_url',
+      'movie.tmdb_id',
+      'movie.letterboxd_url',
+    ])
     .where((eb) =>
       eb.exists(
-        eb.selectFrom('screening')
+        eb
+          .selectFrom('screening')
           .select('screening.id')
           .whereRef('screening.movie_id', '=', 'movie.id')
-          .where('screening.datetime', '>=', now)
-      )
+          .where('screening.datetime', '>=', now),
+      ),
     );
 
   if (sort === 'title') {
@@ -354,7 +384,7 @@ async function renderHome(c: Context, dateParam?: string) {
   }
 
   // Build theatre list in fixed order, including theatres with no screenings
-  const theatres: TheatreRow[] = THEATRE_ORDER.map(theatre => ({
+  const theatres: TheatreRow[] = THEATRE_ORDER.map((theatre) => ({
     theatre,
     screenings: theatreMap.get(theatre) || [],
   }));
@@ -364,7 +394,7 @@ async function renderHome(c: Context, dateParam?: string) {
 
   // Independent theatres: each is its own listing group
   for (const theatre of THEATRE_ORDER) {
-    if (CINEPLEX_PREFIXES.some(p => theatre.startsWith(p))) continue;
+    if (CINEPLEX_PREFIXES.some((p) => theatre.startsWith(p))) continue;
     const screenings = theatreMap.get(theatre) || [];
     if (screenings.length === 0) continue;
     const group = buildListingGroup(theatre, screenings, true);
@@ -408,17 +438,21 @@ app.get('/date/:datestr', (c) => {
 });
 
 // Schedule scrape job every 2 hours
-cron.schedule('0 */2 * * *', async () => {
-  console.log('[CRON] Starting scheduled scrape job...');
-  try {
-    await runScrapeJob();
-    console.log('[CRON] Scheduled scrape job completed successfully');
-  } catch (error) {
-    console.error('[CRON] Scheduled scrape job failed:', error);
-  }
-}, {
-  timezone: 'UTC'
-});
+cron.schedule(
+  '0 */2 * * *',
+  async () => {
+    console.log('[CRON] Starting scheduled scrape job...');
+    try {
+      await runScrapeJob();
+      console.log('[CRON] Scheduled scrape job completed successfully');
+    } catch (error) {
+      console.error('[CRON] Scheduled scrape job failed:', error);
+    }
+  },
+  {
+    timezone: 'UTC',
+  },
+);
 
 const port = 3000;
 const hostname = '0.0.0.0';
@@ -427,5 +461,5 @@ console.log(`Server started at ${new Date().toLocaleTimeString()} on http://${ho
 serve({
   fetch: app.fetch,
   port,
-  hostname
+  hostname,
 });

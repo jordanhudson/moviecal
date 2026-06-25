@@ -15,7 +15,8 @@ export async function scrapeHollywood(): Promise<Screening[]> {
   // Fetch the movies page
   const moviesResponse = await fetch('https://www.hollywoodtheatre.ca/movies', {
     headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     },
     signal: AbortSignal.timeout(30_000),
   });
@@ -35,12 +36,13 @@ export async function scrapeHollywood(): Promise<Screening[]> {
   for (const card of movieCards) {
     try {
       // Small delay between requests
-      await new Promise(resolve => setTimeout(resolve, CRAWL_DELAY_MS));
+      await new Promise((resolve) => setTimeout(resolve, CRAWL_DELAY_MS));
 
       const eventUrl = `https://www.hollywoodtheatre.ca${card.eventUrl}`;
       const eventResponse = await fetch(eventUrl, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         },
         signal: AbortSignal.timeout(30_000),
       });
@@ -106,7 +108,7 @@ function parseMoviesPage(html: string): MovieCard[] {
 
     // Convert ALL CAPS to Title Case
     if (title === title.toUpperCase()) {
-      title = title.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+      title = title.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
     }
 
     // Find ticket URL: look for a sibling or nearby link to showpass.com or opendate.io
@@ -118,7 +120,10 @@ function parseMoviesPage(html: string): MovieCard[] {
       ticketUrl = $ticketLink.first().attr('href') || '';
     } else {
       // Try the next siblings at the parent level
-      const $nextTicket = $parent.nextAll().find('a[href*="showpass.com"], a[href*="opendate.io"]').first();
+      const $nextTicket = $parent
+        .nextAll()
+        .find('a[href*="showpass.com"], a[href*="opendate.io"]')
+        .first();
       if ($nextTicket.length) {
         ticketUrl = $nextTicket.attr('href') || '';
       }

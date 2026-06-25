@@ -61,7 +61,7 @@ const ONE_HOUR_MS = 60 * 60 * 1000;
  * see (and match) past screenings — pass 4 protects them from deletion separately.
  */
 export function computeReconcileWindow(
-  incoming: Screening[]
+  incoming: Screening[],
 ): { lowerBound: Date; upperBound: Date } | null {
   if (incoming.length === 0) return null;
 
@@ -105,7 +105,7 @@ export function planReconciliation(
   incoming: Screening[],
   titleToMovieId: Map<string, number>,
   existing: ExistingScreening[],
-  now: Date
+  now: Date,
 ): ReconcilePlan {
   const plan: ReconcilePlan = {
     metadataUpdates: [],
@@ -133,7 +133,7 @@ export function planReconciliation(
     });
   }
 
-  const existingItems: ExistingItem[] = existing.map(e => ({
+  const existingItems: ExistingItem[] = existing.map((e) => ({
     ...e,
     datetimeMs: e.datetime.getTime(),
     reconciled: false,
@@ -142,11 +142,12 @@ export function planReconciliation(
   // Pass 1: exact match on (theatre_name, movie_id, datetime).
   // Queue metadata updates if booking_url or note drifted — same screening, stale metadata.
   for (const inc of incomingItems) {
-    const exact = existingItems.find(e =>
-      !e.reconciled &&
-      e.theatreName === inc.screening.theatreName &&
-      e.movieId === inc.movieId &&
-      e.datetimeMs === inc.datetimeMs
+    const exact = existingItems.find(
+      (e) =>
+        !e.reconciled &&
+        e.theatreName === inc.screening.theatreName &&
+        e.movieId === inc.movieId &&
+        e.datetimeMs === inc.datetimeMs,
     );
     if (!exact) continue;
 
@@ -167,7 +168,7 @@ export function planReconciliation(
   // Iterate incoming in datetime order, greedy closest-time pairing.
   // Each existing can only be paired once (reconciled flag enforces it).
   const unreconciledIncoming = incomingItems
-    .filter(i => !i.reconciled)
+    .filter((i) => !i.reconciled)
     .sort((a, b) => a.datetimeMs - b.datetimeMs);
 
   for (const inc of unreconciledIncoming) {
@@ -232,9 +233,15 @@ export async function reconcileScreenings(
   trx: Transaction<Database>,
   theatreNames: string[],
   incoming: Screening[],
-  titleToMovieId: Map<string, number>
+  titleToMovieId: Map<string, number>,
 ): Promise<ReconcileStats> {
-  const emptyStats: ReconcileStats = { matched: 0, updated: 0, inserted: 0, deleted: 0, skipped: 0 };
+  const emptyStats: ReconcileStats = {
+    matched: 0,
+    updated: 0,
+    inserted: 0,
+    deleted: 0,
+    skipped: 0,
+  };
 
   const now = new Date();
   const window = computeReconcileWindow(incoming);
@@ -248,7 +255,7 @@ export async function reconcileScreenings(
     .where('datetime', '<=', window.upperBound)
     .execute();
 
-  const existing: ExistingScreening[] = existingRows.map(r => ({
+  const existing: ExistingScreening[] = existingRows.map((r) => ({
     id: r.id,
     movieId: r.movie_id,
     datetime: new Date(r.datetime),
@@ -261,7 +268,7 @@ export async function reconcileScreenings(
 
   if (plan.skippedTitles.length > 0) {
     console.error(
-      `  🚨 BUG: ${plan.skippedTitles.length} incoming screening(s) had no matching movie row after the insert phase — this should never happen. Dropping them to avoid a crash, but this indicates a bug upstream (title mutation out of sync, failed insert, or unicode mismatch). Titles: ${plan.skippedTitles.map(t => JSON.stringify(t)).join(', ')}`
+      `  🚨 BUG: ${plan.skippedTitles.length} incoming screening(s) had no matching movie row after the insert phase — this should never happen. Dropping them to avoid a crash, but this indicates a bug upstream (title mutation out of sync, failed insert, or unicode mismatch). Titles: ${plan.skippedTitles.map((t) => JSON.stringify(t)).join(', ')}`,
     );
   }
 
@@ -306,10 +313,7 @@ export async function reconcileScreenings(
   }
 
   if (plan.deleteIds.length > 0) {
-    await trx
-      .deleteFrom('screening')
-      .where('id', 'in', plan.deleteIds)
-      .executeTakeFirst();
+    await trx.deleteFrom('screening').where('id', 'in', plan.deleteIds).executeTakeFirst();
   }
 
   return plan.stats;

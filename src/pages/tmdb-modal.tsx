@@ -111,7 +111,13 @@ export function TmdbModal() {
           <form onsubmit="return false">
             <input type="hidden" autocomplete="username" value="admin" />
             <div class="tmdb-search-row">
-              <input type="password" id="tmdbTokenInput" placeholder="Admin token" autocomplete="current-password" style="flex: 1;" />
+              <input
+                type="password"
+                id="tmdbTokenInput"
+                placeholder="Admin token"
+                autocomplete="current-password"
+                style="flex: 1;"
+              />
             </div>
           </form>
           <div style="border-top: 1px solid #353535; margin-bottom: 12px;"></div>
@@ -128,8 +134,12 @@ export function TmdbModal() {
               <button id="tmdbIdBtn">Apply</button>
             </div>
           </div>
-          <div class="tmdb-id-label" style="margin-top: 12px;">Applying a match also refreshes the Letterboxd link from the new TMDB id.</div>
-          <button class="tmdb-modal-close" id="tmdbModalClose">Cancel</button>
+          <div class="tmdb-id-label" style="margin-top: 12px;">
+            Applying a match also refreshes the Letterboxd link from the new TMDB id.
+          </div>
+          <button class="tmdb-modal-close" id="tmdbModalClose">
+            Cancel
+          </button>
         </div>
       </div>
       <script dangerouslySetInnerHTML={{ __html: MODAL_SCRIPT }} />

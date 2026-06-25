@@ -22,6 +22,8 @@ export function safeHref(url: string): string {
     if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
       return url;
     }
-  } catch {}
+  } catch {
+    // Malformed URL — fall through to the safe placeholder.
+  }
   return '#';
 }

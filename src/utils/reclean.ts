@@ -45,7 +45,9 @@ export async function recleanExistingTitles() {
           .set(verified.tmdbData)
           .where('id', '=', existing.id)
           .execute();
-        console.log(`  → TMDB confirms "${existing.title}" is the real title, backfilled TMDB data`);
+        console.log(
+          `  → TMDB confirms "${existing.title}" is the real title, backfilled TMDB data`,
+        );
       }
       continue;
     }
@@ -66,10 +68,7 @@ export async function recleanExistingTitles() {
         .set({ movie_id: duplicate.id })
         .where('movie_id', '=', existing.id)
         .execute();
-      await db
-        .deleteFrom('movie')
-        .where('id', '=', existing.id)
-        .execute();
+      await db.deleteFrom('movie').where('id', '=', existing.id).execute();
       console.log(`  → Merged stale movie "${existing.title}" into "${verified.title}"`);
     } else {
       // Rename and retry missing external lookups with the cleaned title
@@ -93,11 +92,7 @@ export async function recleanExistingTitles() {
         }
       }
 
-      await db
-        .updateTable('movie')
-        .set(updates)
-        .where('id', '=', existing.id)
-        .execute();
+      await db.updateTable('movie').set(updates).where('id', '=', existing.id).execute();
       await applyNoteToScreenings(existing.id, verified.note);
       console.log(`  → Cleaned movie title "${existing.title}" → "${verified.title}"`);
     }

@@ -19,9 +19,7 @@
             "genres": [],
             "experiences": [
               {
-                "experienceTypes": [
-                  "Regular"
-                ],
+                "experienceTypes": ["Regular"],
                 "order": 2,
                 "isCcEnabled": true,
                 "isDsEnabled": true,
@@ -68,10 +66,7 @@
             "brightcoveVideoId": "ref:Disclosure Day EN Trailer 4",
             "localRating": "PG",
             "ratingDescription": "Parental guidance advised.",
-            "warnings": [
-              "Violence",
-              "Coarse Language"
-            ],
+            "warnings": ["Violence", "Coarse Language"],
             "languageCode": "EN",
             "language": "English",
             "subtitleLanguage": "",
@@ -91,14 +86,10 @@
             "smallPosterImageUrl": "https://mediafiles.cineplex.com/Central/Film/Posters/60470_130_193.jpg",
             "mediumPosterImageUrl": "https://mediafiles.cineplex.com/Central/Film/Posters/60470_320_470.jpg",
             "largePosterImageUrl": "https://mediafiles.cineplex.com/Central/Film/Posters/60470_768_1024.jpg",
-            "genres": [
-              "Horror"
-            ],
+            "genres": ["Horror"],
             "experiences": [
               {
-                "experienceTypes": [
-                  "Regular"
-                ],
+                "experienceTypes": ["Regular"],
                 "order": 2,
                 "isCcEnabled": true,
                 "isDsEnabled": true,
@@ -145,11 +136,7 @@
             "brightcoveVideoId": "ref:Obsession EN Trailer 3",
             "localRating": "14A",
             "ratingDescription": "Suitable for persons 14 years of age or older.",
-            "warnings": [
-              "Violence",
-              "Coarse Language",
-              "Sexually suggestive scenes"
-            ],
+            "warnings": ["Violence", "Coarse Language", "Sexually suggestive scenes"],
             "languageCode": "EN",
             "language": "English",
             "subtitleLanguage": "",

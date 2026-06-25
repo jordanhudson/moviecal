@@ -6,7 +6,11 @@ import { scrapeRio } from './scrapers/rio-scraper.js';
 import { scrapeHollywood } from './scrapers/hollywood-scraper.js';
 import { scrapeCineplex } from './scrapers/cineplex-scraper.js';
 import type { Screening, Movie } from './models.js';
-import { getTMDBMovieDetails, tmdbDetailsToMovieFields, verifyTitleCleaning } from './utils/tmdb.js';
+import {
+  getTMDBMovieDetails,
+  tmdbDetailsToMovieFields,
+  verifyTitleCleaning,
+} from './utils/tmdb.js';
 import type { TMDBMovieDetails } from './utils/tmdb.js';
 import { recleanExistingTitles } from './utils/reclean.js';
 import { searchLetterboxdByTmdbId } from './utils/letterboxd.js';
@@ -26,7 +30,11 @@ interface TMDBSearchResponse {
   results: TMDBMovieResult[];
 }
 
-async function searchTMDB(title: string, year?: number | null, runtime?: number | null): Promise<TMDBMovieResult | null> {
+async function searchTMDB(
+  title: string,
+  year?: number | null,
+  runtime?: number | null,
+): Promise<TMDBMovieResult | null> {
   const apiToken = process.env.TMDB_API_TOKEN;
   if (!apiToken) {
     console.warn('TMDB_API_TOKEN not set, skipping TMDB search');
@@ -41,8 +49,8 @@ async function searchTMDB(title: string, year?: number | null, runtime?: number 
 
     const response = await fetch(url, {
       headers: {
-        'Authorization': `Bearer ${apiToken}`,
-        'Accept': 'application/json'
+        Authorization: `Bearer ${apiToken}`,
+        Accept: 'application/json',
       },
       signal: AbortSignal.timeout(10_000),
     });
@@ -150,7 +158,9 @@ export async function runScrapeJob(scraperName?: string) {
     `.execute(lockConn);
 
     if (!rows[0]?.locked) {
-      console.log('Another scrape job is already running (advisory lock held) — skipping this run.');
+      console.log(
+        'Another scrape job is already running (advisory lock held) — skipping this run.',
+      );
       return;
     }
 
@@ -164,13 +174,9 @@ export async function runScrapeJob(scraperName?: string) {
 
 async function runScrapeJobLocked(scraperName?: string) {
   // Determine which scrapers to run
-  const scrapersToRun = scraperName
-    ? { [scraperName]: scrapers[scraperName] }
-    : scrapers;
+  const scrapersToRun = scraperName ? { [scraperName]: scrapers[scraperName] } : scrapers;
 
-  console.log(scraperName
-    ? `Starting scrape job for ${scraperName}...`
-    : 'Starting scrape job...');
+  console.log(scraperName ? `Starting scrape job for ${scraperName}...` : 'Starting scrape job...');
 
   // Run selected scrapers in parallel
   const scraperEntries = Object.entries(scrapersToRun);
@@ -182,9 +188,15 @@ async function runScrapeJobLocked(scraperName?: string) {
         return { name, screenings, startedAt, finishedAt: new Date(), error: null };
       } catch (err) {
         console.error(`${name} scraper failed:`, (err as Error).message);
-        return { name, screenings: [] as Screening[], startedAt, finishedAt: new Date(), error: (err as Error).message };
+        return {
+          name,
+          screenings: [] as Screening[],
+          startedAt,
+          finishedAt: new Date(),
+          error: (err as Error).message,
+        };
       }
-    })
+    }),
   );
 
   // Build results map
@@ -194,7 +206,7 @@ async function runScrapeJobLocked(scraperName?: string) {
   }
 
   // Combine all screenings
-  const allScreenings = results.flatMap(r => r.screenings);
+  const allScreenings = results.flatMap((r) => r.screenings);
 
   console.log(`\nCollected ${allScreenings.length} total screenings:`);
   for (const { name, screenings } of results) {
@@ -206,13 +218,15 @@ async function runScrapeJobLocked(scraperName?: string) {
   try {
     await db
       .insertInto('scrape_run')
-      .values(results.map(r => ({
-        scraper: r.name,
-        started_at: r.startedAt,
-        finished_at: r.finishedAt,
-        screening_count: r.screenings.length,
-        error: r.error,
-      })))
+      .values(
+        results.map((r) => ({
+          scraper: r.name,
+          started_at: r.startedAt,
+          finished_at: r.finishedAt,
+          screening_count: r.screenings.length,
+          error: r.error,
+        })),
+      )
       .execute();
   } catch (err) {
     console.warn('Failed to record scrape_run rows:', (err as Error).message);
@@ -248,8 +262,8 @@ async function runScrapeJobLocked(scraperName?: string) {
     }
 
     // If any screening has a note, verify with TMDB that the parens aren't part of the real title
-    const movieScreenings = allScreenings.filter(s => s.movie.title === movie.title);
-    const firstNote = movieScreenings.find(s => s.note)?.note ?? null;
+    const movieScreenings = allScreenings.filter((s) => s.movie.title === movie.title);
+    const firstNote = movieScreenings.find((s) => s.note)?.note ?? null;
 
     if (firstNote) {
       const rawTitle = `${movie.title} (${firstNote})`;
@@ -336,9 +350,13 @@ async function runScrapeJobLocked(scraperName?: string) {
       }
 
       tmdbFoundCount++;
-      console.log(`    ✓ Found on TMDB: ${tmdbFields.tmdb_url}${runtime ? ` (${runtime} min)` : ''}`);
+      console.log(
+        `    ✓ Found on TMDB: ${tmdbFields.tmdb_url}${runtime ? ` (${runtime} min)` : ''}`,
+      );
     } else {
-      console.log(`    ✗ Not found on TMDB${runtime ? ` (using scraped runtime: ${runtime} min)` : ''}`);
+      console.log(
+        `    ✗ Not found on TMDB${runtime ? ` (using scraped runtime: ${runtime} min)` : ''}`,
+      );
     }
 
     // Look up Letterboxd via TMDB id (its /tmdb/{id}/ endpoint redirects to the
@@ -390,8 +408,8 @@ async function runScrapeJobLocked(scraperName?: string) {
       continue;
     }
 
-    const theatreNames = [...new Set(screenings.map(s => s.theatreName))];
-    const titles = [...new Set(screenings.map(s => s.movie.title))];
+    const theatreNames = [...new Set(screenings.map((s) => s.theatreName))];
+    const titles = [...new Set(screenings.map((s) => s.movie.title))];
 
     await db.transaction().execute(async (trx) => {
       // Batch-resolve title → movie_id for this scraper's screenings.
@@ -400,13 +418,13 @@ async function runScrapeJobLocked(scraperName?: string) {
         .select(['id', 'title'])
         .where('title', 'in', titles)
         .execute();
-      const titleToMovieId = new Map(movies.map(m => [m.title, m.id]));
+      const titleToMovieId = new Map(movies.map((m) => [m.title, m.id]));
 
       const stats = await reconcileScreenings(trx, theatreNames, screenings, titleToMovieId);
 
       const skippedSuffix = stats.skipped > 0 ? `, skipped ${stats.skipped}` : '';
       console.log(
-        `  - ${name}: matched ${stats.matched}, updated ${stats.updated}, inserted ${stats.inserted}, deleted ${stats.deleted}${skippedSuffix} (theatres: ${theatreNames.join(', ')})`
+        `  - ${name}: matched ${stats.matched}, updated ${stats.updated}, inserted ${stats.inserted}, deleted ${stats.deleted}${skippedSuffix} (theatres: ${theatreNames.join(', ')})`,
       );
     });
   }
@@ -426,8 +444,8 @@ async function pingHeartbeat(results: ScraperRunResult[]) {
   if (!url) return;
 
   const problems = results
-    .filter(r => r.error || r.screenings.length === 0)
-    .map(r => `${r.name}: ${r.error ?? 'returned 0 screenings'}`);
+    .filter((r) => r.error || r.screenings.length === 0)
+    .map((r) => `${r.name}: ${r.error ?? 'returned 0 screenings'}`);
   const target = problems.length > 0 ? `${url.replace(/\/+$/, '')}/fail` : url;
 
   try {
@@ -436,9 +454,11 @@ async function pingHeartbeat(results: ScraperRunResult[]) {
       body: problems.join('\n'),
       signal: AbortSignal.timeout(10_000),
     });
-    console.log(problems.length > 0
-      ? `Heartbeat: reported failure (${problems.join('; ')})`
-      : 'Heartbeat: reported success');
+    console.log(
+      problems.length > 0
+        ? `Heartbeat: reported failure (${problems.join('; ')})`
+        : 'Heartbeat: reported success',
+    );
   } catch (err) {
     console.warn('Heartbeat ping failed:', (err as Error).message);
   }
