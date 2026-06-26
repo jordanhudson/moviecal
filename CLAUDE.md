@@ -164,11 +164,13 @@ Shared helpers: `src/theatres.ts` (`THEATRE_ORDER`, `CINEPLEX_VENUES`/`CINEPLEX_
 - `tmdb_id`, `tmdb_url`, `poster_url`, `tmdb_popularity` — from TMDB
 - `letterboxd_url` — from Letterboxd (`'MISS'` = searched but not found, `null` = not yet searched)
 - `created_at`, `updated_at`
+- **Identity**: `tmdb_id` is canonical (unique partial index `idx_movie_tmdb_id_unique`, `WHERE tmdb_id IS NOT NULL`). When a scrape matches a new title to a `tmdb_id` that already exists, it reuses that row and renames the incoming screenings to its title instead of inserting a duplicate (`scrape.ts`). TMDB-less movies (`tmdb_id IS NULL`) still fall back to exact-title identity.
 
 `screening` table:
 - `id`, `movie_id`, `datetime`, `theatre_name`, `booking_url`
 - `note` — extracted from title cleaning (e.g. "Advance Screening", "4K Restoration")
 - `created_at`, `updated_at`
+- **Identity**: unique index `idx_screening_identity_unique` on `(theatre_name, movie_id, datetime)` — the tuple the reconciler keys on. Reconcile inserts use `ON CONFLICT DO NOTHING`, so a duplicate is a race-safe no-op instead of an error.
 
 `scrape_run` table:
 - `id`, `scraper`, `started_at`, `finished_at`, `screening_count`, `error`, `created_at`

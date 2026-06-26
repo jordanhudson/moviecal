@@ -309,6 +309,10 @@ export async function reconcileScreenings(
         booking_url: i.bookingUrl,
         note: i.note,
       })
+      // Unique index idx_screening_identity_unique enforces (theatre, movie,
+      // datetime). A collision means the row already exists, so doing nothing is
+      // the correct, race-safe outcome rather than aborting the transaction.
+      .onConflict((oc) => oc.columns(['theatre_name', 'movie_id', 'datetime']).doNothing())
       .execute();
   }
 

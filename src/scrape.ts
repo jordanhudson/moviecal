@@ -359,6 +359,30 @@ async function runScrapeJobLocked(scraperName?: string) {
       );
     }
 
+    // Identity is tmdb_id, not the title string: if a movie with this tmdb_id
+    // already exists (under any spelling), reuse it rather than inserting a
+    // duplicate — the unique index on movie.tmdb_id would reject the insert
+    // anyway. Canonicalize the incoming screenings' title to the existing row's
+    // so reconcile attaches them to it.
+    if (tmdbFields.tmdb_id) {
+      const existingByTmdb = await db
+        .selectFrom('movie')
+        .select(['id', 'title'])
+        .where('tmdb_id', '=', tmdbFields.tmdb_id)
+        .executeTakeFirst();
+      if (existingByTmdb) {
+        if (existingByTmdb.title !== movie.title) {
+          console.log(
+            `  → Same TMDB id ${tmdbFields.tmdb_id} as existing "${existingByTmdb.title}" — merging "${movie.title}" into it`,
+          );
+          for (const s of movieScreenings) s.movie.title = existingByTmdb.title;
+          movie.title = existingByTmdb.title;
+        }
+        existingMoviesCount++;
+        continue;
+      }
+    }
+
     // Look up Letterboxd via TMDB id (its /tmdb/{id}/ endpoint redirects to the
     // canonical film page). Only possible when we matched the movie on TMDB;
     // without a tmdb_id we leave letterboxd_url null (not yet searched).
