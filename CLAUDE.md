@@ -162,7 +162,7 @@ Shared helpers: `src/theatres.ts` (`THEATRE_ORDER`, `CINEPLEX_VENUES`/`CINEPLEX_
 `movie` table:
 - `id`, `title`, `year`, `director`, `runtime`
 - `tmdb_id`, `tmdb_url`, `poster_url`, `tmdb_popularity` — from TMDB
-- `letterboxd_url` — from Letterboxd (`'MISS'` = searched but not found, `null` = not yet searched)
+- `letterboxd_url` — from Letterboxd: a real URL, or `null` (no known URL — whether not yet searched or the lookup found nothing). No sentinel; Letterboxd sources from TMDB so genuine misses are rare.
 - `created_at`, `updated_at`
 - **Identity**: `tmdb_id` is canonical (unique partial index `idx_movie_tmdb_id_unique`, `WHERE tmdb_id IS NOT NULL`). When a scrape matches a new title to a `tmdb_id` that already exists, it reuses that row and renames the incoming screenings to its title instead of inserting a duplicate (`scrape.ts`). TMDB-less movies (`tmdb_id IS NULL`) still fall back to exact-title identity.
 
@@ -253,7 +253,7 @@ This means adding a new pattern to the title cleaner is safe — just add the re
 
 **Search**: `scrape.ts` also has `searchTMDB()` which searches TMDB by title+year, filters out shorts (<60 min), and picks the best runtime match.
 
-**Letterboxd**: `scrape.ts` has `searchLetterboxd()` which tries slug-based URL lookups on letterboxd.com. Stores `'MISS'` for not-found to distinguish from not-yet-searched (`null`).
+**Letterboxd**: `scrape.ts` uses `searchLetterboxdByTmdbId()`, which resolves the canonical film URL via Letterboxd's `/tmdb/{id}/` redirect (Letterboxd sources its catalog from TMDB). Stores the URL or `null` — no sentinel. Only new movies (scrape) and the one-off `backfill-letterboxd.ts` populate it; the regular reclean/repair passes don't retry Letterboxd.
 
 Requires `TMDB_API_TOKEN` in `.env` (optional - scraper works without it).
 

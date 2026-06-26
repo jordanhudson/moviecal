@@ -372,10 +372,7 @@ export function renderIndexPage(
                         screening.movie_runtime,
                       );
                       const time = formatTime(new Date(screening.datetime)).replace(/(am|pm)$/, '');
-                      const lookupUrl =
-                        screening.letterboxd_url && screening.letterboxd_url !== 'MISS'
-                          ? screening.letterboxd_url
-                          : screening.tmdb_url;
+                      const lookupUrl = screening.letterboxd_url ?? screening.tmdb_url;
                       return (
                         <div class="screening" style={`left: ${left}; width: ${width};`}>
                           <a
@@ -401,9 +398,7 @@ export function renderIndexPage(
                                   target="_blank"
                                   class="screening-link"
                                   title={
-                                    screening.letterboxd_url && screening.letterboxd_url !== 'MISS'
-                                      ? 'View on Letterboxd'
-                                      : 'View on TMDB'
+                                    screening.letterboxd_url ? 'View on Letterboxd' : 'View on TMDB'
                                   }
                                 >
                                   {'🔍'}

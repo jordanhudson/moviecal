@@ -109,13 +109,12 @@ apiRoutes.post('/api/movie/:id/tmdb-update', async (c) => {
   const fields = tmdbDetailsToMovieFields(details);
 
   // Re-derive the Letterboxd URL from the new TMDB id (exact match via the
-  // /tmdb/ redirect). 'MISS' = searched but not found, matching the scrape
-  // convention, so a later repair/re-clean can retry.
+  // /tmdb/ redirect). null if the lookup found nothing.
   const letterboxdUrl = await searchLetterboxdByTmdbId(tmdbId);
 
   await db
     .updateTable('movie')
-    .set({ ...fields, letterboxd_url: letterboxdUrl ?? 'MISS' })
+    .set({ ...fields, letterboxd_url: letterboxdUrl })
     .where('id', '=', movieId)
     .execute();
 

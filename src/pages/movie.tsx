@@ -194,7 +194,7 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
                   View on TMDB
                 </a>
               )}
-              {movie.letterboxd_url && movie.letterboxd_url !== 'MISS' && (
+              {movie.letterboxd_url && (
                 <a href={safeHref(movie.letterboxd_url)} target="_blank" class="letterboxd-link">
                   View on Letterboxd
                 </a>

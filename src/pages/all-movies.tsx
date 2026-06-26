@@ -81,12 +81,7 @@ export function renderAllMoviesPage(movies: MovieRow[], sort: string): string {
                   )}
                   <span>
                     {' '}
-                    {'\u00b7'} LB:{' '}
-                    {movie.letterboxd_url === null
-                      ? 'null'
-                      : movie.letterboxd_url === 'MISS'
-                        ? 'MISS'
-                        : movie.letterboxd_url}
+                    {'\u00b7'} LB: {movie.letterboxd_url ?? 'null'}
                   </span>
                 </div>
               </div>

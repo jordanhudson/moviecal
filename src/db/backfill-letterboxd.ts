@@ -1,10 +1,9 @@
 // One-off backfill: re-resolve every movie's Letterboxd URL from its TMDB id.
 //
-// The old slug-guessing search produced many false 'MISS' values. Now that we
-// look Letterboxd up via its /tmdb/{id}/ redirect, this walks every movie that
-// has a tmdb_id and overwrites letterboxd_url with the canonical URL (or 'MISS'
-// when the film genuinely isn't on Letterboxd). Sleeps 500ms between rows to be
-// polite to letterboxd.com.
+// The old slug-guessing search produced many false misses. Now that we look
+// Letterboxd up via its /tmdb/{id}/ redirect, this walks every movie that has a
+// tmdb_id and overwrites letterboxd_url with the canonical URL (or null when the
+// lookup finds nothing). Sleeps 500ms between rows to be polite to letterboxd.com.
 //
 // Run on prod (tsx is not available there):
 //   fly ssh console -a movieclock -C "node dist/db/backfill-letterboxd.js"
@@ -38,20 +37,15 @@ async function backfillLetterboxd() {
 
     // tmdb_id is guaranteed non-null by the query filter above.
     const url = await searchLetterboxdByTmdbId(movie.tmdb_id!);
-    const value = url ?? 'MISS';
 
-    await db
-      .updateTable('movie')
-      .set({ letterboxd_url: value })
-      .where('id', '=', movie.id)
-      .execute();
+    await db.updateTable('movie').set({ letterboxd_url: url }).where('id', '=', movie.id).execute();
 
     if (url) {
       foundCount++;
       console.log(`  ${progress} ✓ ${movie.title} — ${url}`);
     } else {
       missCount++;
-      console.log(`  ${progress} ✗ ${movie.title} — not on Letterboxd (MISS)`);
+      console.log(`  ${progress} ✗ ${movie.title} — no Letterboxd URL found`);
     }
 
     if (i < movies.length - 1) {
