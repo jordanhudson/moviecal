@@ -4,7 +4,7 @@ import { TmdbModal } from './tmdb-modal.js';
 import { safeHref, jsonForScript } from '../utils/html.js';
 import { pacificNow } from '../utils/time.js';
 import { movieUrl } from '../utils/movie-url.js';
-import { CINEPLEX_VENUES } from '../theatres.js';
+import { CINEPLEX_VENUES } from '../venues.js';
 
 export interface MovieDetail {
   id: number;

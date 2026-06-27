@@ -17,12 +17,7 @@ import { secureHeaders } from 'hono/secure-headers';
 import { compress } from 'hono/compress';
 import type { MiddlewareHandler } from 'hono';
 import { pacificNow, pacificToday, pacificHour as getPacificHour } from './utils/time.js';
-import {
-  THEATRE_ORDER,
-  CINEPLEX_VENUES,
-  CINEPLEX_PREFIXES,
-  buildListingGroup,
-} from './theatres.js';
+import { THEATRE_ORDER, buildDayListingGroups } from './venues.js';
 import { apiRoutes } from './routes/api.js';
 import { movieUrl } from './utils/movie-url.js';
 
@@ -390,29 +385,7 @@ async function renderHome(c: Context, dateParam?: string) {
   }));
 
   // Build listing groups for all venues (movie-list view)
-  const listingGroups: ListingGroup[] = [];
-
-  // Independent theatres: each is its own listing group
-  for (const theatre of THEATRE_ORDER) {
-    if (CINEPLEX_PREFIXES.some((p) => theatre.startsWith(p))) continue;
-    const screenings = theatreMap.get(theatre) || [];
-    if (screenings.length === 0) continue;
-    const group = buildListingGroup(theatre, screenings, true);
-    group.theatreName = theatre;
-    listingGroups.push(group);
-  }
-
-  // Cineplex venues: merge auditoriums into one group per venue
-  for (const venue of CINEPLEX_VENUES) {
-    const venueScreenings: ScreeningWithMovie[] = [];
-    for (const [theatreName, screenings] of theatreMap) {
-      if (theatreName.startsWith(venue.prefix)) {
-        venueScreenings.push(...screenings);
-      }
-    }
-    if (venueScreenings.length === 0) continue;
-    listingGroups.push(buildListingGroup(venue.display, venueScreenings));
-  }
+  const listingGroups: ListingGroup[] = buildDayListingGroups(theatreMap);
 
   // Render HTML
   const html = renderIndexPage(date, theatres, listingGroups);

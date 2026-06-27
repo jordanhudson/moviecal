@@ -2,7 +2,7 @@
 import { renderPage } from './layout.js';
 import { safeHref, jsonForScript } from '../utils/html.js';
 import { movieUrl } from '../utils/movie-url.js';
-import { CINEPLEX_VENUES } from '../theatres.js';
+import { CINEPLEX_VENUES, auditoriumLabel } from '../venues.js';
 
 const DEFAULT_RUNTIME_MINUTES = 105;
 const MIN_DISPLAY_RUNTIME_MINUTES = 90;
@@ -90,14 +90,6 @@ function calculatePosition(
   const widthPercent = (effectiveRuntime / totalMinutes) * 100;
 
   return { left: `${Math.max(0, leftPercent)}%`, width: `${widthPercent}%` };
-}
-
-const THEATRE_DISPLAY_NAMES: Record<string, string> = {
-  'VIFF Lochmaddy Studio': 'VIFF Lochmaddy',
-};
-
-function displayName(theatre: string): string {
-  return THEATRE_DISPLAY_NAMES[theatre] || theatre;
 }
 
 function formatTime(d: Date): string {
@@ -337,7 +329,7 @@ export function renderIndexPage(
             <div class="chips" id="chips">
               {listingGroups.map((g) => (
                 <button class="chip on" data-theatre={g.venue}>
-                  {displayName(g.venue)}
+                  {auditoriumLabel(g.venue)}
                 </button>
               ))}
             </div>
@@ -360,7 +352,9 @@ export function renderIndexPage(
               {theatres.map(({ theatre, screenings }) => (
                 <div class="theatre-row" data-theatre={theatre}>
                   <div class="theatre-label">
-                    <a href={`/theatre/${encodeURIComponent(theatre)}`}>{displayName(theatre)}</a>
+                    <a href={`/theatre/${encodeURIComponent(theatre)}`}>
+                      {auditoriumLabel(theatre)}
+                    </a>
                     <button class="row-hide" title={`Hide ${theatre}`}>
                       hide
                     </button>
@@ -423,10 +417,10 @@ export function renderIndexPage(
                 <div class="venue-head">
                   {group.theatreName ? (
                     <a href={`/theatre/${encodeURIComponent(group.theatreName)}`}>
-                      {displayName(group.venue)}
+                      {auditoriumLabel(group.venue)}
                     </a>
                   ) : (
-                    <span>{displayName(group.venue)}</span>
+                    <span>{auditoriumLabel(group.venue)}</span>
                   )}
                 </div>
                 {group.movies.map((movie) => (

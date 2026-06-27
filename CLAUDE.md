@@ -143,7 +143,15 @@ Page rendering is in `src/pages/` (all `.tsx`, see JSX Rendering above):
 - **`src/pages/tmdb-modal.tsx`** - Shared TMDB fix-match modal component
 - **`src/pages/theatre-card.tsx`** - Shared venue/showtimes card used by the By Movie page
 
-Shared helpers: `src/theatres.ts` (`THEATRE_ORDER`, `CINEPLEX_VENUES`/`CINEPLEX_PREFIXES`, `buildListingGroup`), `src/routes/api.ts` (admin API routes), `src/utils/{time,html,movie-url,letterboxd}.ts`.
+Shared helpers: `src/venues.ts` (venue configuration — see below), `src/routes/api.ts` (admin API routes), `src/utils/{time,html,movie-url,letterboxd}.ts`.
+
+### Venue configuration (`src/venues.ts`)
+
+The cinemas we track are **application config, not data** — they change rarely and are known at build time, so they live in `src/venues.ts` (not the DB). `LOCATIONS` is the single source of truth: a list of `Location`s, each with a display `name`, a `grouping` mode, and its `auditoriums` (each keyed by the exact `theatre_name` a scraper emits). Everything else is derived from it — `THEATRE_ORDER` (timeline rows), `CINEPLEX_VENUES` (the client-side timeline-grouping payload), `auditoriumLabel`, `venueGroup`, and `buildDayListingGroups`. Screenings still carry a free-text `theatre_name`; `venues.ts` interprets it.
+
+- `grouping: 'collapse'` — one listing card for the whole location, auditoriums pooled (every Cineplex site, and the single-screen indies).
+- `grouping: 'separate'` — each auditorium is its own card (VIFF Cinema and VIFF Lochmaddy are two rooms of VIFF Centre shown separately).
+- `prefix` (Cineplex only) — any `theatre_name` starting with it resolves to that location even if not enumerated, so a newly added "Aud #6" pools correctly with no code change.
 
 ### API Endpoints
 
@@ -399,11 +407,13 @@ All scrapers run in parallel via `scrape.ts` with error handling (failed scraper
 
 **Note**: If a venue later adds an API, refactor from Puppeteer to API-based approach for better performance.
 
-### Step 3: Add Theatre to UI
+### Step 3: Add the venue to the config
 
-Add the new theatre name(s) to `THEATRE_ORDER` in `src/server.ts`. This controls which theatres appear on the home page timeline and their display order.
+Add a `Location` to `LOCATIONS` in `src/venues.ts` with its `name`, `grouping`, and `auditoriums` (each `theatreName` matching exactly what the scraper emits). `THEATRE_ORDER`, the timeline grouping, and the listing cards all derive from it — no other files to touch.
 
-**Note**: If a venue has multiple screens/auditoriums with separate `theatreName` values (e.g., "Fifth Ave Aud #1", "Fifth Ave Aud #2"), add each one to the list. Cineplex venues also need an entry in `CINEPLEX_VENUES` to be collapsed into a single listing group.
+- A single-screen venue is one `Location` with one auditorium and `grouping: 'collapse'`.
+- A multi-screen venue you want shown as **separate** cards (like VIFF) uses `grouping: 'separate'` and lists each auditorium.
+- A multi-screen venue you want **pooled** into one card (like Cineplex) uses `grouping: 'collapse'` plus a `prefix`, so its auditoriums collapse together and new screens resolve automatically.
 
 ## Environment Variables
 

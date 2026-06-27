@@ -4,6 +4,7 @@ import { ScreeningWithMovie } from './index.js';
 import { TheatreCard } from './theatre-card.js';
 import { movieUrl } from '../utils/movie-url.js';
 import { safeHref } from '../utils/html.js';
+import { venueGroup } from '../venues.js';
 
 const POSTER_GRADS = [
   'linear-gradient(155deg,#c2410c,#7c2d12)',
@@ -13,30 +14,6 @@ const POSTER_GRADS = [
   'linear-gradient(155deg,#0369a1,#0c4a6e)',
   'linear-gradient(155deg,#a16207,#713f12)',
 ];
-
-const THEATRE_DISPLAY_NAMES: Record<string, string> = {
-  'VIFF Lochmaddy Studio': 'VIFF Lochmaddy',
-};
-
-function displayName(theatre: string): string {
-  return THEATRE_DISPLAY_NAMES[theatre] || theatre;
-}
-
-const CINEPLEX_GROUPS = [
-  { display: 'Fifth Avenue', prefix: 'Fifth Ave' },
-  { display: 'International Village', prefix: 'Intl Village' },
-  { display: 'Scotiabank', prefix: 'Scotiabank' },
-  { display: 'Langley', prefix: 'Langley' },
-];
-
-function venueGroup(theatreName: string): { name: string; theatreLink: string | null } {
-  for (const g of CINEPLEX_GROUPS) {
-    if (theatreName.startsWith(g.prefix)) {
-      return { name: g.display, theatreLink: null };
-    }
-  }
-  return { name: displayName(theatreName), theatreLink: theatreName };
-}
 
 function formatShortDate(date: Date): string {
   return date.toLocaleDateString('en-US', {
