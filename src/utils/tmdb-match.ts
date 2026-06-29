@@ -90,6 +90,48 @@ export async function findGatedTMDBMatch(
   return detailsMap.get(chosen.id) ?? null;
 }
 
+export interface TMDBSuggestion {
+  id: number;
+  title: string;
+  year: number | null;
+  posterUrl: string | null;
+  overview: string | null;
+}
+
+/**
+ * TMDB's top search hit for a title — a best-guess suggestion for the review
+ * UI (looser than findGatedTMDBMatch, which a human then accepts or overrides).
+ */
+export async function topTMDBSuggestion(title: string): Promise<TMDBSuggestion | null> {
+  const apiToken = process.env.TMDB_API_TOKEN;
+  if (!apiToken) return null;
+
+  const url = `https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(title)}&include_adult=false&language=en-US&page=1`;
+  const resp = await fetch(url, {
+    headers: { Authorization: `Bearer ${apiToken}`, Accept: 'application/json' },
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!resp.ok) return null;
+  const data = (await resp.json()) as {
+    results?: Array<{
+      id: number;
+      title: string;
+      release_date?: string;
+      poster_path?: string | null;
+      overview?: string;
+    }>;
+  };
+  const r = data.results?.[0];
+  if (!r) return null;
+  return {
+    id: r.id,
+    title: r.title,
+    year: r.release_date ? parseInt(r.release_date.substring(0, 4), 10) : null,
+    posterUrl: r.poster_path ? `https://image.tmdb.org/t/p/w154${r.poster_path}` : null,
+    overview: r.overview ?? null,
+  };
+}
+
 /**
  * Whether a movie's stored title still matches the TMDB record its tmdb_id
  * points at — checked against the primary title, original title, and (only if

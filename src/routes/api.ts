@@ -118,5 +118,20 @@ apiRoutes.post('/api/movie/:id/tmdb-update', async (c) => {
     .where('id', '=', movieId)
     .execute();
 
+  // Resolving a match clears it from the review queue (no-op if not queued).
+  await db.deleteFrom('tmdb_review').where('movie_id', '=', movieId).execute();
+
+  return c.json({ success: true });
+});
+
+// Dismiss a review-queue entry without changing the match ("this is actually
+// correct"). Used by the /internal-tmdb-review page.
+apiRoutes.post('/api/tmdb-review/:id/dismiss', async (c) => {
+  if (!isAdminAuthorized(c)) return c.json({ error: 'Unauthorized' }, 401);
+
+  const movieId = parseInt(c.req.param('id'), 10);
+  if (isNaN(movieId)) return c.json({ error: 'Invalid movie ID' }, 400);
+
+  await db.deleteFrom('tmdb_review').where('movie_id', '=', movieId).execute();
   return c.json({ success: true });
 });

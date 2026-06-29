@@ -13,6 +13,7 @@
     "backfill-letterboxd": "tsx src/db/backfill-letterboxd.ts",
     "audit-tmdb": "tsx src/db/audit-tmdb.ts",
     "rematch-tmdb": "tsx src/db/rematch-tmdb.ts",
+    "build-tmdb-review": "tsx src/db/build-tmdb-review.ts",
     "server": "nodemon --watch src --ext ts --exec 'tsx src/server.ts'",
     "test": "node --import tsx --test 'src/**/*.test.ts'",
     "lint": "eslint .",

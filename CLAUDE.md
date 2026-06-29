@@ -18,6 +18,9 @@ npm run build        # Compile TypeScript to dist/
 npm run scrape       # Run full scraping job (all venues + TMDB + DB save)
 npm run migrate      # Run database migrations
 npm run repair       # Re-clean titles + backfill missing TMDB data
+npm run audit-tmdb       # Read-only report of likely-wrong TMDB matches
+npm run rematch-tmdb     # Re-match flagged movies (add --apply to write)
+npm run build-tmdb-review # Rebuild the /internal-tmdb-review work list
 npm run clear        # Clear all data from database
 npm run drop         # Drop all tables from database
 npm run server       # Start web server on http://localhost:3000
@@ -136,6 +139,9 @@ Page rendering is in `src/pages/` (all `.tsx`, see JSX Rendering above):
 - **`src/pages/all-movies.tsx`** - Internal movies page (`/internal-movies`)
   - Admin-oriented movie list with TMDB fix-match modal (intentionally left on the old styling)
 
+- **`src/pages/tmdb-review.tsx`** - TMDB match review queue (`/internal-tmdb-review`)
+  - Admin page that reads the `tmdb_review` work list (likely-wrong matches, populated by `build-tmdb-review.ts`). Each card shows the current (probably wrong) match beside TMDB's top suggestion; **Yup** applies the suggestion, **Nope** opens the shared fix-match modal to pick another, **dismiss** drops it as a false positive. Actions are token-gated (one admin-token field drives all of them, and is copied into the modal on Nope). Every fix also refreshes Letterboxd. See [TMDB match correction] under TMDB Integration.
+
 - **`src/pages/layout.tsx`** - Shared page layout/shell (`renderPage`)
   - Nav bar with **By Date / By Movie** + search. Search is **server-side**: the client debounces input and fetches `GET /api/search?q=` (see API Endpoints), which queries the whole `movie` table — so films with no upcoming screenings are still findable. There is no embedded movie list and no `searchMovies` plumbing through the renderers
   - `color-scheme: dark` + `darkreader-lock` meta, self-hosted fonts (Space Grotesk + Inter, see UI Design), Cloudflare Web Analytics
@@ -157,7 +163,8 @@ The cinemas we track are **application config, not data** — they change rarely
 
 - `GET /api/search?q=` - Nav-bar movie search; `title ILIKE '%q%'` over all movies, alphabetical, capped at 20. Backed by a `pg_trgm` GIN index (`migrations/007`)
 - `GET /api/movie/:id/tmdb-search` - Search TMDB (requires `ADMIN_TOKEN`)
-- `POST /api/movie/:id/tmdb-update` - Fix TMDB match for a movie (requires `ADMIN_TOKEN`); also re-derives `letterboxd_url` from the new TMDB id via `letterboxdUrlByTmdbId()` (Letterboxd's `/tmdb/{id}/` redirect)
+- `POST /api/movie/:id/tmdb-update` - Fix TMDB match for a movie (requires `ADMIN_TOKEN`); also re-derives `letterboxd_url` from the new TMDB id via `letterboxdUrlByTmdbId()` (Letterboxd's `/tmdb/{id}/` redirect). Also clears any `tmdb_review` row for the movie (resolving it from the review queue).
+- `POST /api/tmdb-review/:id/dismiss` - Drop a movie from the `tmdb_review` queue without changing its match ("this is actually correct"); requires `ADMIN_TOKEN`
 - `GET /robots.txt` - Robots file with sitemap reference
 - `GET /sitemap.xml` - Dynamic sitemap of movies and theatres with future screenings
 

@@ -11,6 +11,7 @@ import { renderIndexPage, ScreeningWithMovie, TheatreRow, ListingGroup } from '.
 import { renderMoviePage } from './pages/movie.js';
 import { renderTheatrePage } from './pages/theatre.js';
 import { renderAllMoviesPage } from './pages/all-movies.js';
+import { renderTmdbReviewPage } from './pages/tmdb-review.js';
 import { renderMoviesPage } from './pages/movies.js';
 import { renderErrorPage } from './pages/error.js';
 import { secureHeaders } from 'hono/secure-headers';
@@ -320,6 +321,19 @@ app.get('/internal-movies', async (c) => {
 
   const html = renderAllMoviesPage(movies, sort);
   return c.html(html);
+});
+
+// TMDB match review queue (admin). Reads the tmdb_review work list populated by
+// build-tmdb-review.ts; actions are token-gated via the /api endpoints.
+app.get('/internal-tmdb-review', async (c) => {
+  const rows = await db
+    .selectFrom('tmdb_review')
+    .selectAll()
+    .orderBy(sql`suggested_tmdb_id is null`) // actionable (has a suggestion) first
+    .orderBy('movie_id', 'asc')
+    .execute();
+
+  return c.html(renderTmdbReviewPage(rows));
 });
 
 // Movies page (by movie view)
