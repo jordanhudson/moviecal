@@ -175,7 +175,7 @@ The cinemas we track are **application config, not data** — they change rarely
 - **Identity**: `tmdb_id` is canonical (unique partial index `idx_movie_tmdb_id_unique`, `WHERE tmdb_id IS NOT NULL`). When a scrape matches a new title to a `tmdb_id` that already exists, it reuses that row and renames the incoming screenings to its title instead of inserting a duplicate (`scrape.ts`). TMDB-less movies (`tmdb_id IS NULL`) still fall back to exact-title identity.
 
 `screening` table:
-- `id`, `movie_id`, `datetime`, `theatre_name`, `booking_url`
+- `id`, `movie_id`, `datetime` (`timestamptz` — a real UTC instant, see Timezone Handling), `theatre_name`, `booking_url`
 - `note` — extracted from title cleaning (e.g. "Advance Screening", "4K Restoration")
 - `created_at`, `updated_at`
 - **Identity**: unique index `idx_screening_identity_unique` on `(theatre_name, movie_id, datetime)` — the tuple the reconciler keys on. Reconcile inserts use `ON CONFLICT DO NOTHING`, so a duplicate is a race-safe no-op instead of an error.
@@ -219,13 +219,23 @@ interface Screening {
 
 ### Timezone Handling
 
-**Important**: The system stores times as naive timestamps representing Pacific time. The server runs in UTC on Fly.io.
+**`screening.datetime` is `timestamptz`** — every screening is stored as a real UTC instant (migration `010`). Scrapers emit absolute `Date`s and the display layer converts to Pacific. The conversion always goes through the IANA zone `America/Vancouver` (never a hardcoded offset), so DST and any future rule change are handled by the platform tz database. The server still runs in UTC on Fly.io, but correctness no longer depends on that — the Pacific helpers extract/produce components via `Intl`, independent of the process timezone.
 
-- **VIFF, Cinematheque, Park, Hollywood**: Return times without timezone info - these are parsed as local time (UTC on server), which works correctly because the times are stored/displayed as-is
-- **Rio**: Returns UTC times with `+00:00` offset - these must be converted to Pacific-naive format using `utcToPacificNaive()` in `rio-scraper.ts`
-- **Cineplex**: Returns local Pacific time without timezone info - parsed with `parsePacificNaive()`
+Two helpers in `src/utils/time.ts` do all the work:
 
-If adding a new scraper that returns UTC times, use the same pattern as Rio to convert to Pacific-naive format.
+- **`pacificWallClockToInstant(y, m /*1-based*/, d, h, mi, s?)`** — turns a Pacific wall-clock time into the real instant to store. **Any new scraper that learns a screening's local Pacific time must route through this.**
+- **`pacificWallClock(instant)`** — projects an instant into a naive `Date` whose *local* components equal its Pacific wall-clock, so display code (`getHours()`, `toLocaleTimeString` without a `timeZone`, the timeline math) reads off Pacific time. Wrap every screening `datetime` with this before formatting it.
+
+`pacificToday()` / `pacificHour()` (the date rail + the 10pm "show tomorrow" flip) are also IANA-based. "Is this screening in the future?" is now a plain `new Date()` comparison against the `timestamptz` column.
+
+How each scraper produces the instant:
+
+- **Rio**: API times carry an offset (`-07:00`), so `new Date(start_time)` is already the correct instant — used as-is.
+- **Cineplex**: each session includes `showStartDateTimeUtc` — that UTC field is used directly.
+- **VIFF**: API times are local with no offset (`2026-06-13T13:00:00`) → parsed and passed through `pacificWallClockToInstant`.
+- **Cinematheque, Park, Hollywood**: parse out date/time components and build the instant via `pacificWallClockToInstant`.
+
+If a new scraper returns times **with** a UTC offset, `new Date(str)` is enough. If it returns **naive local** times, convert them with `pacificWallClockToInstant`.
 
 ### Title Cleaning
 
@@ -336,13 +346,13 @@ export async function scrapeVenue(): Promise<Screening[]> {
   - WordPress custom plugin endpoint
   - Clean JSON with `tickets_link` for booking URLs
   - Date range: 1 month back, 2 months forward
-  - **Note**: Uses `utcToPacificNaive()` to convert UTC times to Pacific-naive format
+  - **Note**: `start_time` carries a UTC offset, so `new Date(start_time)` is the correct instant (see Timezone Handling)
 
 - **`cineplex-scraper.ts`** - Cineplex Theatres (Fifth Avenue, International Village, Scotiabank, Langley)
   - API: `https://apis.cineplex.com/prod/cpx/theatrical/api/v1/showtimes?language=en&locationId={theatreId}&date={M/D/YYYY}`
   - Azure API Management endpoint, requires header: `ocp-apim-subscription-key: 477f072109904a55927ba2c3bf9f77e3` (public key embedded in cineplex.com frontend)
   - Returns movies with sessions (showtimes) per theatre per day; fetches 7 days
-  - `showStartDateTime` is local Pacific time — parsed with `parsePacificNaive()`
+  - Each session carries `showStartDateTimeUtc` (a UTC instant) — used directly as the screening time
   - Theatre name format: `"{venue} {auditorium}"` e.g. `"Fifth Ave Aud #3"`, `"Intl Village Aud 05"`
   - Uses `deeplinkUrl` for booking URLs
   - **To find theatre IDs**: `GET https://apis.cineplex.com/prod/cpx/theatrical/api/v1/theatres?language=en&city=Vancouver&latitude=49.2514&longitude=-123.0972` (same API key header). Returns `theatreId` and `theatreName` for nearby theatres. This is not used by the scraper but is useful for adding new Cineplex locations.

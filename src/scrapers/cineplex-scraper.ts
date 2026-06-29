@@ -1,25 +1,6 @@
 import { Movie, Screening } from '../models.js';
 import { cleanMovieTitle } from '../utils/title-cleaner.js';
-import { pacificNow } from '../utils/time.js';
-
-/**
- * Parse a local Pacific time string into a "naive" Date object.
- * The Cineplex API returns times like "2026-02-15T12:30:00" which are Pacific time.
- * We create a Date using UTC with the same components, so it stores/displays correctly.
- */
-function parsePacificNaive(dateTimeStr: string): Date {
-  // Parse "2026-02-15T12:30:00" format
-  const match = dateTimeStr.match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/);
-  if (!match) {
-    console.warn(`Could not parse datetime: ${dateTimeStr}`);
-    return new Date(dateTimeStr);
-  }
-
-  const [, year, month, day, hour, minute, second] = match.map(Number);
-
-  // Create Date using UTC with Pacific time components
-  return new Date(Date.UTC(year, month - 1, day, hour, minute, second));
-}
+import { pacificWallClock } from '../utils/time.js';
 
 // Cineplex API configuration
 const API_BASE = 'https://apis.cineplex.com/prod/cpx/theatrical/api/v1';
@@ -116,9 +97,8 @@ export function parseCineplexResponses(
             // Build theatre name with auditorium
             const theatreName = `${venueName} ${session.auditorium}`;
 
-            // Parse showStartDateTime as Pacific-naive timestamp
-            // The API returns local Pacific time without timezone info
-            const datetime = parsePacificNaive(session.showStartDateTime);
+            // The API gives the UTC instant directly — use it as-is.
+            const datetime = new Date(session.showStartDateTimeUtc);
 
             const { title, note } = cleanMovieTitle(movie.name);
 
@@ -165,8 +145,8 @@ export async function scrapeCineplex(): Promise<Screening[]> {
 
   try {
     for (const theatre of THEATRES) {
-      // Fetch showtimes for each day, starting from today in Pacific time
-      const nowPacific = pacificNow();
+      // Fetch showtimes for each day, starting from today's Pacific date.
+      const nowPacific = pacificWallClock(new Date());
       for (let dayOffset = 0; dayOffset < DAYS_TO_FETCH; dayOffset++) {
         const date = new Date(nowPacific);
         date.setDate(date.getDate() + dayOffset);

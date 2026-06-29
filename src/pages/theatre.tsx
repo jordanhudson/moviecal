@@ -1,7 +1,7 @@
 /** @jsxImportSource hono/jsx */
 import { renderPage } from './layout.js';
 import { safeHref } from '../utils/html.js';
-import { pacificNow } from '../utils/time.js';
+import { pacificWallClock } from '../utils/time.js';
 import { movieUrl } from '../utils/movie-url.js';
 
 export interface TheatreScreening {
@@ -14,12 +14,12 @@ export interface TheatreScreening {
 }
 
 export function renderTheatrePage(theatreName: string, screenings: TheatreScreening[]): string {
-  const now = pacificNow();
+  const now = new Date();
   const futureScreenings = screenings.filter((s) => new Date(s.datetime) >= now);
 
   const dayGroups: { dateStr: string; items: TheatreScreening[] }[] = [];
   for (const screening of futureScreenings) {
-    const dateStr = new Date(screening.datetime)
+    const dateStr = pacificWallClock(new Date(screening.datetime))
       .toLocaleDateString('en-US', {
         weekday: 'short',
         month: 'short',
@@ -63,10 +63,13 @@ export function renderTheatrePage(theatreName: string, screenings: TheatreScreen
               <h2 class="day-header">{group.dateStr}</h2>
               <ul class="screening-list">
                 {group.items.map((screening) => {
-                  const timeStr = new Date(screening.datetime).toLocaleTimeString('en-US', {
-                    hour: 'numeric',
-                    minute: '2-digit',
-                  });
+                  const timeStr = pacificWallClock(new Date(screening.datetime)).toLocaleTimeString(
+                    'en-US',
+                    {
+                      hour: 'numeric',
+                      minute: '2-digit',
+                    },
+                  );
 
                   return (
                     <li class="screening-item">

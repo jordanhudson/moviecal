@@ -1,43 +1,6 @@
 import { Movie, Screening } from '../models.js';
 import { cleanMovieTitle } from '../utils/title-cleaner.js';
 
-/**
- * Convert a UTC date to a "naive" date that represents Pacific time.
- * This is needed because the Rio API returns correct UTC times (with +00:00),
- * but the rest of the system expects naive timestamps that represent Pacific time
- * (since other scrapers return times without timezone info).
- *
- * Example: "2025-12-20T05:30:00+00:00" (UTC) = "2025-12-19T21:30:00" (Pacific)
- * We return a Date object representing Dec 19, 21:30 as if it were UTC,
- * so when stored/displayed on a UTC server, it shows "9:30 PM".
- */
-function utcToPacificNaive(utcDate: Date): Date {
-  // Format the UTC date in Pacific timezone to get the "local" time components
-  const pacificStr = utcDate.toLocaleString('en-US', {
-    timeZone: 'America/Vancouver',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  });
-
-  // Parse "MM/DD/YYYY, HH:MM:SS" format
-  const match = pacificStr.match(/(\d+)\/(\d+)\/(\d+),?\s+(\d+):(\d+):(\d+)/);
-  if (!match) {
-    console.warn(`Could not parse Pacific time: ${pacificStr}`);
-    return utcDate;
-  }
-
-  const [, month, day, year, hour, minute, second] = match.map(Number);
-
-  // Create a new Date using these components as if they were UTC
-  // This gives us a "naive" timestamp that represents Pacific time
-  return new Date(Date.UTC(year, month - 1, day, hour, minute, second));
-}
-
 // Rio Theatre API response types
 export interface RioApiEvent {
   id: number;
@@ -68,13 +31,11 @@ export function parseRioEvents(events: RioApiEvent[]): Screening[] {
     // Prefer tickets_link, fall back to event.link
     const bookingUrl = event.tickets_link || event.event.link;
 
-    // Convert UTC time to Pacific-naive format to match other scrapers
-    const utcDate = new Date(event.start_time);
-    const pacificNaive = utcToPacificNaive(utcDate);
-
+    // The API gives an ISO time with an offset, so this is already the correct
+    // absolute instant.
     return {
       id: null,
-      datetime: pacificNaive,
+      datetime: new Date(event.start_time),
       theatreName: 'The Rio',
       bookingUrl,
       note,

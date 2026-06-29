@@ -2,12 +2,78 @@
 
 const PACIFIC_TZ = 'America/Vancouver';
 
+// Formatter that yields the Pacific wall-clock components of an instant.
+// Uses the IANA zone (not a hardcoded offset) so DST and any future rule change
+// are handled by the platform's tz database.
+const PACIFIC_PARTS = new Intl.DateTimeFormat('en-US', {
+  timeZone: PACIFIC_TZ,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hour12: false,
+});
+
+/** Pacific wall-clock components of an instant (hour normalized 0–23). */
+function pacificParts(instant: Date): {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
+} {
+  const parts = PACIFIC_PARTS.formatToParts(instant);
+  const get = (type: string) => Number(parts.find((p) => p.type === type)!.value);
+  // Intl can render midnight as "24"; normalize to 0.
+  const hour = get('hour') % 24;
+  return {
+    year: get('year'),
+    month: get('month'),
+    day: get('day'),
+    hour,
+    minute: get('minute'),
+    second: get('second'),
+  };
+}
+
+/** Pacific UTC offset (ms) in effect at the given instant — negative west of UTC. */
+function pacificOffsetMs(instant: Date): number {
+  const p = pacificParts(instant);
+  const asUTC = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second);
+  return asUTC - instant.getTime();
+}
+
 /**
- * Get current date/time as a naive Date representing Pacific time.
- * Useful when the server runs in UTC but times are stored as Pacific-naive.
+ * Convert Pacific wall-clock components to the real instant they denote.
+ * Scrapers that learn a screening's local Pacific time use this to produce the
+ * absolute `Date` stored in the `timestamptz` column. `month` is 1-based.
  */
-export function pacificNow(): Date {
-  return new Date(new Date().toLocaleString('en-US', { timeZone: PACIFIC_TZ }));
+export function pacificWallClockToInstant(
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  minute: number,
+  second = 0,
+): Date {
+  const wallAsUTC = Date.UTC(year, month - 1, day, hour, minute, second);
+  // Two passes so a wall time near a DST transition lands on the right offset.
+  let offset = pacificOffsetMs(new Date(wallAsUTC));
+  offset = pacificOffsetMs(new Date(wallAsUTC - offset));
+  return new Date(wallAsUTC - offset);
+}
+
+/**
+ * Project an instant into a "naive" Date whose LOCAL components equal its
+ * Pacific wall-clock time. Display code (getHours/getDate, toLocale* without a
+ * timeZone) can then read off Pacific time regardless of the server's timezone.
+ */
+export function pacificWallClock(instant: Date): Date {
+  const p = pacificParts(instant);
+  return new Date(p.year, p.month - 1, p.day, p.hour, p.minute, p.second);
 }
 
 /**

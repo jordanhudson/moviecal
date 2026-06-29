@@ -1,5 +1,15 @@
 import { Movie, Screening } from '../models.js';
 import { cleanMovieTitle } from '../utils/title-cleaner.js';
+import { pacificWallClockToInstant } from '../utils/time.js';
+
+// The API gives local times with no offset (e.g. "2026-06-13T13:00:00"), which
+// are Pacific wall-clock — resolve them to the real instant.
+function viffLocalToInstant(iso: string): Date {
+  const m = iso.match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/);
+  if (!m) return new Date(iso);
+  const [, y, mo, d, h, mi, s] = m.map(Number);
+  return pacificWallClockToInstant(y, mo, d, h, mi, s || 0);
+}
 
 // VIFF API response types
 export interface VIFFApiEvent {
@@ -54,8 +64,8 @@ export function parseVIFFEvents(events: VIFFApiEvent[]): Screening[] {
     const bookingUrl = bookingUrlMatch[1];
 
     // Calculate runtime from start/end times
-    const startTime = new Date(event.start);
-    const endTime = new Date(event.end);
+    const startTime = viffLocalToInstant(event.start);
+    const endTime = viffLocalToInstant(event.end);
     const runtimeMinutes = Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60));
 
     // Map venue ID to human-readable name, or format it nicely
@@ -73,7 +83,7 @@ export function parseVIFFEvents(events: VIFFApiEvent[]): Screening[] {
 
     const screening: Screening = {
       id: null,
-      datetime: new Date(event.start),
+      datetime: startTime,
       theatreName: venueName,
       bookingUrl,
       note,

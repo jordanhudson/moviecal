@@ -1,7 +1,7 @@
 import puppeteer from 'puppeteer';
 import { Movie, Screening } from '../models.js';
 import { cleanMovieTitle } from '../utils/title-cleaner.js';
-import { parseMonthName, parse12HourTime } from '../utils/time.js';
+import { parseMonthName, parse12HourTime, pacificWallClockToInstant } from '../utils/time.js';
 
 // Park-specific internal models (not exported)
 interface ParkScreening {
@@ -125,7 +125,13 @@ function parseDateTime(datetimeStr: string): Date {
     const monthIndex = parseMonthName(monthName);
     if (monthIndex === -1) return new Date();
 
-    return new Date(year, monthIndex, day, time ? time.hour : 19, time ? time.minute : 0);
+    return pacificWallClockToInstant(
+      year,
+      monthIndex + 1,
+      day,
+      time ? time.hour : 19,
+      time ? time.minute : 0,
+    );
   }
 
   if (newMatch) {
@@ -149,7 +155,13 @@ function parseDateTime(datetimeStr: string): Date {
       year++;
     }
 
-    return new Date(year, monthIndex, day, time ? time.hour : 19, time ? time.minute : 0);
+    return pacificWallClockToInstant(
+      year,
+      monthIndex + 1,
+      day,
+      time ? time.hour : 19,
+      time ? time.minute : 0,
+    );
   }
 
   console.warn(`Could not parse datetime: ${datetimeStr}`);

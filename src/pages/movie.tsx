@@ -2,7 +2,7 @@
 import { renderPage } from './layout.js';
 import { TmdbModal } from './tmdb-modal.js';
 import { safeHref, jsonForScript } from '../utils/html.js';
-import { pacificNow } from '../utils/time.js';
+import { pacificWallClock } from '../utils/time.js';
 import { movieUrl } from '../utils/movie-url.js';
 import { CINEPLEX_VENUES } from '../venues.js';
 
@@ -27,12 +27,12 @@ export interface ScreeningDetail {
 }
 
 export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[]): string {
-  const now = pacificNow();
+  const now = new Date();
   const futureScreenings = screenings.filter((s) => new Date(s.datetime) >= now);
 
   const dayGroups: { dateStr: string; items: ScreeningDetail[] }[] = [];
   for (const screening of futureScreenings) {
-    const dateStr = new Date(screening.datetime)
+    const dateStr = pacificWallClock(new Date(screening.datetime))
       .toLocaleDateString('en-US', {
         weekday: 'short',
         month: 'short',
@@ -212,7 +212,9 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
                   <h3 class="day-header">{group.dateStr}</h3>
                   <ul class="screening-list">
                     {group.items.map((screening) => {
-                      const timeStr = new Date(screening.datetime).toLocaleTimeString('en-US', {
+                      const timeStr = pacificWallClock(
+                        new Date(screening.datetime),
+                      ).toLocaleTimeString('en-US', {
                         hour: 'numeric',
                         minute: '2-digit',
                       });

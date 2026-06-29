@@ -4,6 +4,7 @@ import { ScreeningWithMovie } from './index.js';
 import { TheatreCard } from './theatre-card.js';
 import { movieUrl } from '../utils/movie-url.js';
 import { safeHref } from '../utils/html.js';
+import { pacificWallClock } from '../utils/time.js';
 import { venueGroup } from '../venues.js';
 
 const POSTER_GRADS = [
@@ -160,7 +161,7 @@ export function renderMoviesPage(screenings: ScreeningWithMovie[]): string {
                 }
               >();
               for (const s of group) {
-                const dt = new Date(s.datetime);
+                const dt = pacificWallClock(new Date(s.datetime));
                 const v = venueGroup(s.theatre_name);
                 if (!venueMap.has(v.name)) {
                   venueMap.set(v.name, { theatreLink: v.theatreLink, dates: new Map() });

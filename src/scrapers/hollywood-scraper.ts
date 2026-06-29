@@ -1,7 +1,7 @@
 import * as cheerio from 'cheerio';
 import { Movie, Screening } from '../models.js';
 import { cleanMovieTitle } from '../utils/title-cleaner.js';
-import { parseMonthName, parse12HourTime } from '../utils/time.js';
+import { parseMonthName, parse12HourTime, pacificWallClockToInstant } from '../utils/time.js';
 
 const CRAWL_DELAY_MS = 500;
 
@@ -177,8 +177,8 @@ function parseDateTime(monthName: string, day: number, year: number, timeStr: st
   const monthIndex = parseMonthName(monthName);
   if (monthIndex === -1) {
     console.warn(`Could not parse month: ${monthName}, defaulting to January`);
-    return new Date(year, 0, day, hour, minute);
+    return pacificWallClockToInstant(year, 1, day, hour, minute);
   }
 
-  return new Date(year, monthIndex, day, hour, minute);
+  return pacificWallClockToInstant(year, monthIndex + 1, day, hour, minute);
 }

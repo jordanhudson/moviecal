@@ -26,8 +26,8 @@ test('VIFF: parses screenings out of the calendar API HTML payload', () => {
   assert.equal(first.note, 'Flying Embers & A Fortress');
   assert.equal(first.theatreName, 'VIFF Cinema');
   assert.equal(first.bookingUrl, 'https://viff.org/whats-on/alipato-at-muog/');
-  // Naive local parse — compare against the same construction
-  assert.equal(first.datetime.getTime(), new Date('2026-06-13T13:00:00').getTime());
+  // "2026-06-13T13:00:00" has no offset → 1pm Pacific (PDT, −07) → 20:00 UTC
+  assert.equal(first.datetime.toISOString(), '2026-06-13T20:00:00.000Z');
   assert.equal(first.movie.runtime, 106); // end minus start
 
   assert.equal(screenings[1].theatreName, 'VIFF Lochmaddy Studio');
@@ -36,7 +36,7 @@ test('VIFF: parses screenings out of the calendar API HTML payload', () => {
   assert.equal(screenings[2].movie.runtime, 97);
 });
 
-test('Rio: converts UTC offsets to Pacific-naive and extracts notes', () => {
+test('Rio: keeps the offset-bearing instant and extracts notes', () => {
   const events = loadFixture<RioApiEvent[]>('rio-events.json');
   const screenings = parseRioEvents(events);
 
@@ -50,9 +50,8 @@ test('Rio: converts UTC offsets to Pacific-naive and extracts notes', () => {
     first.bookingUrl,
     'https://riotheatretickets.ca/events/41803-john-woo-s-a-better-tomorrow-40th-anniversary-restoration',
   );
-  // "2026-05-31T19:00:00-07:00" is 7pm Pacific → stored as a naive timestamp
-  // whose UTC components read 7pm
-  assert.equal(first.datetime.toISOString(), '2026-05-31T19:00:00.000Z');
+  // "2026-05-31T19:00:00-07:00" carries its offset → the real instant is 02:00 UTC
+  assert.equal(first.datetime.toISOString(), '2026-06-01T02:00:00.000Z');
 
   assert.equal(screenings[1].movie.title, 'Beat Street');
   assert.equal(screenings[1].note, null);
@@ -71,8 +70,8 @@ test('Cineplex: flattens movies/experiences/sessions into screenings', () => {
   assert.equal(first.movie.title, 'Disclosure Day');
   assert.equal(first.movie.runtime, 145);
   assert.equal(first.theatreName, 'Fifth Ave Aud #3');
-  // "2026-06-12T12:00:00" is Pacific-naive → stored with those components as UTC
-  assert.equal(first.datetime.toISOString(), '2026-06-12T12:00:00.000Z');
+  // The session's showStartDateTimeUtc ("2026-06-12T19:00:00Z") is the instant
+  assert.equal(first.datetime.toISOString(), '2026-06-12T19:00:00.000Z');
   assert.ok(first.bookingUrl.startsWith('https://apis.cineplex.com/prod/cpx/theatrical/deeplink'));
 
   assert.equal(screenings[2].movie.title, 'Obsession');

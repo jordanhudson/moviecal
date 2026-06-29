@@ -1,7 +1,7 @@
 import puppeteer from 'puppeteer';
 import { Movie, Screening } from '../models.js';
 import { cleanMovieTitle } from '../utils/title-cleaner.js';
-import { parseMonthName, parse12HourTime } from '../utils/time.js';
+import { parseMonthName, parse12HourTime, pacificWallClockToInstant } from '../utils/time.js';
 
 // Cinematheque-specific internal models (not exported)
 interface CinemathequeScreening {
@@ -177,5 +177,5 @@ function parseDateTime(dateStr: string, timeStr: string): Date {
     return new Date();
   }
 
-  return new Date(year, monthIndex, day, hour24, mins);
+  return pacificWallClockToInstant(year, monthIndex + 1, day, hour24, mins);
 }

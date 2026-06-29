@@ -16,7 +16,11 @@ import { renderErrorPage } from './pages/error.js';
 import { secureHeaders } from 'hono/secure-headers';
 import { compress } from 'hono/compress';
 import type { MiddlewareHandler } from 'hono';
-import { pacificNow, pacificToday, pacificHour as getPacificHour } from './utils/time.js';
+import {
+  pacificToday,
+  pacificHour as getPacificHour,
+  pacificWallClockToInstant,
+} from './utils/time.js';
 import { THEATRE_ORDER, buildDayListingGroups } from './venues.js';
 import { apiRoutes } from './routes/api.js';
 import { movieUrl } from './utils/movie-url.js';
@@ -124,8 +128,13 @@ function getDayBounds(dateStr?: string) {
     }
   }
 
-  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0);
-  const end = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59);
+  // `date` is a plain calendar marker (for display/nav); the query bounds are
+  // the real instants spanning that day in Pacific time.
+  const y = date.getFullYear();
+  const m = date.getMonth() + 1;
+  const d = date.getDate();
+  const start = pacificWallClockToInstant(y, m, d, 0, 0, 0);
+  const end = pacificWallClockToInstant(y, m, d, 23, 59, 59);
   return { start, end, date };
 }
 
@@ -275,7 +284,7 @@ app.get('/theatre/:name', async (c) => {
 
 // All movies page (internal)
 app.get('/internal-movies', async (c) => {
-  const now = pacificNow();
+  const now = new Date();
   const sort = c.req.query('sort') || 'added';
 
   let query = db
@@ -315,7 +324,7 @@ app.get('/internal-movies', async (c) => {
 
 // Movies page (by movie view)
 app.get('/movies', async (c) => {
-  const now = pacificNow();
+  const now = new Date();
 
   const results = await db
     .selectFrom('screening')

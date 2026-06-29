@@ -2,6 +2,7 @@
 import { renderPage } from './layout.js';
 import { safeHref, jsonForScript } from '../utils/html.js';
 import { movieUrl } from '../utils/movie-url.js';
+import { pacificWallClock } from '../utils/time.js';
 import { CINEPLEX_VENUES, auditoriumLabel } from '../venues.js';
 
 const DEFAULT_RUNTIME_MINUTES = 105;
@@ -361,11 +362,9 @@ export function renderIndexPage(
                   </div>
                   <div class="timeline">
                     {screenings.map((screening) => {
-                      const { left, width } = calculatePosition(
-                        new Date(screening.datetime),
-                        screening.movie_runtime,
-                      );
-                      const time = formatTime(new Date(screening.datetime)).replace(/(am|pm)$/, '');
+                      const localDt = pacificWallClock(new Date(screening.datetime));
+                      const { left, width } = calculatePosition(localDt, screening.movie_runtime);
+                      const time = formatTime(localDt).replace(/(am|pm)$/, '');
                       const lookupUrl = screening.letterboxd_url ?? screening.tmdb_url;
                       return (
                         <div class="screening" style={`left: ${left}; width: ${width};`}>
@@ -446,7 +445,7 @@ export function renderIndexPage(
                     >
                       {movie.showtimes.map((st) => (
                         <a class="show-time" href={safeHref(st.booking_url)} target="_blank">
-                          {formatTime(new Date(st.datetime))}
+                          {formatTime(pacificWallClock(new Date(st.datetime)))}
                         </a>
                       ))}
                     </div>
