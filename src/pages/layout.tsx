@@ -62,15 +62,24 @@ const SEARCH_SCRIPT = `
       return r.ok ? r.json() : [];
     }).then(function(matches) {
       if (mine !== seq) return;
+      // Build results via the DOM (textContent / setAttribute) so the browser
+      // escapes the title in both the link text and the href — no hand-rolled
+      // escaping that can miss a character.
+      results.textContent = '';
       if (!matches.length) {
-        results.innerHTML = '<div class="search-no-results">No matches</div>';
+        var none = document.createElement('div');
+        none.className = 'search-no-results';
+        none.textContent = 'No matches';
+        results.appendChild(none);
       } else {
-        results.innerHTML = matches.map(function(m) {
+        matches.forEach(function(m) {
           var s = slug(m.title);
-          var href = '/movie/' + m.id + (s ? '-' + s : '');
-          return '<a class="search-result" href="' + href + '">' +
-            m.title.replace(/</g, '&lt;') + '</a>';
-        }).join('');
+          var a = document.createElement('a');
+          a.className = 'search-result';
+          a.setAttribute('href', '/movie/' + m.id + (s ? '-' + s : ''));
+          a.textContent = m.title;
+          results.appendChild(a);
+        });
       }
       results.classList.add('open');
     }).catch(function() {});
