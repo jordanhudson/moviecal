@@ -5,6 +5,7 @@ import { cleanMovieTitle } from './title-cleaner.js';
 export interface TMDBMovieDetails {
   id: number;
   title: string;
+  original_title?: string;
   release_date?: string;
   poster_path?: string | null;
   runtime: number | null;
@@ -88,7 +89,7 @@ async function searchTMDBResults(title: string, year?: number | null): Promise<T
 }
 
 /** Returns all alternative titles registered on TMDB for a movie. */
-async function getAlternativeTitles(tmdbId: number): Promise<string[]> {
+export async function getAlternativeTitles(tmdbId: number): Promise<string[]> {
   const apiToken = process.env.TMDB_API_TOKEN;
   if (!apiToken) return [];
 

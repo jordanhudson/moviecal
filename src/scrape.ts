@@ -13,6 +13,7 @@ import {
 } from './utils/tmdb.js';
 import type { TMDBMovieDetails } from './utils/tmdb.js';
 import { recleanExistingTitles } from './utils/reclean.js';
+import { titlesMatch } from './utils/title-match.js';
 import { searchLetterboxdByTmdbId } from './utils/letterboxd.js';
 import { db, closeDb } from './db/connection.js';
 import { reconcileScreenings } from './db/reconcile.js';
@@ -21,6 +22,7 @@ import { sql } from 'kysely';
 interface TMDBMovieResult {
   id: number;
   title: string;
+  original_title?: string;
   release_date?: string;
   poster_path?: string | null;
   popularity?: number;
@@ -62,51 +64,66 @@ async function searchTMDB(
 
     const data: TMDBSearchResponse = await response.json();
 
-    if (data.results.length === 0) {
+    // Gate on the title actually matching: a wrong match becomes the movie's
+    // canonical identity, so prefer leaving it unmatched (null) over a guess.
+    // Runtime is only a tiebreaker among same-titled films, never the selector
+    // (that is what mismatched e.g. "Silence of the Lambs" → "Hannibal").
+    const titleMatches = data.results.filter(
+      (r) =>
+        titlesMatch(title, r.title) ||
+        (r.original_title != null && titlesMatch(title, r.original_title)),
+    );
+    if (titleMatches.length === 0) {
       return null;
     }
 
-    // Fetch details once per result and filter out shorts (< 60 minutes)
+    // Fetch details once per title-match to drop shorts (< 60 min) and compare runtime.
     const detailsMap = new Map<number, TMDBMovieDetails>();
-    const filteredResults: TMDBMovieResult[] = [];
-    for (const result of data.results) {
+    const candidates: TMDBMovieResult[] = [];
+    for (const result of titleMatches) {
       const details = await getTMDBMovieDetails(result.id);
       if (details) {
         detailsMap.set(result.id, details);
         if (details.runtime && details.runtime >= 60) {
-          filteredResults.push(result);
+          candidates.push(result);
         }
       }
     }
-
-    // If no valid results after filtering, return null
-    if (filteredResults.length === 0) {
+    if (candidates.length === 0) {
       return null;
     }
-
-    // If no runtime provided, return first filtered result
-    if (!runtime) {
-      return filteredResults[0];
+    if (candidates.length === 1) {
+      return candidates[0];
     }
 
-    // If runtime is provided, find best match from filtered results
-    const topResults = filteredResults.slice(0, 5);
-    let bestMatch: TMDBMovieResult | null = null;
-    let smallestDiff = Infinity;
-
-    for (const result of topResults) {
-      const details = detailsMap.get(result.id);
-      if (details && details.runtime) {
-        const diff = Math.abs(details.runtime - runtime);
-        if (diff < smallestDiff) {
-          smallestDiff = diff;
-          bestMatch = result;
+    // Multiple same-titled films (e.g. an original and a remake): prefer the
+    // matching release year, then the closest runtime.
+    let pool = candidates;
+    if (year) {
+      const sameYear = pool.filter(
+        (r) => r.release_date && parseInt(r.release_date.substring(0, 4), 10) === year,
+      );
+      if (sameYear.length > 0) pool = sameYear;
+    }
+    if (pool.length === 1) {
+      return pool[0];
+    }
+    if (runtime) {
+      let bestMatch: TMDBMovieResult | null = null;
+      let smallestDiff = Infinity;
+      for (const result of pool) {
+        const details = detailsMap.get(result.id);
+        if (details && details.runtime) {
+          const diff = Math.abs(details.runtime - runtime);
+          if (diff < smallestDiff) {
+            smallestDiff = diff;
+            bestMatch = result;
+          }
         }
       }
+      if (bestMatch) return bestMatch;
     }
-
-    // Return best match if found, otherwise fall back to first filtered result
-    return bestMatch || filteredResults[0];
+    return pool[0];
   } catch (error) {
     console.warn(`Error searching TMDB for "${title}":`, error);
     return null;
