@@ -12,8 +12,7 @@
 
 import 'dotenv/config';
 import { db, closeDb } from './connection.js';
-import { getTMDBMovieDetails, getAlternativeTitles } from '../utils/tmdb.js';
-import { titlesMatch } from '../utils/title-match.js';
+import { currentTitleMatchesStored } from '../utils/tmdb-match.js';
 
 const SLEEP_MS = 120;
 
@@ -52,7 +51,7 @@ async function auditTmdbMatches() {
 
   for (const movie of movies) {
     const tmdbId = movie.tmdb_id as number;
-    const details = await getTMDBMovieDetails(tmdbId);
+    const { matches, details } = await currentTitleMatchesStored(movie.title, tmdbId);
     await sleep(SLEEP_MS);
 
     if (!details) {
@@ -62,17 +61,7 @@ async function auditTmdbMatches() {
     }
     checked++;
 
-    const candidates = [details.title, details.original_title ?? ''];
-    let matched = candidates.some((t) => t && titlesMatch(movie.title, t));
-
-    // Only pay for the alt-titles call when the primary/original didn't match.
-    if (!matched) {
-      const alts = await getAlternativeTitles(tmdbId);
-      await sleep(SLEEP_MS);
-      matched = alts.some((t) => titlesMatch(movie.title, t));
-    }
-
-    if (!matched) {
+    if (!matches) {
       flagged.push({
         id: movie.id,
         storedTitle: movie.title,

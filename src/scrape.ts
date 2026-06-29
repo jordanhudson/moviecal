@@ -6,129 +6,13 @@ import { scrapeRio } from './scrapers/rio-scraper.js';
 import { scrapeHollywood } from './scrapers/hollywood-scraper.js';
 import { scrapeCineplex } from './scrapers/cineplex-scraper.js';
 import type { Screening, Movie } from './models.js';
-import {
-  getTMDBMovieDetails,
-  tmdbDetailsToMovieFields,
-  verifyTitleCleaning,
-} from './utils/tmdb.js';
-import type { TMDBMovieDetails } from './utils/tmdb.js';
+import { tmdbDetailsToMovieFields, verifyTitleCleaning } from './utils/tmdb.js';
 import { recleanExistingTitles } from './utils/reclean.js';
-import { titlesMatch } from './utils/title-match.js';
+import { findGatedTMDBMatch } from './utils/tmdb-match.js';
 import { searchLetterboxdByTmdbId } from './utils/letterboxd.js';
 import { db, closeDb } from './db/connection.js';
 import { reconcileScreenings } from './db/reconcile.js';
 import { sql } from 'kysely';
-
-interface TMDBMovieResult {
-  id: number;
-  title: string;
-  original_title?: string;
-  release_date?: string;
-  poster_path?: string | null;
-  popularity?: number;
-}
-
-interface TMDBSearchResponse {
-  results: TMDBMovieResult[];
-}
-
-async function searchTMDB(
-  title: string,
-  year?: number | null,
-  runtime?: number | null,
-): Promise<TMDBMovieResult | null> {
-  const apiToken = process.env.TMDB_API_TOKEN;
-  if (!apiToken) {
-    console.warn('TMDB_API_TOKEN not set, skipping TMDB search');
-    return null;
-  }
-
-  try {
-    let url = `https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(title)}`;
-    if (year) {
-      url += `&year=${year}`;
-    }
-
-    const response = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${apiToken}`,
-        Accept: 'application/json',
-      },
-      signal: AbortSignal.timeout(10_000),
-    });
-
-    if (!response.ok) {
-      console.warn(`TMDB search failed for "${title}": ${response.status}`);
-      return null;
-    }
-
-    const data: TMDBSearchResponse = await response.json();
-
-    // Gate on the title actually matching: a wrong match becomes the movie's
-    // canonical identity, so prefer leaving it unmatched (null) over a guess.
-    // Runtime is only a tiebreaker among same-titled films, never the selector
-    // (that is what mismatched e.g. "Silence of the Lambs" → "Hannibal").
-    const titleMatches = data.results.filter(
-      (r) =>
-        titlesMatch(title, r.title) ||
-        (r.original_title != null && titlesMatch(title, r.original_title)),
-    );
-    if (titleMatches.length === 0) {
-      return null;
-    }
-
-    // Fetch details once per title-match to drop shorts (< 60 min) and compare runtime.
-    const detailsMap = new Map<number, TMDBMovieDetails>();
-    const candidates: TMDBMovieResult[] = [];
-    for (const result of titleMatches) {
-      const details = await getTMDBMovieDetails(result.id);
-      if (details) {
-        detailsMap.set(result.id, details);
-        if (details.runtime && details.runtime >= 60) {
-          candidates.push(result);
-        }
-      }
-    }
-    if (candidates.length === 0) {
-      return null;
-    }
-    if (candidates.length === 1) {
-      return candidates[0];
-    }
-
-    // Multiple same-titled films (e.g. an original and a remake): prefer the
-    // matching release year, then the closest runtime.
-    let pool = candidates;
-    if (year) {
-      const sameYear = pool.filter(
-        (r) => r.release_date && parseInt(r.release_date.substring(0, 4), 10) === year,
-      );
-      if (sameYear.length > 0) pool = sameYear;
-    }
-    if (pool.length === 1) {
-      return pool[0];
-    }
-    if (runtime) {
-      let bestMatch: TMDBMovieResult | null = null;
-      let smallestDiff = Infinity;
-      for (const result of pool) {
-        const details = detailsMap.get(result.id);
-        if (details && details.runtime) {
-          const diff = Math.abs(details.runtime - runtime);
-          if (diff < smallestDiff) {
-            smallestDiff = diff;
-            bestMatch = result;
-          }
-        }
-      }
-      if (bestMatch) return bestMatch;
-    }
-    return pool[0];
-  } catch (error) {
-    console.warn(`Error searching TMDB for "${title}":`, error);
-    return null;
-  }
-}
 
 // Scraper registry mapping names to scraper functions
 const scrapers: Record<string, () => Promise<Screening[]>> = {
@@ -336,35 +220,18 @@ async function runScrapeJobLocked(scraperName?: string) {
     const searchYear = movie.year ? ` (${movie.year})` : '';
     const runtimeInfo = movie.runtime ? ` [${movie.runtime} min]` : '';
     console.log(`  → Searching TMDB for "${movie.title}${searchYear}${runtimeInfo}"...`);
-    const tmdbResult = await searchTMDB(movie.title, movie.year, movie.runtime);
+    const tmdbDetails = await findGatedTMDBMatch(movie.title, movie.year, movie.runtime);
 
     let tmdbFields: Partial<ReturnType<typeof tmdbDetailsToMovieFields>> = {};
     let runtime: number | null = movie.runtime;
     let year: number | null = movie.year;
 
-    if (tmdbResult) {
-      // Fetch full movie details to get runtime, popularity, etc.
-      const tmdbDetails = await getTMDBMovieDetails(tmdbResult.id);
-
-      if (tmdbDetails) {
-        tmdbFields = tmdbDetailsToMovieFields(tmdbDetails);
-        // Prefer TMDB runtime, fall back to scraper runtime
-        runtime = tmdbFields.runtime || runtime;
-        // Prefer scraper year, fall back to TMDB year
-        if (!year) year = tmdbFields.year ?? null;
-      } else {
-        // Fallback to search result data if details fetch fails
-        tmdbFields = {
-          tmdb_id: tmdbResult.id,
-          tmdb_url: `https://www.themoviedb.org/movie/${tmdbResult.id}`,
-          poster_url: tmdbResult.poster_path
-            ? `https://image.tmdb.org/t/p/w500${tmdbResult.poster_path}`
-            : null,
-        };
-        if (tmdbResult.release_date && !year) {
-          year = parseInt(tmdbResult.release_date.substring(0, 4));
-        }
-      }
+    if (tmdbDetails) {
+      tmdbFields = tmdbDetailsToMovieFields(tmdbDetails);
+      // Prefer TMDB runtime, fall back to scraper runtime
+      runtime = tmdbFields.runtime || runtime;
+      // Prefer scraper year, fall back to TMDB year
+      if (!year) year = tmdbFields.year ?? null;
 
       tmdbFoundCount++;
       console.log(
