@@ -60,6 +60,7 @@ export function renderTmdbReviewPage(
     description: 'Admin review queue for likely-wrong TMDB matches.',
     styles: ['/css/tmdb-modal.css', '/css/movie.css', '/css/tmdb-review.css'],
     scripts: ['/js/review.js'],
+    noindex: true,
     activePage: 'movies',
     body: (
       <>

@@ -16,6 +16,7 @@ export interface MovieDetail {
   tmdb_url: string | null;
   poster_url: string | null;
   letterboxd_url: string | null;
+  overview: string | null;
 }
 
 export interface ScreeningDetail {
@@ -47,7 +48,24 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
     ...(movie.director && { director: { '@type': 'Person', name: movie.director } }),
     ...(movie.runtime && { duration: `PT${movie.runtime}M` }),
     ...(movie.poster_url && { image: movie.poster_url }),
+    ...(movie.overview && { description: movie.overview }),
     url: `https://movieclock.app${movieUrl(movie.id, movie.title)}`,
+  };
+
+  // Breadcrumb trail (Home › By Movie › this film) for breadcrumb rich results.
+  const breadcrumbSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://movieclock.app/' },
+      { '@type': 'ListItem', position: 2, name: 'By Movie', item: 'https://movieclock.app/movies' },
+      {
+        '@type': 'ListItem',
+        position: 3,
+        name: movie.title,
+        item: `https://movieclock.app${movieUrl(movie.id, movie.title)}`,
+      },
+    ],
   };
 
   const screeningSchemas = futureScreenings.map((s) => ({
@@ -74,7 +92,7 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
     description: movieDesc,
     canonicalPath: movieUrl(movie.id, movie.title),
     ogImage: movie.poster_url || undefined,
-    jsonLd: [movieSchema, ...screeningSchemas],
+    jsonLd: [movieSchema, breadcrumbSchema, ...screeningSchemas],
     styles: ['/css/movie.css', '/css/tmdb-modal.css'],
     scripts: ['/js/movie.js'],
     body: (
@@ -118,6 +136,13 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
               )}
             </div>
           </div>
+
+          {movie.overview && (
+            <section class="movie-overview">
+              <h2>Synopsis</h2>
+              <p>{movie.overview}</p>
+            </section>
+          )}
 
           <div class="screenings-section">
             <h2>Screenings</h2>

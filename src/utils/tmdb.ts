@@ -10,6 +10,7 @@ export interface TMDBMovieDetails {
   poster_path?: string | null;
   runtime: number | null;
   popularity?: number;
+  overview?: string;
 }
 
 export interface TMDBMovieFields {
@@ -19,6 +20,7 @@ export interface TMDBMovieFields {
   runtime: number | null;
   year: number | null;
   tmdb_popularity: number | null;
+  overview: string | null;
 }
 
 export interface VerifiedCleanResult {
@@ -129,6 +131,7 @@ export function tmdbDetailsToMovieFields(details: TMDBMovieDetails): TMDBMovieFi
     runtime: details.runtime,
     year: details.release_date ? parseInt(details.release_date.substring(0, 4), 10) : null,
     tmdb_popularity: details.popularity ?? null,
+    overview: details.overview?.trim() || null,
   };
 }
 

@@ -173,6 +173,7 @@ app.get('/robots.txt', (c) => {
   const BASE_URL = process.env.BASE_URL || 'https://movieclock.app';
   const body = `User-agent: *
 Allow: /
+Disallow: /internal
 
 Sitemap: ${BASE_URL}/sitemap.xml
 `;
@@ -264,6 +265,7 @@ app.get('/movie/:id', async (c) => {
       'tmdb_url',
       'poster_url',
       'letterboxd_url',
+      'overview',
     ])
     .where('id', '=', movieId)
     .executeTakeFirst();

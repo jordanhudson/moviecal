@@ -38,18 +38,33 @@ export function renderTheatrePage(theatreName: string, screenings: TheatreScreen
     title: `${theatreName} Showtimes Vancouver — MovieClock`,
     description: `Upcoming movie showtimes at ${theatreName} in Vancouver.`,
     canonicalPath: `/theatre/${encodeURIComponent(theatreName)}`,
-    jsonLd: {
-      '@context': 'https://schema.org',
-      '@type': 'MovieTheater',
-      name: theatreName,
-      address: {
-        '@type': 'PostalAddress',
-        addressLocality: 'Vancouver',
-        addressRegion: 'BC',
-        addressCountry: 'CA',
+    jsonLd: [
+      {
+        '@context': 'https://schema.org',
+        '@type': 'MovieTheater',
+        name: theatreName,
+        address: {
+          '@type': 'PostalAddress',
+          addressLocality: 'Vancouver',
+          addressRegion: 'BC',
+          addressCountry: 'CA',
+        },
+        url: `https://movieclock.app/theatre/${encodeURIComponent(theatreName)}`,
       },
-      url: `https://movieclock.app/theatre/${encodeURIComponent(theatreName)}`,
-    },
+      {
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://movieclock.app/' },
+          {
+            '@type': 'ListItem',
+            position: 2,
+            name: theatreName,
+            item: `https://movieclock.app/theatre/${encodeURIComponent(theatreName)}`,
+          },
+        ],
+      },
+    ],
     styles: ['/css/theatre.css'],
     body: (
       <div class="theatre-container">

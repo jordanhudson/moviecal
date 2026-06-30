@@ -20,6 +20,7 @@ export function renderAllMoviesPage(movies: MovieRow[], sort: string): string {
     description: 'Complete list of all movies with upcoming screenings in Vancouver cinemas.',
     styles: ['/css/all-movies.css', '/css/tmdb-modal.css'],
     scripts: ['/js/all-movies.js'],
+    noindex: true,
     activePage: 'movies',
     body: (
       <>

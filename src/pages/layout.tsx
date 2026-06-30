@@ -31,6 +31,9 @@ export interface PageOptions {
   // after the shared search script. Served from same-origin so the strict
   // script-src CSP allows them with no inline scripts or nonces.
   scripts?: string[];
+  // Keep a page out of search engines (admin/internal pages). Emits a
+  // robots noindex meta; robots.txt also Disallows /internal as a second layer.
+  noindex?: boolean;
   body: Child;
   activePage?: string;
 }
@@ -52,6 +55,7 @@ export function renderPage({
   jsonLd,
   styles,
   scripts,
+  noindex,
   body,
   activePage,
 }: PageOptions): string {
@@ -71,6 +75,7 @@ export function renderPage({
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <meta name="color-scheme" content="dark" />
         <meta name="darkreader-lock" />
+        {noindex && <meta name="robots" content="noindex, nofollow" />}
         <meta
           name="google-site-verification"
           content="VM8EAB3B8XS6MIzpotyQjlH5WodE2q_e0NkffgF_DdI"

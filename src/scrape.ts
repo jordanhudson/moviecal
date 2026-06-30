@@ -293,6 +293,7 @@ async function runScrapeJobLocked(scraperName?: string) {
         tmdb_url: tmdbFields.tmdb_url ?? null,
         poster_url: tmdbFields.poster_url ?? null,
         tmdb_popularity: tmdbFields.tmdb_popularity ?? null,
+        overview: tmdbFields.overview ?? null,
         // A real URL, or null when we had no tmdb_id to look up / the lookup found nothing.
         letterboxd_url: letterboxdUrl,
       })

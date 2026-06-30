@@ -26,13 +26,23 @@ async function repair() {
   // Pass 1: Backfill missing fields for movies that have a TMDB ID
   const incomplete = await db
     .selectFrom('movie')
-    .select(['id', 'title', 'tmdb_id', 'poster_url', 'runtime', 'year', 'tmdb_popularity'])
+    .select([
+      'id',
+      'title',
+      'tmdb_id',
+      'poster_url',
+      'runtime',
+      'year',
+      'tmdb_popularity',
+      'overview',
+    ])
     .where('tmdb_id', 'is not', null)
     .where((eb) =>
       eb.or([
         eb('tmdb_popularity', 'is', null),
         eb('poster_url', 'is', null),
         eb('runtime', 'is', null),
+        eb('overview', 'is', null),
       ]),
     )
     .execute();
@@ -62,6 +72,9 @@ async function repair() {
       }
       if (movie.year === null && fresh.year) {
         updates.year = fresh.year;
+      }
+      if (movie.overview === null && fresh.overview) {
+        updates.overview = fresh.overview;
       }
 
       if (Object.keys(updates).length === 0) continue;
