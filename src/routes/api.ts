@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
 import type { Context } from 'hono';
 import { timingSafeEqual } from 'node:crypto';
-import { sql } from 'kysely';
 import { db } from '../db/connection.js';
+import { mergeMovieInto } from '../db/merge-movie.js';
 import { getTMDBMovieDetails, tmdbDetailsToMovieFields } from '../utils/tmdb.js';
 import { searchLetterboxdByTmdbId } from '../utils/letterboxd.js';
 
@@ -118,25 +118,8 @@ apiRoutes.post('/api/movie/:id/tmdb-update', async (c) => {
     .executeTakeFirst();
 
   if (owner) {
-    const keeper = owner.id;
-    await db.transaction().execute(async (trx) => {
-      // Drop this movie's screenings that would collide with the keeper's
-      // identity (theatre_name, datetime), then repoint the rest to the keeper.
-      await sql`
-        DELETE FROM screening s
-        WHERE s.movie_id = ${movieId}
-          AND EXISTS (
-            SELECT 1 FROM screening k
-            WHERE k.movie_id = ${keeper}
-              AND k.theatre_name = s.theatre_name
-              AND k.datetime = s.datetime
-          )
-      `.execute(trx);
-      await sql`UPDATE screening SET movie_id = ${keeper} WHERE movie_id = ${movieId}`.execute(trx);
-      // Deleting the duplicate cascades to its remaining screenings + review row.
-      await sql`DELETE FROM movie WHERE id = ${movieId}`.execute(trx);
-    });
-    return c.json({ success: true, mergedInto: keeper });
+    await mergeMovieInto(owner.id, movieId);
+    return c.json({ success: true, mergedInto: owner.id });
   }
 
   const fields = tmdbDetailsToMovieFields(details);

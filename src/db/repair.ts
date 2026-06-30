@@ -8,6 +8,7 @@
 
 import 'dotenv/config';
 import { db, closeDb } from './connection.js';
+import { mergeMovieInto } from './merge-movie.js';
 import { getTMDBMovieDetails, tmdbDetailsToMovieFields, searchTMDBByTitle } from '../utils/tmdb.js';
 import { recleanExistingTitles } from '../utils/reclean.js';
 
@@ -118,6 +119,22 @@ async function repair() {
       // Skip shorts
       if (details.runtime && details.runtime < 60) {
         console.log(`  ✗ ${movie.title} — skipped (short: ${details.runtime} min)`);
+        continue;
+      }
+
+      // If another movie already owns this tmdb_id, the search resolved a
+      // duplicate: merge this row into the existing one rather than hitting the
+      // unique tmdb_id index (mirrors scrape-time reuse + the fix-match API).
+      const owner = await db
+        .selectFrom('movie')
+        .select('id')
+        .where('tmdb_id', '=', details.id)
+        .where('id', '!=', movie.id)
+        .executeTakeFirst();
+      if (owner) {
+        await mergeMovieInto(owner.id, movie.id);
+        console.log(`  ⤳ ${movie.title} — same TMDB id as existing #${owner.id}, merged`);
+        foundCount++;
         continue;
       }
 
