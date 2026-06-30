@@ -59,7 +59,9 @@
   --bg: #0a0a14;
   --ink: #eef0ff;
   --muted: #9a9ec2;
-  --faint: #646891;
+  /* #646891 was 3.69:1 on --bg (failed WCAG AA for normal text); lightened to
+     clear 4.5:1 while keeping the same hue. */
+  --faint: #7277a5;
 
   --glass: rgba(255, 255, 255, .045);
   --glass2: rgba(255, 255, 255, .07);

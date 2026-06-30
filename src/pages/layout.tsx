@@ -122,19 +122,25 @@ export function renderPage({
             </a>
             <div class="top-bar-nav">
               <a href="/" class={activePage === 'home' ? 'active' : undefined}>
-                <span dangerouslySetInnerHTML={{ __html: calendarIcon }} />
+                <span aria-hidden="true" dangerouslySetInnerHTML={{ __html: calendarIcon }} />
                 By Date
               </a>
               <a href="/movies" class={activePage === 'movies' ? 'active' : undefined}>
-                <span dangerouslySetInnerHTML={{ __html: filmIcon }} />
+                <span aria-hidden="true" dangerouslySetInnerHTML={{ __html: filmIcon }} />
                 By Movie
               </a>
               <button type="button" class="nav-search-btn" id="navSearchBtn" aria-label="Search">
-                <span dangerouslySetInnerHTML={{ __html: searchIcon }} />
+                <span aria-hidden="true" dangerouslySetInnerHTML={{ __html: searchIcon }} />
               </button>
             </div>
             <div class="top-bar-search">
-              <input type="text" id="searchInput" placeholder="Search" autocomplete="off" />
+              <input
+                type="text"
+                id="searchInput"
+                placeholder="Search"
+                autocomplete="off"
+                aria-label="Search movies"
+              />
               <div class="search-results" id="searchResults"></div>
             </div>
           </div>

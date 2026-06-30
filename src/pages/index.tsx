@@ -209,8 +209,8 @@ export function renderIndexPage(
               {'›'}
             </a>
             <label class="rail-cal" title="Pick a date">
-              {'📅'}
-              <input type="date" id="datePicker" value={dateStr} />
+              <span aria-hidden="true">{'📅'}</span>
+              <input type="date" id="datePicker" value={dateStr} aria-label="Pick a date" />
             </label>
           </div>
 
@@ -260,6 +260,7 @@ export function renderIndexPage(
                             href={movieUrl(screening.movie_id, screening.movie_title)}
                             class="screening-overlay"
                             title={screening.movie_title}
+                            aria-label={screening.movie_title}
                           ></a>
                           <span class="screening-title">{screening.movie_title}</span>
                           <div class="screening-bottom">
@@ -270,8 +271,9 @@ export function renderIndexPage(
                                 target="_blank"
                                 class="screening-link"
                                 title="Book tickets"
+                                aria-label={`Book tickets for ${screening.movie_title}`}
                               >
-                                {'🎟️'}
+                                <span aria-hidden="true">{'🎟️'}</span>
                               </a>
                               {lookupUrl && (
                                 <a
@@ -281,8 +283,11 @@ export function renderIndexPage(
                                   title={
                                     screening.letterboxd_url ? 'View on Letterboxd' : 'View on TMDB'
                                   }
+                                  aria-label={
+                                    screening.letterboxd_url ? 'View on Letterboxd' : 'View on TMDB'
+                                  }
                                 >
-                                  {'🔍'}
+                                  <span aria-hidden="true">{'🔍'}</span>
                                 </a>
                               )}
                             </div>
