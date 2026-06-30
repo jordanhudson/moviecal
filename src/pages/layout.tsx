@@ -27,78 +27,13 @@ export interface PageOptions {
   ogImage?: string;
   jsonLd?: object | object[];
   styles?: string[];
+  // Page-specific external scripts (under public/js), emitted at end of body
+  // after the shared search script. Served from same-origin so the strict
+  // script-src CSP allows them with no inline scripts or nonces.
+  scripts?: string[];
   body: Child;
   activePage?: string;
 }
-
-const SEARCH_SCRIPT = `
-(function() {
-  var btn = document.getElementById('navSearchBtn');
-  var input = document.getElementById('searchInput');
-  var results = document.getElementById('searchResults');
-
-  if (btn) {
-    btn.addEventListener('click', function(e) {
-      e.stopPropagation();
-      var open = document.body.classList.toggle('search-open');
-      if (open) { setTimeout(function() { input.focus(); }, 0); }
-      else { results.classList.remove('open'); input.value = ''; }
-    });
-  }
-
-  if (!input) return;
-
-  function slug(t) {
-    return t.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-  }
-
-  var debounce = null;
-  var seq = 0;
-
-  function run(q) {
-    // Tag each request so out-of-order responses can be dropped.
-    var mine = ++seq;
-    fetch('/api/search?q=' + encodeURIComponent(q)).then(function(r) {
-      return r.ok ? r.json() : [];
-    }).then(function(matches) {
-      if (mine !== seq) return;
-      // Build results via the DOM (textContent / setAttribute) so the browser
-      // escapes the title in both the link text and the href — no hand-rolled
-      // escaping that can miss a character.
-      results.textContent = '';
-      if (!matches.length) {
-        var none = document.createElement('div');
-        none.className = 'search-no-results';
-        none.textContent = 'No matches';
-        results.appendChild(none);
-      } else {
-        matches.forEach(function(m) {
-          var s = slug(m.title);
-          var a = document.createElement('a');
-          a.className = 'search-result';
-          a.setAttribute('href', '/movie/' + m.id + (s ? '-' + s : ''));
-          a.textContent = m.title;
-          results.appendChild(a);
-        });
-      }
-      results.classList.add('open');
-    }).catch(function() {});
-  }
-
-  input.addEventListener('input', function() {
-    var q = input.value.trim();
-    clearTimeout(debounce);
-    if (!q) { seq++; results.classList.remove('open'); return; }
-    debounce = setTimeout(function() { run(q); }, 150);
-  });
-
-  document.addEventListener('click', function(e) {
-    if (!e.target.closest('.top-bar-search') && !e.target.closest('#navSearchBtn')) {
-      results.classList.remove('open');
-      document.body.classList.remove('search-open');
-    }
-  });
-})();`;
 
 const calendarIcon =
   '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 256 256" style="vertical-align: -2px; margin-right: 4px;"><path fill="currentColor" d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Zm-68-76a12,12,0,1,1-12-12A12,12,0,0,1,140,132Zm44,0a12,12,0,1,1-12-12A12,12,0,0,1,184,132ZM96,172a12,12,0,1,1-12-12A12,12,0,0,1,96,172Zm44,0a12,12,0,1,1-12-12A12,12,0,0,1,140,172Zm44,0a12,12,0,1,1-12-12A12,12,0,0,1,184,172Z"/></svg>';
@@ -116,6 +51,7 @@ export function renderPage({
   ogImage,
   jsonLd,
   styles,
+  scripts,
   body,
   activePage,
 }: PageOptions): string {
@@ -205,7 +141,10 @@ export function renderPage({
         </nav>
         <div class="page-content">{body}</div>
         <Footer />
-        <script dangerouslySetInnerHTML={{ __html: SEARCH_SCRIPT }} />
+        <script src={assetUrl('/js/search.js')} />
+        {(scripts || []).map((src) => (
+          <script src={assetUrl(src)} />
+        ))}
         <script
           defer
           src="https://static.cloudflareinsights.com/beacon.min.js"

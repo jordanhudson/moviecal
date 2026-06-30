@@ -32,8 +32,32 @@ const app = new Hono();
 // Security headers on every response. Hono's defaults cover X-Content-Type-Options,
 // X-Frame-Options, COOP/CORP, etc. Referrer-Policy is relaxed from the default
 // no-referrer so venues still see movieclock.app referrals on booking links.
-// No CSP yet — the pages rely on inline scripts (would need nonces).
-app.use('*', secureHeaders({ referrerPolicy: 'strict-origin-when-cross-origin' }));
+//
+// CSP: all our client JS is now served as same-origin files (public/js/*), so
+// script-src is strict 'self' (plus the Cloudflare analytics beacon) with no
+// 'unsafe-inline' and no nonces — an injected <script> simply won't run. Data
+// the scripts need rides in via data-* attributes and <script type="application/
+// json"> islands (data blocks, which script-src doesn't govern). style-src keeps
+// 'unsafe-inline' because the timeline/poster gradients are computed per-request
+// inline styles; inline styles are a far weaker vector than inline scripts.
+app.use(
+  '*',
+  secureHeaders({
+    referrerPolicy: 'strict-origin-when-cross-origin',
+    contentSecurityPolicy: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", 'https://static.cloudflareinsights.com'],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", 'https://image.tmdb.org'],
+      fontSrc: ["'self'"],
+      connectSrc: ["'self'", 'https://cloudflareinsights.com'],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+      formAction: ["'self'"],
+      frameAncestors: ["'none'"],
+    },
+  }),
+);
 
 // Gzip responses — the app is served straight from Fly (no CDN in front), so
 // nothing else compresses for us.
@@ -77,6 +101,7 @@ const CACHE_IMMUTABLE = 'public, max-age=31536000, immutable';
 const CACHE_DAY = 'public, max-age=86400';
 
 app.use('/css/*', cacheControl(CACHE_IMMUTABLE), serveStatic({ root: './public' }));
+app.use('/js/*', cacheControl(CACHE_IMMUTABLE), serveStatic({ root: './public' }));
 app.use('/fonts/*', cacheControl(CACHE_IMMUTABLE), serveStatic({ root: './public' }));
 app.use('/favicon.png', cacheControl(CACHE_DAY), serveStatic({ root: './public' }));
 app.use('/favicon.svg', cacheControl(CACHE_DAY), serveStatic({ root: './public' }));

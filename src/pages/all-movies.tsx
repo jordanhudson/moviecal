@@ -14,20 +14,12 @@ export interface MovieRow {
   letterboxd_url: string | null;
 }
 
-const FIX_MATCH_SCRIPT = `
-    document.querySelector('.movie-list').addEventListener('click', function(e) {
-      var btn = e.target.closest('.fix-btn');
-      if (!btn) return;
-      var movieId = parseInt(btn.getAttribute('data-movie-id'), 10);
-      var title = btn.getAttribute('data-movie-title');
-      TmdbModal.open(movieId, title);
-    });`;
-
 export function renderAllMoviesPage(movies: MovieRow[], sort: string): string {
   return renderPage({
     title: 'All Upcoming Movies — MovieClock',
     description: 'Complete list of all movies with upcoming screenings in Vancouver cinemas.',
     styles: ['/css/all-movies.css', '/css/tmdb-modal.css'],
+    scripts: ['/js/all-movies.js'],
     activePage: 'movies',
     body: (
       <>
@@ -36,10 +28,7 @@ export function renderAllMoviesPage(movies: MovieRow[], sort: string): string {
         </a>
         <div class="page-header">
           <h1 class="page-title">All Movies</h1>
-          <select
-            class="sort-select"
-            onchange="window.location.href='/internal-movies?sort='+this.value"
-          >
+          <select class="sort-select" id="sortSelect">
             <option value="added" selected={sort === 'added'}>
               Recently Added
             </option>
@@ -97,7 +86,6 @@ export function renderAllMoviesPage(movies: MovieRow[], sort: string): string {
         </div>
 
         <TmdbModal />
-        <script dangerouslySetInnerHTML={{ __html: FIX_MATCH_SCRIPT }} />
       </>
     ),
   });

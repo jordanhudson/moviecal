@@ -85,8 +85,8 @@ fly logs -a movieclock                        # View logs
 ### JSX Rendering
 
 - Pages live in `src/pages/*.tsx` and render with **hono/jsx** (server-side only). Each page file starts with the `/** @jsxImportSource hono/jsx */` pragma.
-- JSX is rendered to an HTML **string** via `.toString()` (see `renderPage` in `layout.tsx`); there is no client-side React/hydration. Interactivity is plain inline `<script>` strings injected with `dangerouslySetInnerHTML`.
-- **Dev gotcha**: `npm run server` uses nodemon with `--watch src --ext ts`, which does **not** match `.tsx`. Editing a page does not hot-reload — restart the server manually after `.tsx` edits. (CSS under `public/css/` is served statically, so CSS edits need only a browser refresh.)
+- JSX is rendered to an HTML **string** via `.toString()` (see `renderPage` in `layout.tsx`); there is no client-side React/hydration. Interactivity is plain client JS served from **external same-origin files** in `public/js/*.js` (so the strict `script-src 'self'` CSP allows them with no inline scripts or nonces — see Security headers below). A page opts into one via the `scripts` option on `renderPage` (e.g. `scripts: ['/js/movie.js']`), which emits `<script src={assetUrl(...)}>` after the shared `search.js`; the `TmdbModal` component pulls in `/js/modal.js` itself. Server data the scripts need rides in via `data-*` attributes and `<script type="application/json">` **data islands** (e.g. `#cineplexVenues`) — data blocks aren't governed by `script-src`. The few remaining `dangerouslySetInnerHTML` uses are all non-executable (JSON-LD + JSON islands, both escaped via `jsonForScript`) or static SVG icon constants — no executable inline scripts remain.
+- **Dev gotcha**: `npm run server` uses nodemon with `--watch src --ext ts`, which does **not** match `.tsx`. Editing a page does not hot-reload — restart the server manually after `.tsx` edits. (CSS under `public/css/` and client JS under `public/js/` are served statically, so edits to those need only a browser refresh — no restart.)
 
 ### Entry Points
 
@@ -103,9 +103,9 @@ fly logs -a movieclock                        # View logs
 2. **`src/server.ts`** - Hono web server
    - Routes requests to page renderers
    - Hosts admin API endpoints for TMDB/Letterboxd fix-match (token compared with `crypto.timingSafeEqual`, see `src/routes/api.ts`)
-   - Security headers via Hono `secure-headers` middleware on every response (no CSP — pages rely on inline scripts; `Referrer-Policy` relaxed to `strict-origin-when-cross-origin` so venues see booking referrals)
+   - Security headers via Hono `secure-headers` middleware on every response. Includes a **Content-Security-Policy** with a strict `script-src 'self' https://static.cloudflareinsights.com` (no `'unsafe-inline'`, no nonces — all client JS is same-origin files in `public/js/`, see JSX Rendering). `style-src` keeps `'unsafe-inline'` (timeline/poster gradients are per-request inline styles; a much weaker vector than scripts); `img-src` allows `https://image.tmdb.org`, `connect-src` allows the Cloudflare RUM endpoint. `Referrer-Policy` relaxed to `strict-origin-when-cross-origin` so venues see booking referrals
    - Gzip compression via Hono `compress` middleware (the app is served straight from Fly, no CDN in front)
-   - Static assets get cache headers in production only (gated on `NODE_ENV=production`, set in the Dockerfile): CSS and fonts are immutable for a year (CSS URLs carry a content hash via `assetUrl` in `src/utils/assets.ts`; font filenames never change), favicons and og-image a day
+   - Static assets get cache headers in production only (gated on `NODE_ENV=production`, set in the Dockerfile): CSS, JS, and fonts are immutable for a year (CSS and JS URLs carry a content hash via `assetUrl` in `src/utils/assets.ts`; font filenames never change), favicons and og-image a day
    - Branded 404/500 pages via `app.notFound`/`app.onError` (`src/pages/error.tsx`); `/api/*` paths get JSON errors instead. Error pages render even when the DB is down (search list falls back to empty)
    - Runs cron job every 2 hours to scrape
    - After 10pm Pacific, home page auto-shows tomorrow's screenings
