@@ -55,11 +55,31 @@ function FilmBlock(props: {
 // removes the resolved card; Nope reuses the shared fix-match modal (whose own
 // apply reloads the page). All writes also refresh Letterboxd server-side.
 const REVIEW_SCRIPT = `
-  var tokenInput = document.getElementById('reviewToken');
   var list = document.getElementById('reviewList');
   var countEl = document.getElementById('reviewCount');
 
-  function token() { return tokenInput.value.trim(); }
+  // The admin token lives only in localStorage (this page is admin-only). Set it
+  // once and every action uses it — it survives the reload the modal does.
+  function token() {
+    try { return (localStorage.getItem('adminToken') || '').trim(); } catch (e) { return ''; }
+  }
+  var setBtn = document.getElementById('setToken');
+  var statusEl = document.getElementById('tokenStatus');
+  function refreshTokenUi() {
+    var has = !!token();
+    statusEl.textContent = has ? 'Admin token saved' : 'No admin token set';
+    statusEl.className = 'token-status' + (has ? ' ok' : '');
+    setBtn.textContent = has ? 'Change token' : 'Set admin token';
+  }
+  function promptToken() {
+    var t = prompt('Admin token', token());
+    if (t === null) return;
+    try { localStorage.setItem('adminToken', t.trim()); } catch (e) {}
+    refreshTokenUi();
+  }
+  setBtn.addEventListener('click', promptToken);
+  refreshTokenUi();
+
   function remaining() {
     var n = list.querySelectorAll('.review-card').length;
     countEl.textContent = n;
@@ -74,7 +94,7 @@ const REVIEW_SCRIPT = `
   }
 
   function apply(card, tmdbId) {
-    if (!token()) { setStatus(card, 'Enter the admin token first.', false); tokenInput.focus(); return; }
+    if (!token()) { setStatus(card, 'Set the admin token first.', false); promptToken(); return; }
     setStatus(card, 'Updating…', true);
     fetch('/api/movie/' + card.dataset.movieId + '/tmdb-update', {
       method: 'POST',
@@ -87,7 +107,7 @@ const REVIEW_SCRIPT = `
   }
 
   function dismiss(card) {
-    if (!token()) { setStatus(card, 'Enter the admin token first.', false); tokenInput.focus(); return; }
+    if (!token()) { setStatus(card, 'Set the admin token first.', false); promptToken(); return; }
     setStatus(card, 'Dismissing…', true);
     fetch('/api/tmdb-review/' + card.dataset.movieId + '/dismiss', {
       method: 'POST',
@@ -99,7 +119,7 @@ const REVIEW_SCRIPT = `
   }
 
   function del(card) {
-    if (!token()) { setStatus(card, 'Enter the admin token first.', false); tokenInput.focus(); return; }
+    if (!token()) { setStatus(card, 'Set the admin token first.', false); promptToken(); return; }
     if (!confirm('Permanently delete "' + card.dataset.storedTitle + '" and all its screenings from the database?')) return;
     setStatus(card, 'Deleting…', true);
     fetch('/api/movie/' + card.dataset.movieId + '/delete', {
@@ -121,7 +141,7 @@ const REVIEW_SCRIPT = `
     } else if (e.target.closest('.btn-delete')) {
       del(card);
     } else if (e.target.closest('.btn-nope')) {
-      // Prefill the modal token from the page field, then open the search modal.
+      // Carry the localStorage token into the modal, then open (it auto-searches).
       var mt = document.getElementById('tmdbTokenInput');
       if (mt) mt.value = token();
       TmdbModal.open(parseInt(card.dataset.movieId, 10), card.dataset.storedTitle);
@@ -148,13 +168,12 @@ export function renderTmdbReviewPage(
             <h1 class="review-title">
               TMDB Match Review · <span id="reviewCount">{String(rows.length)}</span> to check
             </h1>
-            <input
-              type="password"
-              id="reviewToken"
-              class="review-token"
-              placeholder="Admin token"
-              autocomplete="current-password"
-            />
+            <div class="review-token-bar">
+              <span id="tokenStatus" class="token-status"></span>
+              <button type="button" id="setToken" class="review-save-token">
+                Set admin token
+              </button>
+            </div>
             <p class="review-hint">
               Each entry has a likely-wrong TMDB match. Accept the suggestion, pick another, or
               dismiss if it's actually fine. Every change also refreshes the Letterboxd link.
