@@ -2,17 +2,33 @@
 import type { Child } from 'hono/jsx';
 import { jsonForScript } from '../utils/html.js';
 import { assetUrl } from '../utils/assets.js';
+import { FOOTER_VENUES } from '../venues.js';
 
 function Footer() {
   return (
-    <footer style="text-align: center; padding: 24px 16px; color: #555; font-size: 12px;">
-      <p>
-        Vancouver movie showtimes for independent and repertory cinemas &mdash; Cinematheque, VIFF,
-        Rio Theatre, Park Theatre, and more.
+    <footer class="site-footer">
+      <nav class="footer-links" aria-label="Cinemas">
+        <span class="footer-links-label">Cinemas:</span>
+        {FOOTER_VENUES.map((v, i) => (
+          <>
+            {i > 0 && <span class="footer-sep"> · </span>}
+            <a href={`/theatre/${encodeURIComponent(v.theatreName)}`}>{v.label}</a>
+          </>
+        ))}
+      </nav>
+      <nav class="footer-links" aria-label="Browse">
+        <span class="footer-links-label">Browse:</span>
+        <a href="/">By Date</a>
+        <span class="footer-sep"> · </span>
+        <a href="/movies">By Movie</a>
+      </nav>
+      <p class="footer-tagline">
+        Vancouver movie showtimes for independent and repertory cinemas &mdash; The Cinematheque,
+        VIFF Centre, the Rio, Park, and Hollywood theatres, plus Cineplex.
       </p>
-      <p style="margin-top: 6px;">
+      <p class="footer-credit">
         Made by{' '}
-        <a href="https://github.com/jordanhudson" target="_blank" style="color: #6a9a9a;">
+        <a href="https://github.com/jordanhudson" target="_blank">
           Jordan Hudson
         </a>
       </p>

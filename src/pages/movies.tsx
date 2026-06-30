@@ -85,6 +85,11 @@ export function renderMoviesPage(screenings: ScreeningWithMovie[]): string {
               </div>
             </div>
           </div>
+          <p class="movie-view-intro">
+            Every film with upcoming showtimes at Vancouver&rsquo;s independent and repertory
+            cinemas &mdash; The Cinematheque, VIFF Centre, the Rio, Park, Hollywood, and Cineplex
+            &mdash; with dates and ticket links. Updated through the day.
+          </p>
           {!hasScreenings && <div class="no-screenings">No upcoming screenings</div>}
           <div id="movieList">
             {movieGroups.map((group) => {
@@ -138,7 +143,13 @@ export function renderMoviesPage(screenings: ScreeningWithMovie[]): string {
                       }
                     >
                       {movie.poster_url && (
-                        <img src={safeHref(movie.poster_url)} alt="" loading="lazy" />
+                        <img
+                          src={safeHref(movie.poster_url)}
+                          alt=""
+                          loading="lazy"
+                          width="500"
+                          height="750"
+                        />
                       )}
                     </a>
                     <div class="movie-card-titles">

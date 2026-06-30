@@ -25,7 +25,20 @@
   font-size: clamp(30px, 5vw, 48px);
   line-height: 1.02;
   letter-spacing: -.03em;
-  margin-top: 6px;
+}
+.date-sub {
+  font-family: var(--font-disp);
+  font-weight: 600;
+  font-size: clamp(16px, 2.4vw, 22px);
+  color: var(--cyan);
+  margin-top: 8px;
+}
+.datebar-intro {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 16px 0 4px;
+  max-width: 70ch;
 }
 
 /* desktop view toggle */

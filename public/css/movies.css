@@ -9,7 +9,15 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 20px;
+  margin-bottom: 14px;
+}
+
+.movie-view-intro {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: 22px;
+  max-width: 70ch;
 }
 
 .movie-view-heading {

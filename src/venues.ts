@@ -107,6 +107,16 @@ export const CINEPLEX_VENUES: { display: string; prefix: string }[] = LOCATIONS.
   (l) => l.prefix,
 ).map((l) => ({ display: l.name, prefix: l.prefix! }));
 
+// Curated venue links for the site footer (internal linking / crawl paths): the
+// indie & repertory cinemas, which each have a clean single /theatre/ page.
+// Cineplex multiplexes (prefix locations) are omitted — their per-auditorium
+// pages are already in the sitemap and aren't useful footer links.
+export const FOOTER_VENUES: { label: string; theatreName: string }[] = LOCATIONS.filter(
+  (l) => !l.prefix,
+).flatMap((l) =>
+  l.auditoriums.map((a) => ({ label: a.shortName ?? a.theatreName, theatreName: a.theatreName })),
+);
+
 const auditoriumByName = new Map<string, { location: Location; auditorium: Auditorium }>();
 for (const location of LOCATIONS) {
   for (const auditorium of location.auditoriums) {

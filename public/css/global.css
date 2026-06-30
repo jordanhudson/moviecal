@@ -264,6 +264,32 @@ footer a {
   font-weight: 600;
 }
 
+/* Internal-linking footer (crawl paths + PageRank): keep the link rows as plain
+   muted links, leaving the gradient treatment for the credit link only. */
+.footer-links {
+  font-size: 13px;
+  line-height: 1.9;
+  margin-bottom: 6px;
+}
+.footer-links-label { color: var(--faint); margin-right: 6px; }
+.footer-links a {
+  background: none;
+  -webkit-background-clip: border-box;
+  background-clip: border-box;
+  color: var(--muted);
+  font-weight: 400;
+}
+.footer-links a:hover { color: var(--ink); }
+.footer-sep { color: var(--faint); }
+.footer-tagline {
+  color: var(--faint);
+  font-size: 12px;
+  line-height: 1.5;
+  max-width: 60ch;
+  margin: 14px auto 4px;
+}
+.footer-credit { margin-top: 6px; }
+
 /* ---- mobile: drop the logo, fold search into the top nav ---- */
 @media (max-width: 720px) {
   body { background-attachment: scroll; }

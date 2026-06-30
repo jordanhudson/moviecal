@@ -4,7 +4,8 @@ import { TmdbModal } from './tmdb-modal.js';
 import { safeHref, jsonForScript } from '../utils/html.js';
 import { ScreeningsList } from './screenings-list.js';
 import { movieUrl } from '../utils/movie-url.js';
-import { CINEPLEX_VENUES } from '../venues.js';
+import { pacificWallClock } from '../utils/time.js';
+import { CINEPLEX_VENUES, venueGroup } from '../venues.js';
 
 export interface MovieDetail {
   id: number;
@@ -31,14 +32,35 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
   const now = new Date();
   const futureScreenings = screenings.filter((s) => new Date(s.datetime) >= now);
 
-  const metaParts = [
-    movie.year,
-    movie.director,
-    movie.runtime ? `${movie.runtime} min` : null,
-  ].filter(Boolean);
-  const metaSuffix = metaParts.length ? ` (${metaParts.join(', ')})` : '';
   const screeningCount = futureScreenings.length;
-  const movieDesc = `${movie.title}${metaSuffix} — ${screeningCount} upcoming screening${screeningCount !== 1 ? 's' : ''} in Vancouver.`;
+  const yearSuffix = movie.year ? ` (${movie.year})` : '';
+
+  // A richer, higher-CTR meta description than a bare count: which cinemas, and
+  // when the next showing is. futureScreenings is datetime-ascending (the query
+  // orders by datetime), so [0] is the next one.
+  const movieDesc = (() => {
+    if (screeningCount === 0) {
+      return `${movie.title}${yearSuffix} — no upcoming showtimes in Vancouver right now. Check back soon for screenings and ticket links.`;
+    }
+    const venues: string[] = [];
+    for (const s of futureScreenings) {
+      const name = venueGroup(s.theatre_name).name;
+      if (!venues.includes(name)) venues.push(name);
+    }
+    const venueStr =
+      venues.length <= 2 ? venues.join(' & ') : `${venues.slice(0, 2).join(', ')} & more`;
+    const next = pacificWallClock(new Date(futureScreenings[0].datetime));
+    const nextDate = next.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+    });
+    const h12 = next.getHours() % 12 || 12;
+    const mm = String(next.getMinutes()).padStart(2, '0');
+    const ampm = next.getHours() >= 12 ? 'pm' : 'am';
+    const nextVenue = venueGroup(futureScreenings[0].theatre_name).name;
+    return `See ${movie.title}${yearSuffix} in Vancouver — ${screeningCount} showtime${screeningCount !== 1 ? 's' : ''} at ${venueStr}. Next: ${nextDate}, ${h12}:${mm}${ampm} at ${nextVenue}. Book tickets.`;
+  })();
 
   const movieSchema: Record<string, unknown> = {
     '@context': 'https://schema.org',
@@ -112,7 +134,13 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
               data-movie-title={movie.title}
             >
               {movie.poster_url ? (
-                <img src={safeHref(movie.poster_url)} alt={`${movie.title} poster`} />
+                <img
+                  src={safeHref(movie.poster_url)}
+                  alt={`${movie.title} poster`}
+                  width="500"
+                  height="750"
+                  fetchpriority="high"
+                />
               ) : (
                 <div class="movie-poster-placeholder">No poster</div>
               )}

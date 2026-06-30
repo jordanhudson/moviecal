@@ -182,8 +182,8 @@ export function renderIndexPage(
         <div class="datebar">
           <div class="datebar-head">
             <div>
-              <div class="kicker">Vancouver Showtimes</div>
-              <h1 class="date-h1">{displayDate}</h1>
+              <h1 class="date-h1">Vancouver Movie Showtimes</h1>
+              <div class="date-sub">{displayDate}</div>
             </div>
             <div class="view-toggle">
               <button class="active" data-view="listing">
@@ -192,6 +192,12 @@ export function renderIndexPage(
               <button data-view="timeline">Timeline</button>
             </div>
           </div>
+
+          <p class="datebar-intro">
+            Movie showtimes for independent and repertory cinemas in Vancouver &mdash; The
+            Cinematheque, VIFF Centre, the Rio, Park, and Hollywood theatres, plus Cineplex. Updated
+            through the day.
+          </p>
 
           <div class="rail-wrap">
             <a class="rail-arrow" href={`/date/${prevDay}`} aria-label="Previous day">
@@ -323,7 +329,13 @@ export function renderIndexPage(
                       style={movie.poster_url ? '' : `background:${posterGrad(movie.movie_id)}`}
                     >
                       {movie.poster_url && (
-                        <img src={safeHref(movie.poster_url)} alt="" loading="lazy" />
+                        <img
+                          src={safeHref(movie.poster_url)}
+                          alt=""
+                          loading="lazy"
+                          width="500"
+                          height="750"
+                        />
                       )}
                     </a>
                     <div class="film-body">
