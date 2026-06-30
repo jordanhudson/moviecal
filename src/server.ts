@@ -12,6 +12,7 @@ import { renderMoviePage } from './pages/movie.js';
 import { renderTheatrePage } from './pages/theatre.js';
 import { renderAllMoviesPage } from './pages/all-movies.js';
 import { renderTmdbReviewPage } from './pages/tmdb-review.js';
+import type { ScreeningInfo } from './pages/screenings-list.js';
 import { renderMoviesPage } from './pages/movies.js';
 import { renderErrorPage } from './pages/error.js';
 import { secureHeaders } from 'hono/secure-headers';
@@ -333,7 +334,25 @@ app.get('/internal-tmdb-review', async (c) => {
     .orderBy('movie_id', 'asc')
     .execute();
 
-  return c.html(renderTmdbReviewPage(rows));
+  // Upcoming screenings for the queued movies, so each card shows what's playing.
+  const screeningsByMovie = new Map<number, ScreeningInfo[]>();
+  const movieIds = rows.map((r) => r.movie_id);
+  if (movieIds.length > 0) {
+    const screenings = await db
+      .selectFrom('screening')
+      .select(['movie_id', 'datetime', 'theatre_name', 'booking_url', 'note'])
+      .where('movie_id', 'in', movieIds)
+      .where('datetime', '>=', new Date())
+      .orderBy('datetime', 'asc')
+      .execute();
+    for (const s of screenings) {
+      const list = screeningsByMovie.get(s.movie_id) ?? [];
+      list.push(s);
+      screeningsByMovie.set(s.movie_id, list);
+    }
+  }
+
+  return c.html(renderTmdbReviewPage(rows, screeningsByMovie));
 });
 
 // Movies page (by movie view)

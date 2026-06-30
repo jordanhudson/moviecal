@@ -135,3 +135,16 @@ apiRoutes.post('/api/tmdb-review/:id/dismiss', async (c) => {
   await db.deleteFrom('tmdb_review').where('movie_id', '=', movieId).execute();
   return c.json({ success: true });
 });
+
+// Delete a movie outright (and, via ON DELETE CASCADE, its screenings and any
+// tmdb_review row). Used by the /internal-tmdb-review page for entries that
+// shouldn't be in the catalogue at all.
+apiRoutes.post('/api/movie/:id/delete', async (c) => {
+  if (!isAdminAuthorized(c)) return c.json({ error: 'Unauthorized' }, 401);
+
+  const movieId = parseInt(c.req.param('id'), 10);
+  if (isNaN(movieId)) return c.json({ error: 'Invalid movie ID' }, 400);
+
+  await db.deleteFrom('movie').where('id', '=', movieId).execute();
+  return c.json({ success: true });
+});

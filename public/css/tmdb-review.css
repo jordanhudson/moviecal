@@ -188,6 +188,29 @@
 .btn-dismiss:hover {
   border-color: var(--violet);
 }
+.btn-delete {
+  color: var(--pink) !important;
+  border-color: rgba(244, 114, 182, 0.4) !important;
+}
+.btn-delete:hover {
+  background: rgba(244, 114, 182, 0.12) !important;
+  border-color: var(--pink) !important;
+}
+
+/* Upcoming-screenings block (reuses movie.css .day-group/.screening-item) */
+.review-screenings {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.review-screenings .day-group {
+  margin-top: 10px;
+}
+.review-screenings .no-screenings {
+  color: var(--faint);
+  font-size: 0.85rem;
+  font-style: italic;
+}
 .review-status {
   font-size: 0.82rem;
   color: var(--muted);

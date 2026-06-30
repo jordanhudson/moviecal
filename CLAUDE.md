@@ -140,13 +140,15 @@ Page rendering is in `src/pages/` (all `.tsx`, see JSX Rendering above):
   - Admin-oriented movie list with TMDB fix-match modal (intentionally left on the old styling)
 
 - **`src/pages/tmdb-review.tsx`** - TMDB match review queue (`/internal-tmdb-review`)
-  - Admin page that reads the `tmdb_review` work list (likely-wrong matches, populated by `build-tmdb-review.ts`). Each card shows the current (probably wrong) match beside TMDB's top suggestion; **Yup** applies the suggestion, **Nope** opens the shared fix-match modal to pick another, **dismiss** drops it as a false positive. Actions are token-gated (one admin-token field drives all of them, and is copied into the modal on Nope). Every fix also refreshes Letterboxd. See [TMDB match correction] under TMDB Integration.
+  - Admin page that reads the `tmdb_review` work list (likely-wrong matches, populated by `build-tmdb-review.ts`). Each card shows the current (probably wrong) match beside TMDB's top suggestion, **plus the movie's upcoming screenings with ticket links** (via the shared `ScreeningsList`, so it renders exactly like `/movie/:id`). Actions: **Yup** applies the suggestion, **Nope** opens the shared fix-match modal to pick another, **dismiss** drops it as a false positive, **Delete movie** removes it from the DB entirely (with a confirm). All token-gated by one admin-token field, which is copied into the modal on Nope (the modal then auto-searches). Every fix also refreshes Letterboxd.
+
+- **`src/pages/screenings-list.tsx`** - Shared `ScreeningsList` component (day-grouped upcoming screenings with theatre links, notes, and Book Tickets links). Used by the movie detail page and the TMDB review page.
 
 - **`src/pages/layout.tsx`** - Shared page layout/shell (`renderPage`)
   - Nav bar with **By Date / By Movie** + search. Search is **server-side**: the client debounces input and fetches `GET /api/search?q=` (see API Endpoints), which queries the whole `movie` table — so films with no upcoming screenings are still findable. There is no embedded movie list and no `searchMovies` plumbing through the renderers
   - `color-scheme: dark` + `darkreader-lock` meta, self-hosted fonts (Space Grotesk + Inter, see UI Design), Cloudflare Web Analytics
 
-- **`src/pages/tmdb-modal.tsx`** - Shared TMDB fix-match modal component
+- **`src/pages/tmdb-modal.tsx`** - Shared TMDB fix-match modal component. `open()` auto-searches the title when a token is already present (the review-page path, which carries the admin token through); the secret 10-click entrypoint has no token yet, so it stays manual there.
 - **`src/pages/theatre-card.tsx`** - Shared venue/showtimes card used by the By Movie page
 
 Shared helpers: `src/venues.ts` (venue configuration — see below), `src/routes/api.ts` (admin API routes), `src/utils/{time,html,movie-url,letterboxd}.ts`.
@@ -165,6 +167,7 @@ The cinemas we track are **application config, not data** — they change rarely
 - `GET /api/movie/:id/tmdb-search` - Search TMDB (requires `ADMIN_TOKEN`)
 - `POST /api/movie/:id/tmdb-update` - Fix TMDB match for a movie (requires `ADMIN_TOKEN`); also re-derives `letterboxd_url` from the new TMDB id via `letterboxdUrlByTmdbId()` (Letterboxd's `/tmdb/{id}/` redirect). Also clears any `tmdb_review` row for the movie (resolving it from the review queue).
 - `POST /api/tmdb-review/:id/dismiss` - Drop a movie from the `tmdb_review` queue without changing its match ("this is actually correct"); requires `ADMIN_TOKEN`
+- `POST /api/movie/:id/delete` - Delete a movie and (via `ON DELETE CASCADE`) its screenings and any `tmdb_review` row; requires `ADMIN_TOKEN`
 - `GET /robots.txt` - Robots file with sitemap reference
 - `GET /sitemap.xml` - Dynamic sitemap of movies and theatres with future screenings
 

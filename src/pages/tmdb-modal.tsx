@@ -15,6 +15,10 @@ var TmdbModal = (function() {
     input.value = title;
     results.innerHTML = '';
     modal.classList.add('active');
+    // If a token is already present (e.g. carried through from the review page),
+    // search immediately. The secret 10-click entrypoint has no token yet, so it
+    // stays manual there.
+    if (getToken()) doSearch(title);
   }
 
   function close() {

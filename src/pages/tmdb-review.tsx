@@ -3,6 +3,7 @@ import { renderPage } from './layout.js';
 import { TmdbModal } from './tmdb-modal.js';
 import { safeHref } from '../utils/html.js';
 import { movieUrl } from '../utils/movie-url.js';
+import { ScreeningsList, ScreeningInfo } from './screenings-list.js';
 
 export interface ReviewRow {
   movie_id: number;
@@ -97,6 +98,19 @@ const REVIEW_SCRIPT = `
     }).catch(function(){ setStatus(card, 'Request failed.', false); });
   }
 
+  function del(card) {
+    if (!token()) { setStatus(card, 'Enter the admin token first.', false); tokenInput.focus(); return; }
+    if (!confirm('Permanently delete "' + card.dataset.storedTitle + '" and all its screenings from the database?')) return;
+    setStatus(card, 'Deleting…', true);
+    fetch('/api/movie/' + card.dataset.movieId + '/delete', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token() }
+    }).then(function(r){ return r.json(); }).then(function(data){
+      if (data.error) { setStatus(card, data.error, false); return; }
+      card.remove(); remaining();
+    }).catch(function(){ setStatus(card, 'Request failed.', false); });
+  }
+
   list.addEventListener('click', function(e){
     var card = e.target.closest('.review-card');
     if (!card) return;
@@ -104,6 +118,8 @@ const REVIEW_SCRIPT = `
       apply(card, parseInt(card.dataset.suggestedId, 10));
     } else if (e.target.closest('.btn-dismiss')) {
       dismiss(card);
+    } else if (e.target.closest('.btn-delete')) {
+      del(card);
     } else if (e.target.closest('.btn-nope')) {
       // Prefill the modal token from the page field, then open the search modal.
       var mt = document.getElementById('tmdbTokenInput');
@@ -113,11 +129,14 @@ const REVIEW_SCRIPT = `
   });
 `;
 
-export function renderTmdbReviewPage(rows: ReviewRow[]): string {
+export function renderTmdbReviewPage(
+  rows: ReviewRow[],
+  screeningsByMovie: Map<number, ScreeningInfo[]>,
+): string {
   return renderPage({
     title: 'TMDB Match Review — MovieClock',
     description: 'Admin review queue for likely-wrong TMDB matches.',
-    styles: ['/css/tmdb-modal.css', '/css/tmdb-review.css'],
+    styles: ['/css/tmdb-modal.css', '/css/movie.css', '/css/tmdb-review.css'],
     activePage: 'movies',
     body: (
       <>
@@ -194,6 +213,11 @@ export function renderTmdbReviewPage(rows: ReviewRow[]): string {
                   </div>
                 </div>
 
+                <div class="review-screenings">
+                  <div class="review-col-label">What's actually playing</div>
+                  <ScreeningsList screenings={screeningsByMovie.get(r.movie_id) ?? []} />
+                </div>
+
                 <div class="review-actions">
                   {r.suggested_tmdb_id && (
                     <button class="btn-yup" type="button">
@@ -205,6 +229,9 @@ export function renderTmdbReviewPage(rows: ReviewRow[]): string {
                   </button>
                   <button class="btn-dismiss" type="button">
                     Looks fine — dismiss
+                  </button>
+                  <button class="btn-delete" type="button">
+                    Delete movie
                   </button>
                   <span class="review-status"></span>
                 </div>

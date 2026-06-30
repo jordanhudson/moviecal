@@ -2,7 +2,7 @@
 import { renderPage } from './layout.js';
 import { TmdbModal } from './tmdb-modal.js';
 import { safeHref, jsonForScript } from '../utils/html.js';
-import { pacificWallClock } from '../utils/time.js';
+import { ScreeningsList } from './screenings-list.js';
 import { movieUrl } from '../utils/movie-url.js';
 import { CINEPLEX_VENUES } from '../venues.js';
 
@@ -29,23 +29,6 @@ export interface ScreeningDetail {
 export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[]): string {
   const now = new Date();
   const futureScreenings = screenings.filter((s) => new Date(s.datetime) >= now);
-
-  const dayGroups: { dateStr: string; items: ScreeningDetail[] }[] = [];
-  for (const screening of futureScreenings) {
-    const dateStr = pacificWallClock(new Date(screening.datetime))
-      .toLocaleDateString('en-US', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-      })
-      .replace(',', '');
-    const lastGroup = dayGroups[dayGroups.length - 1];
-    if (lastGroup && lastGroup.dateStr === dateStr) {
-      lastGroup.items.push(screening);
-    } else {
-      dayGroups.push({ dateStr, items: [screening] });
-    }
-  }
 
   const metaParts = [
     movie.year,
@@ -204,45 +187,7 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
 
           <div class="screenings-section">
             <h2>Screenings</h2>
-            {futureScreenings.length === 0 ? (
-              <p class="no-screenings">No upcoming screenings</p>
-            ) : (
-              dayGroups.map((group) => (
-                <section class="day-group">
-                  <h3 class="day-header">{group.dateStr}</h3>
-                  <ul class="screening-list">
-                    {group.items.map((screening) => {
-                      const timeStr = pacificWallClock(
-                        new Date(screening.datetime),
-                      ).toLocaleTimeString('en-US', {
-                        hour: 'numeric',
-                        minute: '2-digit',
-                      });
-
-                      return (
-                        <li class="screening-item" data-theatre={screening.theatre_name}>
-                          <div class="screening-time">{timeStr}</div>
-                          <div class="screening-theatre">
-                            <a href={`/theatre/${encodeURIComponent(screening.theatre_name)}`}>
-                              {screening.theatre_name}
-                            </a>
-                            {screening.note && <div class="screening-note">{screening.note}</div>}
-                          </div>
-                          <a
-                            href={safeHref(screening.booking_url)}
-                            target="_blank"
-                            class="screening-book"
-                          >
-                            <span class="full-text">Book Tickets</span>
-                            <span class="short-text">Tix</span>
-                          </a>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </section>
-              ))
-            )}
+            <ScreeningsList screenings={futureScreenings} />
           </div>
         </div>
 
