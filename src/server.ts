@@ -77,9 +77,15 @@ app.get('/healthz', async (c) => {
   }
 });
 
+// Consolidate every alternate host onto the canonical bare domain with a 301:
+// the Fly default (movieclock.fly.dev) and the www. subdomain. Without this,
+// www.movieclock.app serves a 200 with a non-www canonical — Google dedupes it
+// but still crawls a parallel www universe (it showed up as ~200 "Alternative
+// page with proper canonical tag" entries in Search Console). A redirect stops
+// the duplication at the source and consolidates signals onto movieclock.app.
 app.use('*', async (c, next) => {
   const host = c.req.header('host');
-  if (host === 'movieclock.fly.dev') {
+  if (host === 'movieclock.fly.dev' || host === 'www.movieclock.app') {
     const url = new URL(c.req.url);
     return c.redirect(`https://movieclock.app${url.pathname}${url.search}`, 301);
   }
