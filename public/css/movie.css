@@ -75,7 +75,7 @@
 .letterboxd-link { margin-left: 8px; }
 .letterboxd-link:hover { border-color: #00c030; box-shadow: 0 0 14px -3px rgba(0, 192, 48, .5); }
 
-.movie-overview { margin: 28px 0 8px; }
+.movie-overview { margin: 28px 0 36px; }
 .movie-overview h2 {
   font-family: var(--font-disp);
   font-weight: 600;
@@ -86,9 +86,8 @@
 }
 .movie-overview p {
   color: var(--muted);
-  font-size: 15px;
+  font-size: 17px;
   line-height: 1.6;
-  max-width: 70ch;
 }
 
 .screenings-section { margin-top: 8px; }
