@@ -17,6 +17,9 @@
 
 .movie-poster img {
   width: 220px;
+  /* height:auto so the width/height attributes' 2:3 aspect-ratio drives the
+     height (CLS reservation) instead of the 750px presentational height hint. */
+  height: auto;
   border-radius: 16px;
   border: 1px solid var(--line);
   box-shadow: 0 18px 50px -16px rgba(139, 92, 246, .55);
