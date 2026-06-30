@@ -141,9 +141,7 @@ const REVIEW_SCRIPT = `
     } else if (e.target.closest('.btn-delete')) {
       del(card);
     } else if (e.target.closest('.btn-nope')) {
-      // Carry the localStorage token into the modal, then open (it auto-searches).
-      var mt = document.getElementById('tmdbTokenInput');
-      if (mt) mt.value = token();
+      // The modal reads the same localStorage token, so just open (it auto-searches).
       TmdbModal.open(parseInt(card.dataset.movieId, 10), card.dataset.storedTitle);
     }
   });

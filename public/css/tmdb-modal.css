@@ -34,6 +34,32 @@
 
 .tmdb-search-row { display: flex; gap: 8px; margin-bottom: 16px; }
 
+.tmdb-token-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.tmdb-token-status {
+  font-size: 13px;
+  color: var(--muted);
+  flex: 1;
+}
+.tmdb-token-row button {
+  padding: 7px 14px;
+  background: var(--glass2, rgba(255, 255, 255, 0.07));
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.tmdb-token-row button:hover {
+  border-color: var(--violet);
+}
+
 .tmdb-search-row input {
   flex: 1;
   padding: 9px 12px;

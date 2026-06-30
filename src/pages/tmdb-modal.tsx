@@ -4,20 +4,38 @@ const MODAL_SCRIPT = `
 var TmdbModal = (function() {
   var modal = document.getElementById('tmdbModal');
   var input = document.getElementById('tmdbSearchInput');
-  var tokenInput = document.getElementById('tmdbTokenInput');
   var results = document.getElementById('tmdbResults');
+  var statusEl = document.getElementById('tmdbTokenStatus');
+  var setBtn = document.getElementById('tmdbSetToken');
   var currentMovieId = null;
 
-  function getToken() { return tokenInput.value; }
+  // The admin token lives in localStorage (shared with the review page). No
+  // field — set it once and it's reused everywhere the modal opens.
+  function getToken() {
+    try { return (localStorage.getItem('adminToken') || '').trim(); } catch (e) { return ''; }
+  }
+  function refreshTokenStatus() {
+    var has = !!getToken();
+    if (statusEl) statusEl.textContent = has ? 'Admin token saved' : 'No admin token set';
+    if (setBtn) setBtn.textContent = has ? 'Change token' : 'Set admin token';
+  }
+  function promptToken() {
+    var t = prompt('Admin token', getToken());
+    if (t === null) return false;
+    try { localStorage.setItem('adminToken', t.trim()); } catch (e) {}
+    refreshTokenStatus();
+    return !!getToken();
+  }
+  function ensureToken() { return getToken() ? true : promptToken(); }
+  if (setBtn) setBtn.addEventListener('click', promptToken);
 
   function open(movieId, title) {
     currentMovieId = movieId;
     input.value = title;
     results.innerHTML = '';
+    refreshTokenStatus();
     modal.classList.add('active');
-    // If a token is already present (e.g. carried through from the review page),
-    // search immediately. The secret 10-click entrypoint has no token yet, so it
-    // stays manual there.
+    // Auto-search when a token is already set.
     if (getToken()) doSearch(title);
   }
 
@@ -40,6 +58,7 @@ var TmdbModal = (function() {
   });
 
   function doSearch(query) {
+    if (!ensureToken()) return;
     results.innerHTML = '<div class="tmdb-loading">Searching...</div>';
     fetch('/api/movie/' + currentMovieId + '/tmdb-search?query=' + encodeURIComponent(query), {
       headers: { 'Authorization': 'Bearer ' + getToken() }
@@ -68,10 +87,14 @@ var TmdbModal = (function() {
             + '<div class="tmdb-result-overview">' + overview + '</div>'
             + '</div></div>';
         }).join('');
+      })
+      .catch(function() {
+        results.innerHTML = '<div class="tmdb-loading">Search failed — check the admin token.</div>';
       });
   }
 
   function applyTmdbId(tmdbId) {
+    if (!ensureToken()) return;
     results.innerHTML = '<div class="tmdb-loading">Updating...</div>';
     fetch('/api/movie/' + currentMovieId + '/tmdb-update', {
       method: 'POST',
@@ -84,6 +107,9 @@ var TmdbModal = (function() {
           return;
         }
         window.location.reload();
+      })
+      .catch(function() {
+        results.innerHTML = '<div class="tmdb-loading">Update failed — check the admin token.</div>';
       });
   }
 
@@ -112,18 +138,12 @@ export function TmdbModal() {
       <div class="tmdb-modal-overlay" id="tmdbModal">
         <div class="tmdb-modal">
           <h3>Fix TMDB Match</h3>
-          <form onsubmit="return false">
-            <input type="hidden" autocomplete="username" value="admin" />
-            <div class="tmdb-search-row">
-              <input
-                type="password"
-                id="tmdbTokenInput"
-                placeholder="Admin token"
-                autocomplete="current-password"
-                style="flex: 1;"
-              />
-            </div>
-          </form>
+          <div class="tmdb-token-row">
+            <span id="tmdbTokenStatus" class="tmdb-token-status"></span>
+            <button type="button" id="tmdbSetToken">
+              Set admin token
+            </button>
+          </div>
           <div style="border-top: 1px solid #353535; margin-bottom: 12px;"></div>
           <div class="tmdb-id-label">Fix TMDB Match - Search:</div>
           <div class="tmdb-search-row">
