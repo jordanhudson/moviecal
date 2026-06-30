@@ -106,7 +106,13 @@ var TmdbModal = (function() {
           results.innerHTML = '<div class="tmdb-loading">' + data.error + '</div>';
           return;
         }
-        window.location.reload();
+        // A merge deletes the current movie. If we're on its detail page,
+        // reloading would 404 — go to the surviving movie instead.
+        if (data.mergedInto && location.pathname.indexOf('/movie/') === 0) {
+          window.location.href = '/movie/' + data.mergedInto;
+        } else {
+          window.location.reload();
+        }
       })
       .catch(function() {
         results.innerHTML = '<div class="tmdb-loading">Update failed — check the admin token.</div>';
