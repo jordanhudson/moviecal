@@ -463,7 +463,7 @@ async function renderHome(c: Context, dateParam?: string) {
   const listingGroups: ListingGroup[] = buildDayListingGroups(theatreMap);
 
   // Render HTML
-  const html = renderIndexPage(date, theatres, listingGroups);
+  const html = renderIndexPage(date, theatres, listingGroups, dateParam != null);
   return c.html(html);
 }
 

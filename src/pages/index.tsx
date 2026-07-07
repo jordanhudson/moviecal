@@ -148,6 +148,7 @@ export function renderIndexPage(
   date: Date,
   theatres: TheatreRow[],
   listingGroups: ListingGroup[],
+  isDatePage = false,
 ): string {
   const prevDay = getPrevDay(date);
   const nextDay = getNextDay(date);
@@ -157,8 +158,14 @@ export function renderIndexPage(
   const hasScreenings = theatres.some((t) => t.screenings.length > 0) || listingGroups.length > 0;
 
   return renderPage({
-    title: `Vancouver Movie Showtimes ${displayDate} — MovieClock`,
-    description: `Movie showtimes in Vancouver for ${displayDate} — Cinematheque, VIFF, Rio Theatre, Park Theatre, Cineplex, and more.`,
+    // `/` keeps a date-free title/description: its canonical never changes, so a
+    // dated title makes Google's cached snippet read as stale within a day.
+    title: isDatePage
+      ? `Vancouver Movie Showtimes ${displayDate} — MovieClock`
+      : 'Vancouver Movie Showtimes Today — MovieClock',
+    description: isDatePage
+      ? `Movie showtimes in Vancouver for ${displayDate} — Cinematheque, VIFF, Rio Theatre, Park Theatre, Cineplex, and more.`
+      : "Today's movie showtimes in Vancouver — Cinematheque, VIFF, Rio Theatre, Park Theatre, Cineplex, and more. Updated throughout the day.",
     canonicalPath: '/',
     jsonLd: {
       '@context': 'https://schema.org',
