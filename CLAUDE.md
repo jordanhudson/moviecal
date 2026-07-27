@@ -85,7 +85,7 @@ fly logs -a movieclock                        # View logs
 ### JSX Rendering
 
 - Pages live in `src/pages/*.tsx` and render with **hono/jsx** (server-side only). Each page file starts with the `/** @jsxImportSource hono/jsx */` pragma.
-- JSX is rendered to an HTML **string** via `.toString()` (see `renderPage` in `layout.tsx`); there is no client-side React/hydration. Interactivity is plain client JS served from **external same-origin files** in `public/js/*.js` (so the strict `script-src 'self'` CSP allows them with no inline scripts or nonces — see Security headers below). A page opts into one via the `scripts` option on `renderPage` (e.g. `scripts: ['/js/movie.js']`), which emits `<script src={assetUrl(...)}>` after the shared `search.js`; the `TmdbModal` component pulls in `/js/modal.js` itself. Server data the scripts need rides in via `data-*` attributes and `<script type="application/json">` **data islands** (e.g. `#cineplexVenues`) — data blocks aren't governed by `script-src`. The few remaining `dangerouslySetInnerHTML` uses are all non-executable (JSON-LD + JSON islands, both escaped via `jsonForScript`) or static SVG icon constants — no executable inline scripts remain.
+- JSX is rendered to an HTML **string** via `.toString()` (see `renderPage` in `layout.tsx`); there is no client-side React/hydration. Interactivity is plain client JS served from **external same-origin files** in `public/js/*.js` (so the strict `script-src 'self'` CSP allows them with no inline scripts or nonces — see Security headers below). A page opts into one via the `scripts` option on `renderPage` (e.g. `scripts: ['/js/movie.js']`), which emits `<script src={assetUrl(...)}>` after the shared `search.js`; the `TmdbModal` component pulls in `/js/modal.js` itself. Server data the scripts need rides in via `data-*` attributes and `<script type="application/json">` **data islands** (e.g. `#venueFilters`) — data blocks aren't governed by `script-src`. The few remaining `dangerouslySetInnerHTML` uses are all non-executable (JSON-LD + JSON islands, both escaped via `jsonForScript`) or static SVG icon constants — no executable inline scripts remain.
 - **Dev gotcha**: `npm run server` uses nodemon with `--watch src --ext ts`, which does **not** match `.tsx`. Editing a page does not hot-reload — restart the server manually after `.tsx` edits. (CSS under `public/css/` and client JS under `public/js/` are served statically, so edits to those need only a browser refresh — no restart.)
 
 ### Entry Points
@@ -118,7 +118,7 @@ Page rendering is in `src/pages/` (all `.tsx`, see JSX Rendering above):
 - **`src/pages/index.tsx`** - Home page / "By Date" (`/`)
   - Desktop: a **Listing | Timeline** toggle (default **Listing**); Listing shows venue cards, Timeline shows theatre rows with time-positioned screening blocks
   - Mobile (<720px): always Listing (the Timeline and toggle are hidden)
-  - Sticky date rail (built client-side, spans through any picked date) + a date picker; theatre filter chips drive the `hiddenTheatres` localStorage
+  - Sticky date rail (built client-side, spans through any picked date) + a date picker; theatre filter chips drive the venue filter (see Venue Filtering below)
   - Cineplex venues collapse multiple auditoriums into one group
   - Date selection is path-based: `/date/YYYY-MM-DD` (served by `renderHome` in `server.ts`). Legacy `/?date=YYYY-MM-DD` 301-redirects to the path form; invalid date paths 301 to `/`.
 
@@ -134,7 +134,7 @@ Page rendering is in `src/pages/` (all `.tsx`, see JSX Rendering above):
 - **`src/pages/movies.tsx`** - Movies page / "By Movie" (`/movies`)
   - All movies with upcoming screenings, grouped by movie (poster + title row, theatre cards below)
   - Client-side sort: Date Added, Name, Popularity (TMDB)
-  - Client-side theatre filtering (persisted in localStorage). Note: this page does **not** render screening notes (movie + theatre pages do).
+  - Client-side venue filtering (see Venue Filtering below): venue cards whose theatres are all hidden are dropped, then films left with no venue card, with a note above the list to reveal them. Note: this page does **not** render screening notes (movie + theatre pages do).
 
 - **`src/pages/all-movies.tsx`** - Internal movies page (`/internal-movies`)
   - Admin-oriented movie list with TMDB fix-match modal (intentionally left on the old styling)
@@ -155,11 +155,73 @@ Shared helpers: `src/venues.ts` (venue configuration — see below), `src/routes
 
 ### Venue configuration (`src/venues.ts`)
 
-The cinemas we track are **application config, not data** — they change rarely and are known at build time, so they live in `src/venues.ts` (not the DB). `LOCATIONS` is the single source of truth: a list of `Location`s, each with a display `name`, a `grouping` mode, and its `auditoriums` (each keyed by the exact `theatre_name` a scraper emits). Everything else is derived from it — `THEATRE_ORDER` (timeline rows), `CINEPLEX_VENUES` (the client-side timeline-grouping payload), `auditoriumLabel`, `venueGroup`, and `buildDayListingGroups`. Screenings still carry a free-text `theatre_name`; `venues.ts` interprets it.
+The cinemas we track are **application config, not data** — they change rarely and are known at build time, so they live in `src/venues.ts` (not the DB). `LOCATIONS` is the single source of truth: a list of `Location`s, each with a display `name`, a `grouping` mode, and its `auditoriums` (each keyed by the exact `theatre_name` a scraper emits). Everything else is derived from it — `THEATRE_ORDER` (timeline rows), `VENUE_FILTERS` / `VENUE_FILTER_CONFIG` (the client-side venue-filter payload), `auditoriumLabel`, `canonicalTheatreName`, `venueGroup`, and `buildDayListingGroups`. Screenings still carry a free-text `theatre_name`; `venues.ts` interprets it.
 
 - `grouping: 'collapse'` — one listing card for the whole location, auditoriums pooled (every Cineplex site, and the single-screen indies).
 - `grouping: 'separate'` — each auditorium is its own card (VIFF Cinema and VIFF Lochmaddy are two rooms of VIFF Centre shown separately).
 - `prefix` (Cineplex only) — any `theatre_name` starting with it resolves to that location even if not enumerated, so a newly added "Aud #6" pools correctly with no code change.
+- `aliases` (on an auditorium) — other `theatre_name`s the same room is scraped under, because a venue can be listed by more than one source (VIFF lists Rio screenings as `The Rio Theatre`). `canonicalTheatreName()` resolves them, and the home page, theatre pages, and the venue filter all key on the canonical name, so one room is never two venues. Add an alias here rather than letting a second name accumulate its own card.
+
+A `theatre_name` matching **no** location still gets its own listing card, chip, and timeline row (keyed by its raw name) rather than being silently dropped — that's how VIFF's off-site partner rooms (The Pearl, Chan Centre) stay visible and filterable with no config change.
+
+### Venue Filtering ("hide this cinema")
+
+Visitors can hide venues they never go to. One list, one matcher, three pages.
+
+**Storage**: `localStorage['hiddenTheatres']`, an array of strings. Each entry is
+either a **filter key** (what a home-page chip represents: `The Rio`,
+`Fifth Avenue`, `VIFF Lochmaddy Studio`) or a raw `theatre_name` for a single
+auditorium hidden from the timeline (`Fifth Ave Aud #3`). This is the format the
+feature has always written, so existing visitor preferences keep working.
+
+**The matcher**: `public/js/venue-filter.js` (`window.VenueFilter`) is the only
+code that decides whether a screening is hidden. Pages ask
+`VenueFilter.isHidden(theatreName)`; they never read localStorage or
+re-implement the exact/prefix/alias rules themselves. It also exposes
+`hide/unhide/toggle`, `labelFor`, and `subscribe(fn)` (re-applies on change,
+including from another tab). Config arrives via the `#venueFilters` JSON island
+rendered by `<VenueFilterData />` (`src/pages/venue-filter.tsx`) from
+`VENUE_FILTER_CONFIG` in `venues.ts`.
+
+**Two levels, one list.** A visitor can hide an entire **location** (the home
+page chips) or a single **auditorium** (the `hide` button on a timeline row).
+Both go in the same array — a location as its filter key, an auditorium as its
+raw `theatre_name` — and `isHidden` resolves either.
+
+Because a `collapse` venue card pools several auditoriums, the pooled surfaces
+filter at the **showtime** level and cascade upward, so auditorium-level hiding
+is visible in the listing too, not just the timeline:
+
+- home listing: showtime → film row → venue card
+- By Movie: showtime → date row → venue card → film
+
+That means each showtime must know which auditorium it belongs to.
+`buildListingGroup` puts `theatreNames` on every showtime (a deduped showtime —
+two screens, same time — carries both, so it survives until both are hidden),
+and the pages emit it as `data-theatres`. A chip reads **off** when its card has
+nothing left, whether the visitor hid the venue outright or hid every screen one
+at a time; clicking an off chip restores the whole location, clearing any
+individually-hidden auditoriums with it.
+
+**A filter key is a listing group's `venue`** — `buildDayListingGroups` and
+`VENUE_FILTERS` are derived from the same `LOCATIONS` rules, and a test asserts
+the identity. That is what lets a chip on the home page write a value every
+other page reads back. `grouping: 'separate'` venues filter per auditorium;
+`'collapse'` venues filter as one location.
+
+Any page using it must load `/js/venue-filter.js` **before** its own script and
+render `<VenueFilterData />`:
+- **Home** — chips toggle a venue; `hide` on a timeline row hides one auditorium.
+  An "Also hidden" strip (in the datebar, so it shows in both views) lists
+  anything hidden that has no chip today; a note appears if everything is hidden.
+- **Movie** — hidden screenings collapse, with an honest count on the Screenings
+  heading. When *every* screening is at a hidden venue they stay expanded by
+  default (collapsing would blank the page) and the label says so.
+- **By Movie** — venue cards whose theatres are all hidden are dropped, then
+  films left with none, with a note to reveal them.
+
+Elements are hidden with the `hidden` attribute (`[hidden]` is forced to
+`display: none` in `global.css`), never by writing `style.display`.
 
 ### API Endpoints
 

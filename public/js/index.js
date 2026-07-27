@@ -1,16 +1,4 @@
 (function () {
-  function readJsonIsland(id) {
-    var el = document.getElementById(id);
-    if (!el) return null;
-    try {
-      return JSON.parse(el.textContent);
-    } catch (e) {
-      return null;
-    }
-  }
-
-  var CINEPLEX = readJsonIsland('cineplexVenues') || [];
-
   // ---- view toggle (desktop only) ----
   var wrapper = document.getElementById('viewsWrapper');
   var savedView = localStorage.getItem('viewMode') || 'listing';
@@ -82,108 +70,126 @@
     });
   }
 
-  // ---- theatre filter chips (localStorage: hiddenTheatres) ----
-  function getHidden() {
-    try {
-      return JSON.parse(localStorage.getItem('hiddenTheatres') || '[]');
-    } catch (e) {
-      return [];
+  // ---- theatre filter (shared state in venue-filter.js) ----
+  // Two levels of hiding share one list: a whole venue (the chips, keyed by the
+  // listing group's venue name) and a single auditorium (the timeline's row
+  // `hide`, keyed by a raw theatre_name). A collapsed venue card pools several
+  // auditoriums, so it filters per showtime and only disappears once nothing is
+  // left — that is what makes hiding one screen visible in the listing too.
+  var allHiddenNames = function (csv) {
+    var names = (csv || '').split(',');
+    for (var i = 0; i < names.length; i++) {
+      if (names[i] && !VenueFilter.isHidden(names[i])) return false;
     }
-  }
-  function saveHidden(l) {
-    localStorage.setItem('hiddenTheatres', JSON.stringify(l));
-  }
-  function isHidden(dt, hidden) {
-    if (hidden.indexOf(dt) !== -1) return true;
-    for (var i = 0; i < CINEPLEX.length; i++) {
-      if (hidden.indexOf(CINEPLEX[i].display) !== -1 && dt.indexOf(CINEPLEX[i].prefix) === 0)
-        return true;
-    }
-    return false;
-  }
+    return true;
+  };
+
   function applyFilter() {
-    var hidden = getHidden();
-    document.querySelectorAll('[data-theatre]').forEach(function (el) {
-      if (el.classList.contains('chip')) return;
-      el.style.display = isHidden(el.dataset.theatre, hidden) ? 'none' : '';
+    // Timeline rows: one auditorium each, so a plain check does it.
+    document.querySelectorAll('.theatre-row[data-theatre]').forEach(function (row) {
+      row.hidden = VenueFilter.isHidden(row.dataset.theatre);
     });
+
+    // Listing cards: showtime → film row → card.
+    var cards = document.querySelectorAll('.venue-card[data-theatre]');
+    var hiddenCards = 0;
+    cards.forEach(function (card) {
+      var venueHidden = VenueFilter.isHidden(card.dataset.theatre);
+      var liveRows = 0;
+      card.querySelectorAll('.film-row').forEach(function (filmRow) {
+        var times = filmRow.querySelectorAll('.show-time');
+        var liveTimes = 0;
+        times.forEach(function (t) {
+          var off = venueHidden || allHiddenNames(t.dataset.theatres);
+          t.hidden = off;
+          if (!off) liveTimes++;
+        });
+        filmRow.hidden = liveTimes === 0;
+        if (liveTimes > 0) liveRows++;
+        // Keep the showtime grid balanced against what's actually left.
+        var grid = filmRow.querySelector('.show-times');
+        if (grid && liveTimes > 0) {
+          var rows = Math.ceil(liveTimes / 3);
+          grid.style.gridTemplateColumns = 'repeat(' + Math.ceil(liveTimes / rows) + ', auto)';
+        }
+      });
+      card.hidden = liveRows === 0;
+      if (card.hidden) hiddenCards++;
+    });
+
+    // A chip is "off" when its card has nothing left — whether the visitor hid
+    // the venue outright or hid every one of its screens one at a time.
     document.querySelectorAll('.chip').forEach(function (c) {
-      var off = hidden.indexOf(c.dataset.theatre) !== -1;
+      var card = document.querySelector('.venue-card[data-theatre="' + cssEscape(c.dataset.theatre) + '"]');
+      var off = card ? card.hidden : VenueFilter.isHidden(c.dataset.theatre);
       c.classList.toggle('off', off);
       c.classList.toggle('on', !off);
     });
-    renderHiddenScreens(hidden);
+
+    // Everything filtered out reads as a broken page otherwise — say so.
+    var note = document.getElementById('allHiddenNote');
+    if (note) note.hidden = !(cards.length > 0 && hiddenCards === cards.length);
+
+    renderOtherHidden();
   }
+
+  function cssEscape(s) {
+    return window.CSS && CSS.escape ? CSS.escape(s) : s.replace(/["\\]/g, '\\$&');
+  }
+
   document.querySelectorAll('.chip').forEach(function (c) {
     c.addEventListener('click', function () {
-      var name = c.dataset.theatre;
-      var hidden = getHidden();
-      var idx = hidden.indexOf(name);
-      if (idx === -1) hidden.push(name);
-      else hidden.splice(idx, 1);
-      saveHidden(hidden);
-      applyFilter();
+      // Toggle on what the chip shows, not on raw storage: an "off" chip must
+      // restore the venue even when it got that way one auditorium at a time.
+      if (c.classList.contains('off')) VenueFilter.unhide(c.dataset.theatre);
+      else VenueFilter.hide(c.dataset.theatre);
     });
   });
 
   // ---- per-screen hide links on timeline rows ----
   document.querySelectorAll('.theatre-row .row-hide').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      var name = btn.closest('[data-theatre]').dataset.theatre;
-      var hidden = getHidden();
-      if (hidden.indexOf(name) === -1) hidden.push(name);
-      saveHidden(hidden);
-      applyFilter();
+      VenueFilter.hide(btn.closest('[data-theatre]').dataset.theatre);
     });
   });
 
-  // Strip under the timeline listing individually hidden screens (entries that
-  // aren't venue chips); click one to unhide it.
-  function esc(s) {
-    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
-  }
-  function renderHiddenScreens(hidden) {
+  // Strip listing anything hidden that has no chip on this date — a single
+  // auditorium hidden from the timeline, or a venue with nothing on today.
+  // Lives outside the timeline view so it's reachable from the listing too.
+  function renderOtherHidden() {
     var box = document.getElementById('hiddenScreens');
     if (!box) return;
     var chips = [];
     document.querySelectorAll('.chip').forEach(function (c) {
       chips.push(c.dataset.theatre);
     });
-    var screens = hidden.filter(function (n) {
+    var entries = VenueFilter.hidden().filter(function (n) {
       return chips.indexOf(n) === -1;
     });
-    if (!screens.length) {
-      box.style.display = 'none';
-      box.innerHTML = '';
+    box.textContent = '';
+    if (!entries.length) {
+      box.hidden = true;
       return;
     }
-    box.innerHTML =
-      '<span class="hidden-screens-label">Hidden screens:</span> ' +
-      screens
-        .map(function (n) {
-          return (
-            '<button class="hidden-screen-chip" data-name="' +
-            esc(n) +
-            '" title="Unhide ' +
-            esc(n) +
-            '">' +
-            esc(n) +
-            ' ✕</button>'
-          );
-        })
-        .join('');
-    box.style.display = 'flex';
+    var label = document.createElement('span');
+    label.className = 'hidden-screens-label';
+    label.textContent = 'Also hidden:';
+    box.appendChild(label);
+    entries.forEach(function (n) {
+      var btn = document.createElement('button');
+      btn.className = 'hidden-screen-chip';
+      btn.dataset.name = n;
+      btn.title = 'Unhide ' + VenueFilter.labelFor(n);
+      btn.textContent = VenueFilter.labelFor(n) + ' ✕';
+      box.appendChild(btn);
+    });
+    box.hidden = false;
   }
   document.addEventListener('click', function (e) {
     var chip = e.target.closest('.hidden-screen-chip');
-    if (!chip) return;
-    saveHidden(
-      getHidden().filter(function (n) {
-        return n !== chip.dataset.name;
-      }),
-    );
-    applyFilter();
+    if (chip) VenueFilter.unhide(chip.dataset.name);
   });
 
+  VenueFilter.subscribe(applyFilter);
   applyFilter();
 })();

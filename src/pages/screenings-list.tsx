@@ -1,6 +1,7 @@
 /** @jsxImportSource hono/jsx */
 import { safeHref } from '../utils/html.js';
 import { pacificWallClock } from '../utils/time.js';
+import { auditoriumLabel, canonicalTheatreName } from '../venues.js';
 
 // Shared upcoming-screenings list, grouped by day with ticket links. Used by the
 // movie detail page and the TMDB review page so they render identically.
@@ -47,8 +48,10 @@ export function ScreeningsList({ screenings }: { screenings: ScreeningInfo[] }) 
                 <li class="screening-item" data-theatre={screening.theatre_name}>
                   <div class="screening-time">{timeStr}</div>
                   <div class="screening-theatre">
-                    <a href={`/theatre/${encodeURIComponent(screening.theatre_name)}`}>
-                      {screening.theatre_name}
+                    <a
+                      href={`/theatre/${encodeURIComponent(canonicalTheatreName(screening.theatre_name))}`}
+                    >
+                      {auditoriumLabel(screening.theatre_name)}
                     </a>
                     {screening.note && <div class="screening-note">{screening.note}</div>}
                   </div>

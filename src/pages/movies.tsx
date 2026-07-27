@@ -2,6 +2,7 @@
 import { renderPage } from './layout.js';
 import { ScreeningWithMovie } from './index.js';
 import { TheatreCard } from './theatre-card.js';
+import { VenueFilterData } from './venue-filter.js';
 import { movieUrl } from '../utils/movie-url.js';
 import { safeHref } from '../utils/html.js';
 import { pacificWallClock } from '../utils/time.js';
@@ -61,10 +62,11 @@ export function renderMoviesPage(screenings: ScreeningWithMovie[]): string {
       'Browse all upcoming movies playing in Vancouver independent and repertory cinemas, with showtimes and ticket links.',
     canonicalPath: '/movies',
     styles: ['/css/theatre-card.css', '/css/movies.css'],
-    scripts: ['/js/movies.js'],
+    scripts: ['/js/venue-filter.js', '/js/movies.js'],
     activePage: 'movies',
     body: (
       <>
+        <VenueFilterData />
         <div class="movie-view">
           <div class="movie-view-header">
             <h1 class="movie-view-heading">Upcoming Movies in Vancouver</h1>
@@ -91,6 +93,8 @@ export function renderMoviesPage(screenings: ScreeningWithMovie[]): string {
             &mdash; with dates and ticket links. Updated through the day.
           </p>
           {!hasScreenings && <div class="no-screenings">No upcoming screenings</div>}
+          {/* Filled by movies.js when the visitor's venue filter is hiding things. */}
+          <div class="filter-note" id="filterNote" hidden></div>
           <div id="movieList">
             {movieGroups.map((group) => {
               const movie = group[0];
@@ -102,9 +106,14 @@ export function renderMoviesPage(screenings: ScreeningWithMovie[]): string {
                 string,
                 {
                   theatreLink: string | null;
+                  /** Raw theatre_names pooled into this card, for the venue filter. */
+                  theatreNames: Set<string>;
                   dates: Map<
                     string,
-                    { label: string; times: { time: string; bookingUrl: string }[] }
+                    {
+                      label: string;
+                      times: { time: string; bookingUrl: string; theatreName: string }[];
+                    }
                   >;
                 }
               >();
@@ -112,16 +121,23 @@ export function renderMoviesPage(screenings: ScreeningWithMovie[]): string {
                 const dt = pacificWallClock(new Date(s.datetime));
                 const v = venueGroup(s.theatre_name);
                 if (!venueMap.has(v.name)) {
-                  venueMap.set(v.name, { theatreLink: v.theatreLink, dates: new Map() });
+                  venueMap.set(v.name, {
+                    theatreLink: v.theatreLink,
+                    theatreNames: new Set(),
+                    dates: new Map(),
+                  });
                 }
                 const venue = venueMap.get(v.name)!;
+                venue.theatreNames.add(s.theatre_name);
                 const dk = dateKey(dt);
                 if (!venue.dates.has(dk)) {
                   venue.dates.set(dk, { label: formatShortDate(dt), times: [] });
                 }
-                venue.dates
-                  .get(dk)!
-                  .times.push({ time: formatTime(dt), bookingUrl: s.booking_url });
+                venue.dates.get(dk)!.times.push({
+                  time: formatTime(dt),
+                  bookingUrl: s.booking_url,
+                  theatreName: s.theatre_name,
+                });
               }
 
               return (
@@ -130,7 +146,6 @@ export function renderMoviesPage(screenings: ScreeningWithMovie[]): string {
                   data-title={movie.movie_title}
                   data-created={String(createdAt)}
                   data-popularity={String(movie.tmdb_popularity ?? 0)}
-                  data-theatres={Array.from(venueMap.keys()).join(',')}
                 >
                   <div class="movie-card-header">
                     <a
@@ -167,6 +182,7 @@ export function renderMoviesPage(screenings: ScreeningWithMovie[]): string {
                     {Array.from(venueMap.entries()).map(([venueName, venue]) => (
                       <TheatreCard
                         header={venueName}
+                        theatreNames={Array.from(venue.theatreNames)}
                         headerLink={
                           venue.theatreLink
                             ? `/theatre/${encodeURIComponent(venue.theatreLink)}`
@@ -177,6 +193,7 @@ export function renderMoviesPage(screenings: ScreeningWithMovie[]): string {
                           times: dateGroup.times.map((t) => ({
                             display: t.time,
                             bookingUrl: t.bookingUrl,
+                            theatreNames: [t.theatreName],
                           })),
                         }))}
                       />

@@ -1,16 +1,71 @@
-// Hide movie cards whose every venue is in the localStorage hidden list.
+// Apply the visitor's venue filter, cascading: showtime → date row → venue card
+// → film. A venue card pools a location's auditoriums, so hiding a single screen
+// removes just its showtimes and the card only goes once nothing is left. A note
+// above the list says how many films that removed and can bring them back.
 (function () {
-  try {
-    var hidden = JSON.parse(localStorage.getItem('hiddenTheatres') || '[]');
-    if (!hidden.length) return;
+  var note = document.getElementById('filterNote');
+  var showing = false;
+
+  function allHiddenNames(csv) {
+    var names = (csv || '').split(',');
+    for (var i = 0; i < names.length; i++) {
+      if (names[i] && !VenueFilter.isHidden(names[i])) return false;
+    }
+    return true;
+  }
+
+  function apply() {
+    var hiddenFilms = 0;
     document.querySelectorAll('.movie-card').forEach(function (card) {
-      var theatres = (card.dataset.theatres || '').split(',');
-      var allHidden = theatres.every(function (t) {
-        return hidden.indexOf(t) !== -1;
+      var venues = card.querySelectorAll('.theatre-card[data-theatres]');
+      var hiddenVenues = 0;
+      venues.forEach(function (venue) {
+        var liveRows = 0;
+        venue.querySelectorAll('.theatre-card-row').forEach(function (row) {
+          var liveTimes = 0;
+          row.querySelectorAll('.theatre-card-time').forEach(function (t) {
+            // Fall back to the card's theatres if a time carries none.
+            var off = allHiddenNames(t.dataset.theatres || venue.dataset.theatres);
+            t.hidden = off && !showing;
+            t.classList.toggle('filtered-out', off);
+            if (!off) liveTimes++;
+          });
+          row.hidden = liveTimes === 0 && !showing;
+          if (liveTimes > 0) liveRows++;
+        });
+        var off = liveRows === 0;
+        venue.hidden = off && !showing;
+        venue.classList.toggle('filtered-out', off);
+        if (off) hiddenVenues++;
       });
-      if (allHidden) card.style.display = 'none';
+      var off = venues.length > 0 && hiddenVenues === venues.length;
+      card.hidden = off && !showing;
+      card.classList.toggle('filtered-out', off);
+      if (off) hiddenFilms++;
     });
-  } catch (e) {}
+
+    if (!note) return;
+    note.hidden = hiddenFilms === 0;
+    note.textContent = '';
+    if (!hiddenFilms) return;
+    note.appendChild(
+      document.createTextNode(
+        hiddenFilms + (hiddenFilms === 1 ? ' film is' : ' films are') + ' only at hidden venues. ',
+      ),
+    );
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'filter-note-btn';
+    btn.textContent = showing ? 'Hide again' : 'Show anyway';
+    btn.addEventListener('click', function () {
+      showing = !showing;
+      apply();
+    });
+    note.appendChild(btn);
+  }
+
+  VenueFilter.subscribe(apply);
+  apply();
 })();
 
 // Client-side sort menu (Date Added / Name / Popularity), persisted.

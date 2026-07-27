@@ -1,11 +1,12 @@
 /** @jsxImportSource hono/jsx */
 import { renderPage } from './layout.js';
 import { TmdbModal } from './tmdb-modal.js';
-import { safeHref, jsonForScript } from '../utils/html.js';
+import { VenueFilterData } from './venue-filter.js';
+import { safeHref } from '../utils/html.js';
 import { ScreeningsList } from './screenings-list.js';
 import { movieUrl } from '../utils/movie-url.js';
 import { pacificWallClock } from '../utils/time.js';
-import { CINEPLEX_VENUES, venueGroup } from '../venues.js';
+import { venueGroup } from '../venues.js';
 
 export interface MovieDetail {
   id: number;
@@ -116,16 +117,10 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
     ogImage: movie.poster_url || undefined,
     jsonLd: [movieSchema, breadcrumbSchema, ...screeningSchemas],
     styles: ['/css/movie.css', '/css/tmdb-modal.css'],
-    scripts: ['/js/movie.js'],
+    scripts: ['/js/venue-filter.js', '/js/movie.js'],
     body: (
       <>
-        {/* Cineplex venue grouping for the theatre-filter logic in movie.js.
-            A data block (type="application/json"), so it's exempt from script-src. */}
-        <script
-          type="application/json"
-          id="cineplexVenues"
-          dangerouslySetInnerHTML={{ __html: jsonForScript(CINEPLEX_VENUES) }}
-        />
+        <VenueFilterData />
         <div class="movie-container">
           <div class="movie-header">
             <div

@@ -1,9 +1,10 @@
 /** @jsxImportSource hono/jsx */
 import { renderPage } from './layout.js';
-import { safeHref, jsonForScript } from '../utils/html.js';
+import { VenueFilterData } from './venue-filter.js';
+import { safeHref } from '../utils/html.js';
 import { movieUrl } from '../utils/movie-url.js';
 import { pacificWallClock } from '../utils/time.js';
-import { CINEPLEX_VENUES, auditoriumLabel } from '../venues.js';
+import { auditoriumLabel } from '../venues.js';
 
 const DEFAULT_RUNTIME_MINUTES = 105;
 const MIN_DISPLAY_RUNTIME_MINUTES = 90;
@@ -44,7 +45,9 @@ export interface ListingGroup {
     poster_url: string | null;
     letterboxd_url: string | null;
     tmdb_url: string | null;
-    showtimes: { datetime: Date; booking_url: string }[];
+    /** `theatreNames` is which auditorium(s) each showtime is in — the venue
+     *  filter needs it to hide one screen of a pooled (collapsed) venue. */
+    showtimes: { datetime: Date; booking_url: string; theatreNames: string[] }[];
   }[];
 }
 
@@ -175,17 +178,11 @@ export function renderIndexPage(
       description: 'Movie showtimes for Vancouver independent and repertory cinemas.',
     },
     styles: ['/css/index.css'],
-    scripts: ['/js/index.js'],
+    scripts: ['/js/venue-filter.js', '/js/index.js'],
     activePage: 'home',
     body: (
       <>
-        {/* Cineplex venue grouping for the chip/filter logic in index.js.
-            A data block (type="application/json"), so it's exempt from script-src. */}
-        <script
-          type="application/json"
-          id="cineplexVenues"
-          dangerouslySetInnerHTML={{ __html: jsonForScript(CINEPLEX_VENUES) }}
-        />
+        <VenueFilterData />
         <div class="datebar">
           <div class="datebar-head">
             <div>
@@ -227,6 +224,8 @@ export function renderIndexPage(
             </label>
           </div>
 
+          {/* A listing group's `venue` IS its VenueFilter key — that identity is
+              what lets the chips here write values every other page reads back. */}
           {listingGroups.length > 0 && (
             <div class="chips" id="chips">
               {listingGroups.map((g) => (
@@ -236,12 +235,18 @@ export function renderIndexPage(
               ))}
             </div>
           )}
+
+          {/* Filled by index.js: things hidden that have no chip on this date. */}
+          <div class="hidden-screens" id="hiddenScreens" hidden></div>
         </div>
 
         <div id="viewsWrapper" data-view="listing">
           {!hasScreenings && (
             <div class="no-screenings">No screenings for this day — try another date.</div>
           )}
+          <div class="no-screenings" id="allHiddenNote" hidden>
+            Every venue showing today is hidden — tap a dimmed chip above to bring one back.
+          </div>
 
           {/* ---- Timeline view (desktop only) ---- */}
           <div class="timeline-view">
@@ -312,7 +317,6 @@ export function renderIndexPage(
                 </div>
               ))}
             </div>
-            <div class="hidden-screens" id="hiddenScreens" style="display:none"></div>
           </div>
 
           {/* ---- Listing view (mobile always; desktop optional) ---- */}
@@ -356,7 +360,12 @@ export function renderIndexPage(
                       style={`grid-template-columns: repeat(${showTimeCols(movie.showtimes.length)}, auto)`}
                     >
                       {movie.showtimes.map((st) => (
-                        <a class="show-time" href={safeHref(st.booking_url)} target="_blank">
+                        <a
+                          class="show-time"
+                          href={safeHref(st.booking_url)}
+                          target="_blank"
+                          data-theatres={st.theatreNames.join(',')}
+                        >
                           {formatTime(pacificWallClock(new Date(st.datetime)))}
                         </a>
                       ))}

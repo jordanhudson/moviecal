@@ -23,7 +23,12 @@ import {
   pacificHour as getPacificHour,
   pacificWallClockToInstant,
 } from './utils/time.js';
-import { THEATRE_ORDER, buildDayListingGroups } from './venues.js';
+import {
+  THEATRE_ORDER,
+  buildDayListingGroups,
+  canonicalTheatreName,
+  theatreNamesFor,
+} from './venues.js';
 import { apiRoutes } from './routes/api.js';
 import { movieUrl } from './utils/movie-url.js';
 
@@ -191,6 +196,10 @@ app.get('/sitemap.xml', async (c) => {
   const BASE_URL = process.env.BASE_URL || 'https://movieclock.app';
   const now = new Date().toISOString().split('T')[0];
   const toLastmod = (d: Date) => new Date(d).toISOString().split('T')[0];
+  const dedupeBy = <T>(items: T[], key: (item: T) => string): T[] => {
+    const seen = new Set<string>();
+    return items.filter((item) => !seen.has(key(item)) && seen.add(key(item)));
+  };
 
   // Movies with future screenings; lastmod is the latest change to the movie
   // or any of its screenings (crawlers ignore a sitemap whose lastmod is
@@ -224,7 +233,11 @@ app.get('/sitemap.xml', async (c) => {
       changefreq: 'daily',
       priority: '0.6',
     })),
-    ...theatres.map((t) => ({
+    // Canonical names only — an alias would just 301 to the same page.
+    ...dedupeBy(
+      theatres.map((t) => ({ ...t, theatre_name: canonicalTheatreName(t.theatre_name) })),
+      (t) => t.theatre_name,
+    ).map((t) => ({
       loc: `/theatre/${encodeURIComponent(t.theatre_name)}`,
       lastmod: toLastmod(t.lastmod),
       changefreq: 'daily',
@@ -295,9 +308,14 @@ app.get('/movie/:id', async (c) => {
 
 // Theatre detail page
 app.get('/theatre/:name', async (c) => {
-  const theatreName = decodeURIComponent(c.req.param('name'));
+  const requested = decodeURIComponent(c.req.param('name'));
+  // Alias names (VIFF's 'The Rio Theatre') share the canonical room's page.
+  const theatreName = canonicalTheatreName(requested);
+  if (theatreName !== requested) {
+    return c.redirect(`/theatre/${encodeURIComponent(theatreName)}`, 301);
+  }
 
-  // Get all screenings for this theatre
+  // Get all screenings for this theatre, including any scraped under an alias
   const screenings = await db
     .selectFrom('screening')
     .innerJoin('movie', 'screening.movie_id', 'movie.id')
@@ -309,7 +327,7 @@ app.get('/theatre/:name', async (c) => {
       'movie.id as movie_id',
       'movie.title as movie_title',
     ])
-    .where('screening.theatre_name', '=', theatreName)
+    .where('screening.theatre_name', 'in', theatreNamesFor(theatreName))
     .orderBy('screening.datetime', 'asc')
     .execute();
 
@@ -444,17 +462,24 @@ async function renderHome(c: Context, dateParam?: string) {
     .orderBy('screening.datetime', 'asc')
     .execute();
 
-  // Group screenings by theatre
+  // Group screenings by theatre, folding alias names (e.g. VIFF's 'The Rio
+  // Theatre') into the canonical room so one venue is never two rows.
   const theatreMap = new Map<string, ScreeningWithMovie[]>();
   for (const row of results) {
-    if (!theatreMap.has(row.theatre_name)) {
-      theatreMap.set(row.theatre_name, []);
+    const theatre = canonicalTheatreName(row.theatre_name);
+    if (!theatreMap.has(theatre)) {
+      theatreMap.set(theatre, []);
     }
-    theatreMap.get(row.theatre_name)!.push(row);
+    theatreMap.get(theatre)!.push(row);
   }
 
-  // Build theatre list in fixed order, including theatres with no screenings
-  const theatres: TheatreRow[] = THEATRE_ORDER.map((theatre) => ({
+  // Build theatre list in fixed order, including theatres with no screenings.
+  // Anything playing that isn't in THEATRE_ORDER (an unlisted Cineplex screen,
+  // a venue we have no config for) gets a trailing row instead of vanishing.
+  const extraTheatres = [...theatreMap.keys()]
+    .filter((theatre) => !THEATRE_ORDER.includes(theatre))
+    .sort();
+  const theatres: TheatreRow[] = [...THEATRE_ORDER, ...extraTheatres].map((theatre) => ({
     theatre,
     screenings: theatreMap.get(theatre) || [],
   }));

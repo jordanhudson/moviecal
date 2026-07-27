@@ -74,6 +74,28 @@
 .sort-option:hover { background: var(--glass2); color: var(--ink); }
 .sort-option.active { color: var(--cyan); }
 
+/* venue filter — note above the list, and dimming for revealed hidden entries */
+.filter-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: var(--faint);
+}
+.filter-note-btn {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-weight: 500;
+  color: var(--cyan);
+  cursor: pointer;
+}
+.filter-note-btn:hover { text-decoration: underline; }
+.filtered-out { opacity: .5; }
+
 /* movie card = stacked: [poster + title] row, then theatre rows */
 .movie-card {
   display: flex;
