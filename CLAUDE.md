@@ -215,8 +215,9 @@ render `<VenueFilterData />`:
   An "Also hidden" strip (in the datebar, so it shows in both views) lists
   anything hidden that has no chip today; a note appears if everything is hidden.
 - **Movie** — hidden screenings collapse, with an honest count on the Screenings
-  heading. When *every* screening is at a hidden venue they stay expanded by
-  default (collapsing would blank the page) and the label says so.
+  heading. This holds even when *every* screening is at a hidden venue: the list
+  goes empty and a message explains why, rather than showing them dimmed (which
+  read as the filter being ignored). The toggle reveals them either way.
 - **By Movie** — venue cards whose theatres are all hidden are dropped, then
   films left with none, with a note to reveal them.
 

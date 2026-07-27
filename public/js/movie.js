@@ -40,12 +40,13 @@
   var empty = document.createElement('p');
   empty.className = 'no-screenings';
   empty.hidden = true;
-  empty.textContent = 'All upcoming screenings are at venues you have hidden.';
   section.appendChild(empty);
 
-  // Expanded by default when *every* screening is hidden: collapsing them all
-  // would leave the page blank. The label says which state we're in either way.
-  var showing = null;
+  // Always collapsed by default — the filter is respected even when that empties
+  // the list. (It used to stay expanded, merely dimmed, when *every* screening
+  // was hidden, to avoid a blank page; that read as the filter being ignored.)
+  // The explanatory message below plus the toggle cover the empty case.
+  var showing = false;
 
   function apply() {
     var hiddenCount = 0;
@@ -62,11 +63,14 @@
     });
 
     var allHidden = hiddenCount === items.length;
-    if (showing === null) showing = allHidden;
 
     toggle.hidden = hiddenCount === 0;
     section.classList.toggle('show-hidden', hiddenCount > 0 && showing);
     empty.hidden = !(allHidden && !showing);
+    empty.textContent =
+      hiddenCount === 1
+        ? 'The only upcoming screening is at a venue you have hidden.'
+        : 'All ' + hiddenCount + ' upcoming screenings are at venues you have hidden.';
     toggle.textContent = showing
       ? 'Showing ' + hiddenCount + ' at hidden venues — collapse'
       : hiddenCount + ' hidden — show';
