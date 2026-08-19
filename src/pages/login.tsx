@@ -51,11 +51,6 @@ export function renderLoginPage(
             </>
           ) : (
             <>
-              <p class="login-sub">
-                MovieClock uses your existing account elsewhere — there's no password to make or
-                remember.
-              </p>
-
               {error && (
                 <p class="login-error" role="alert">
                   {error}
