@@ -3,6 +3,7 @@ import { renderPage } from './layout.js';
 import { safeHref } from '../utils/html.js';
 import { pacificWallClock } from '../utils/time.js';
 import { movieUrl } from '../utils/movie-url.js';
+import type { SessionUser } from '../auth/session.js';
 
 export interface TheatreScreening {
   id: number;
@@ -13,7 +14,11 @@ export interface TheatreScreening {
   movie_title: string;
 }
 
-export function renderTheatrePage(theatreName: string, screenings: TheatreScreening[]): string {
+export function renderTheatrePage(
+  theatreName: string,
+  screenings: TheatreScreening[],
+  user: SessionUser | null = null,
+): string {
   const now = new Date();
   const futureScreenings = screenings.filter((s) => new Date(s.datetime) >= now);
 
@@ -35,6 +40,7 @@ export function renderTheatrePage(theatreName: string, screenings: TheatreScreen
   }
 
   return renderPage({
+    user,
     title: `${theatreName} Showtimes Vancouver — MovieClock`,
     description: `Upcoming movie showtimes at ${theatreName} in Vancouver.`,
     canonicalPath: `/theatre/${encodeURIComponent(theatreName)}`,

@@ -5,6 +5,7 @@ import { safeHref } from '../utils/html.js';
 import { movieUrl } from '../utils/movie-url.js';
 import { pacificWallClock } from '../utils/time.js';
 import { auditoriumLabel } from '../venues.js';
+import type { SessionUser } from '../auth/session.js';
 
 const DEFAULT_RUNTIME_MINUTES = 105;
 const MIN_DISPLAY_RUNTIME_MINUTES = 90;
@@ -152,6 +153,7 @@ export function renderIndexPage(
   theatres: TheatreRow[],
   listingGroups: ListingGroup[],
   isDatePage = false,
+  user: SessionUser | null = null,
 ): string {
   const prevDay = getPrevDay(date);
   const nextDay = getNextDay(date);
@@ -161,6 +163,7 @@ export function renderIndexPage(
   const hasScreenings = theatres.some((t) => t.screenings.length > 0) || listingGroups.length > 0;
 
   return renderPage({
+    user,
     // `/` keeps a date-free title/description: its canonical never changes, so a
     // dated title makes Google's cached snippet read as stale within a day.
     title: isDatePage

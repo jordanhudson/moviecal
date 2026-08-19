@@ -7,6 +7,7 @@ import { movieUrl } from '../utils/movie-url.js';
 import { safeHref } from '../utils/html.js';
 import { pacificWallClock } from '../utils/time.js';
 import { venueGroup } from '../venues.js';
+import type { SessionUser } from '../auth/session.js';
 
 const POSTER_GRADS = [
   'linear-gradient(155deg,#c2410c,#7c2d12)',
@@ -36,7 +37,10 @@ function formatTime(date: Date): string {
   return `${h}:${m}${ampm}`;
 }
 
-export function renderMoviesPage(screenings: ScreeningWithMovie[]): string {
+export function renderMoviesPage(
+  screenings: ScreeningWithMovie[],
+  user: SessionUser | null = null,
+): string {
   const hasScreenings = screenings.length > 0;
 
   const movieMap = new Map<number, ScreeningWithMovie[]>();
@@ -57,6 +61,7 @@ export function renderMoviesPage(screenings: ScreeningWithMovie[]): string {
     );
 
   return renderPage({
+    user,
     title: 'Upcoming Movies in Vancouver Cinemas — MovieClock',
     description:
       'Browse all upcoming movies playing in Vancouver independent and repertory cinemas, with showtimes and ticket links.',

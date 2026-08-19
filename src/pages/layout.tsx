@@ -3,6 +3,8 @@ import type { Child } from 'hono/jsx';
 import { jsonForScript } from '../utils/html.js';
 import { assetUrl } from '../utils/assets.js';
 import { FOOTER_VENUES } from '../venues.js';
+import type { SessionUser } from '../auth/session.js';
+import { configuredProviders } from '../auth/providers.js';
 
 function Footer() {
   return (
@@ -52,6 +54,9 @@ export interface PageOptions {
   noindex?: boolean;
   body: Child;
   activePage?: string;
+  // The signed-in visitor, or null. Threaded in from the route (see
+  // currentUser() in auth/middleware.ts) so the nav can show the account menu.
+  user?: SessionUser | null;
 }
 
 const calendarIcon =
@@ -62,6 +67,62 @@ const filmIcon =
 
 const searchIcon =
   '<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 256 256"><path fill="currentColor" d="M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z"/></svg>';
+
+// The account control at the right of the nav: a sign-in link, or the visitor's
+// avatar opening a menu. The menu is a plain <details> so it works with no
+// JavaScript; search.js only adds the click-outside/Escape dismissal.
+//
+// Sign-in and sign-out carry no destination of their own — the routes read the
+// Referer to send the visitor back where they were (see auth/urls.ts), which
+// keeps this markup identical on every page.
+function AccountMenu({ user }: { user: SessionUser | null }) {
+  if (!user) {
+    // A deployment with no OAuth credentials configured has nothing to offer
+    // behind this link, so don't show it at all rather than lead to a dead end.
+    if (configuredProviders().length === 0) return null;
+    return (
+      <a class="nav-signin" href="/login" rel="nofollow">
+        Sign in
+      </a>
+    );
+  }
+
+  const label = user.name || user.email || 'Account';
+  const initial = label.trim().charAt(0).toUpperCase() || '?';
+
+  return (
+    <details class="user-menu">
+      <summary class="user-menu-trigger" aria-label={`Account: ${label}`}>
+        {user.avatarUrl ? (
+          <img
+            class="user-avatar"
+            src={user.avatarUrl}
+            alt=""
+            width="30"
+            height="30"
+            // Don't tell the avatar host which page of ours is being viewed.
+            referrerpolicy="no-referrer"
+          />
+        ) : (
+          <span class="user-avatar user-avatar-initial" aria-hidden="true">
+            {initial}
+          </span>
+        )}
+      </summary>
+      <div class="user-menu-panel">
+        <div class="user-menu-id">
+          {user.name && <div class="user-menu-name">{user.name}</div>}
+          {user.email && <div class="user-menu-email">{user.email}</div>}
+        </div>
+        <form method="post" action="/auth/logout">
+          <button type="submit" class="user-menu-signout">
+            Sign out
+          </button>
+        </form>
+      </div>
+    </details>
+  );
+}
 
 export function renderPage({
   title,
@@ -74,6 +135,7 @@ export function renderPage({
   noindex,
   body,
   activePage,
+  user,
 }: PageOptions): string {
   const BASE_URL = 'https://movieclock.app';
   const metaDesc =
@@ -164,6 +226,7 @@ export function renderPage({
               />
               <div class="search-results" id="searchResults"></div>
             </div>
+            <AccountMenu user={user ?? null} />
           </div>
         </nav>
         <div class="page-content">{body}</div>

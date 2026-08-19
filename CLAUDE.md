@@ -144,8 +144,11 @@ Page rendering is in `src/pages/` (all `.tsx`, see JSX Rendering above):
 
 - **`src/pages/screenings-list.tsx`** - Shared `ScreeningsList` component (day-grouped upcoming screenings with theatre links, notes, and Book Tickets links). Used by the movie detail page and the TMDB review page.
 
+- **`src/pages/login.tsx`** - Sign-in page (`/login`)
+  - One button per configured OAuth provider (see Authentication below). Provider marks live here, not in the provider registry — that's config, this is presentation. `noindex`.
+
 - **`src/pages/layout.tsx`** - Shared page layout/shell (`renderPage`)
-  - Nav bar with **By Date / By Movie** + search. Search is **server-side**: the client debounces input and fetches `GET /api/search?q=` (see API Endpoints), which queries the whole `movie` table — so films with no upcoming screenings are still findable. There is no embedded movie list and no `searchMovies` plumbing through the renderers
+  - Nav bar with **By Date / By Movie** + search + the account control (a **Sign in** link, or the signed-in visitor's avatar opening a `<details>` menu with their name/email and a Sign out form). The user comes in via `renderPage`'s `user` option, which every page renderer takes as a trailing parameter and fills from `currentUser(c)`. Search is **server-side**: the client debounces input and fetches `GET /api/search?q=` (see API Endpoints), which queries the whole `movie` table — so films with no upcoming screenings are still findable. There is no embedded movie list and no `searchMovies` plumbing through the renderers
   - `color-scheme: dark` + `darkreader-lock` meta, self-hosted fonts (Space Grotesk + Inter, see UI Design), Cloudflare Web Analytics
 
 - **`src/pages/tmdb-modal.tsx`** - Shared TMDB fix-match modal component. `open()` auto-searches the title when a token is already present (the review-page path, which carries the admin token through); the secret 10-click entrypoint has no token yet, so it stays manual there.
@@ -234,6 +237,79 @@ Elements are hidden with the `hidden` attribute (`[hidden]` is forced to
 - `GET /robots.txt` - Robots file with sitemap reference
 - `GET /sitemap.xml` - Dynamic sitemap of movies and theatres with future screenings
 
+### Authentication (OAuth login)
+
+Visitors can sign in. **Login is OAuth-only — there is no password anywhere in
+the system, by design.** Google is the only provider wired up today; adding
+another is one entry in a registry plus two env vars, with no changes to the
+routes, session layer, or UI.
+
+Nothing on the site is gated behind login yet: signing in shows you in the nav
+and creates an account row, and that's it. Signing in is not required for any
+existing feature.
+
+**Provider registry** (`src/auth/providers.ts`): `PROVIDERS` is the single
+source of truth. Each entry carries its endpoints, scopes, whether it uses PKCE,
+the two env vars holding its credentials, its avatar host (folded into the CSP's
+`img-src` by `avatarImgSrc()`), and a `profile()` that maps its token response to
+`{ providerUserId, email, emailVerified, name, avatarUrl }`. A provider with
+either credential env var missing counts as **unconfigured** and simply doesn't
+appear on the login page — so a deployment with no `GOOGLE_CLIENT_ID` runs fine
+with sign-in absent.
+
+**Routes** (`src/routes/auth.ts`):
+- `GET /login` — the sign-in page, one button per configured provider
+- `GET /auth/:provider` — starts the flow (mints `state` + PKCE verifier, redirects)
+- `GET /auth/:provider/callback` — verifies `state`, exchanges the code, upserts the user, starts the session
+- `POST /auth/logout` — deletes the session row and clears the cookie (POST so a link/prefetch can't sign someone out)
+
+**Flow state**: `state` + PKCE verifier + post-login destination ride in a
+short-lived HttpOnly cookie (`mc_oauth`, scoped to `/auth`, 10 min) rather than
+server memory — Fly runs more than one machine. The callback requires the
+query's `state` to equal the cookie's; that comparison is the CSRF defence.
+
+**Redirect safety**: sign-in and sign-out carry no destination in the markup —
+the routes read `Referer` and send the visitor back where they were.
+`safeReturnTo()` / `returnToFromReferer()` (`src/auth/urls.ts`) clamp any
+destination to a same-site path and reject `/auth/*` and `/login` (an open
+redirect on a login route is a phishing primitive). This is the most
+security-relevant code in the feature and is the most heavily tested.
+
+**id_token handling** (`src/auth/jwt.ts`): the Google profile is read straight
+out of the `id_token`, with `iss`/`aud`/`exp`/`sub` checked but **no signature
+verification** — the token is fetched by the server, over TLS, directly from
+Google's token endpoint in exchange for the client secret, which is the case
+Google documents as not needing local validation. Don't reuse `decodeJwtPayload`
+for a token that arrived any other way.
+
+**Identity model** (`src/auth/users.ts`): `user_identity` is what a login keys
+on, never the email — a provider `sub` is stable, an email can be renamed or
+reassigned. Email is used for exactly one thing: recognising that a *new*
+provider identity belongs to an account we already have, so a second provider
+links instead of forking. Only a provider-**verified** email is trusted for
+that, and an unverified address is never even stored.
+
+**Sessions** (`src/auth/session.ts`): server-side and opaque. The cookie
+(`mc_session`, HttpOnly, SameSite=Lax, Secure over https, 30 days) holds a random
+token; the DB stores only its SHA-256, so a dump of `user_session` can't be
+replayed. Sessions roll forward when used with under 15 days left, expired rows
+are deleted on sight, and a daily cron sweeps abandoned ones. Sign-out is a real
+revocation, not an expiry wait.
+
+**In pages**: `sessionMiddleware` puts the user on `c.get('user')`; routes pass
+`currentUser(c)` into their page renderer, which forwards it to `renderPage` as
+`user`. The nav renders a **Sign in** link or the account menu — a plain
+`<details>` element that works with JavaScript off (`search.js` only adds
+click-outside/Escape dismissal).
+
+**Local setup**: create an OAuth client in Google Cloud Console (Web
+application), add `http://localhost:3000/auth/google/callback` and
+`https://movieclock.app/auth/google/callback` as authorized redirect URIs, and
+put the id/secret in `.env`. `BASE_URL` defaults to `http://localhost:3000`
+outside production and `https://movieclock.app` in it (`NODE_ENV`, set in the
+Dockerfile), so no extra config is needed either way. In production the two
+secrets are set with `fly secrets set`.
+
 ### Database Layer
 
 **Stack**: PostgreSQL + Kysely (type-safe SQL query builder) + pg driver
@@ -256,6 +332,11 @@ Elements are hidden with the `hidden` attribute (`[hidden]` is forced to
 `scrape_run` table:
 - `id`, `scraper`, `started_at`, `finished_at`, `screening_count`, `error`, `created_at`
 - One row per scraper per scrape job — makes failures/zero-result runs queryable for monitoring
+
+`app_user` / `user_identity` / `user_session` tables (see Authentication above):
+- `app_user` — `id`, `email`, `name`, `avatar_url`, `created_at`, `updated_at`. No password column: login is OAuth-only. Email is unique **case-insensitively** (`lower(email)` partial index, since an account without a shared email is allowed).
+- `user_identity` — `(provider, provider_user_id)` primary key → `user_id`. One row per provider login; this, not the email, is what a sign-in keys on.
+- `user_session` — `token_hash` (SHA-256 of the cookie token) primary key, `user_id`, `expires_at`. All three cascade from `app_user`.
 
 **Files**:
 - `src/db/connection.ts` - Database connection and config (reads from `.env`)
@@ -510,6 +591,10 @@ DB_PASSWORD=postgres
 TMDB_API_TOKEN=your_token_here  # Optional — scraper works without it
 ADMIN_TOKEN=your_token_here     # Required for TMDB/Letterboxd fix-match endpoints
 SCRAPE_HEARTBEAT_URL=...        # Optional — healthchecks.io-style ping URL, hit after each full scrape run
+GOOGLE_CLIENT_ID=...            # Optional — Google OAuth login; omit either half and sign-in is simply absent
+GOOGLE_CLIENT_SECRET=...
+BASE_URL=...                    # Optional — public origin, used for OAuth redirect URIs + sitemap.
+                                # Defaults to http://localhost:3000 outside production, https://movieclock.app in it.
 ```
 
 ## Tech Stack
@@ -536,6 +621,6 @@ Core tokens (`public/css/global.css`):
 - Accent: `--violet: #8b5cf6`, `--cyan: #22d3ee`, `--pink: #f472b6` (notes), gradient `--grad: linear-gradient(100deg,#8b5cf6,#22d3ee)`
 - Radii: `--radius-card: 20px`, `--radius-chip: 999px`
 
-Per-page CSS lives in `public/css/{global,index,movie,movies,theatre,theatre-card,tmdb-modal}.css`. Favicon is `public/favicon.svg` (+ `.png` fallback) matching the gradient. The three earlier design explorations are kept under `design-prototypes/` (reference only, not wired in) as seeds for a future theme switcher.
+Per-page CSS lives in `public/css/{global,index,movie,movies,theatre,theatre-card,tmdb-modal,login}.css` (the nav's account control lives in `global.css` with the rest of the top bar). Favicon is `public/favicon.svg` (+ `.png` fallback) matching the gradient. The three earlier design explorations are kept under `design-prototypes/` (reference only, not wired in) as seeds for a future theme switcher.
 
 **Note**: `/internal-movies` is intentionally left on the old teal styling and was not redesigned.

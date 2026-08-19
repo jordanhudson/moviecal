@@ -1,8 +1,15 @@
 /** @jsxImportSource hono/jsx */
 import { renderPage } from './layout.js';
+import type { SessionUser } from '../auth/session.js';
 
-export function renderErrorPage(status: number, heading: string, message: string): string {
+export function renderErrorPage(
+  status: number,
+  heading: string,
+  message: string,
+  user: SessionUser | null = null,
+): string {
   return renderPage({
+    user,
     title: `${heading} — MovieClock`,
     body: (
       <div style="max-width: 560px; margin: 0 auto; padding: 96px 24px; text-align: center;">

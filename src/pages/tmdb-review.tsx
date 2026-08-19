@@ -4,6 +4,7 @@ import { TmdbModal } from './tmdb-modal.js';
 import { safeHref } from '../utils/html.js';
 import { movieUrl } from '../utils/movie-url.js';
 import { ScreeningsList, ScreeningInfo } from './screenings-list.js';
+import type { SessionUser } from '../auth/session.js';
 
 export interface ReviewRow {
   movie_id: number;
@@ -54,8 +55,10 @@ function FilmBlock(props: {
 export function renderTmdbReviewPage(
   rows: ReviewRow[],
   screeningsByMovie: Map<number, ScreeningInfo[]>,
+  user: SessionUser | null = null,
 ): string {
   return renderPage({
+    user,
     title: 'TMDB Match Review — MovieClock',
     description: 'Admin review queue for likely-wrong TMDB matches.',
     styles: ['/css/tmdb-modal.css', '/css/movie.css', '/css/tmdb-review.css'],

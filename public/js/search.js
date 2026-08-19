@@ -83,3 +83,24 @@
     }
   });
 })();
+
+// Account menu dismissal. The menu itself is a <details> element, so opening and
+// closing already work with JavaScript off; this only adds the two behaviours a
+// dropdown is expected to have — click away, or press Escape, to close. Kept in
+// its own IIFE so the search block's early return can't skip it.
+(function () {
+  var menu = document.querySelector('.user-menu');
+  if (!menu) return;
+
+  document.addEventListener('click', function (e) {
+    if (menu.open && !menu.contains(e.target)) menu.open = false;
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && menu.open) {
+      menu.open = false;
+      var trigger = menu.querySelector('summary');
+      if (trigger) trigger.focus();
+    }
+  });
+})();

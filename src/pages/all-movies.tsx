@@ -3,6 +3,7 @@ import { renderPage } from './layout.js';
 import { TmdbModal } from './tmdb-modal.js';
 import { safeHref } from '../utils/html.js';
 import { movieUrl } from '../utils/movie-url.js';
+import type { SessionUser } from '../auth/session.js';
 
 export interface MovieRow {
   id: number;
@@ -14,8 +15,13 @@ export interface MovieRow {
   letterboxd_url: string | null;
 }
 
-export function renderAllMoviesPage(movies: MovieRow[], sort: string): string {
+export function renderAllMoviesPage(
+  movies: MovieRow[],
+  sort: string,
+  user: SessionUser | null = null,
+): string {
   return renderPage({
+    user,
     title: 'All Upcoming Movies — MovieClock',
     description: 'Complete list of all movies with upcoming screenings in Vancouver cinemas.',
     styles: ['/css/all-movies.css', '/css/tmdb-modal.css'],

@@ -234,6 +234,89 @@ a { color: inherit; text-decoration: none; }
 .search-result:hover { background: var(--glass2); color: var(--cyan); }
 .search-no-results { padding: 12px 14px; color: var(--faint); font-size: 13.5px; }
 
+/* ---- account: sign-in link / signed-in menu ---- */
+.nav-signin {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--muted);
+  white-space: nowrap;
+  padding: 8px 16px;
+  background: var(--glass);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-chip);
+}
+.nav-signin:hover { color: var(--ink); border-color: rgba(255, 255, 255, .2); }
+
+/* A <details> element, so the menu opens with no JavaScript; search.js only
+   adds click-outside/Escape dismissal on top. */
+.user-menu { position: relative; }
+.user-menu-trigger {
+  display: flex;
+  align-items: center;
+  list-style: none;
+  cursor: pointer;
+}
+.user-menu-trigger::-webkit-details-marker { display: none; }
+
+.user-avatar {
+  display: block;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-chip);
+  border: 1px solid var(--line);
+  background: var(--glass2);
+  object-fit: cover;
+}
+.user-avatar-initial {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-disp);
+  font-weight: 700;
+  font-size: 13px;
+  color: #0a0a14;
+  background: var(--grad);
+  border: none;
+}
+.user-menu[open] .user-avatar { box-shadow: 0 0 0 3px rgba(139, 92, 246, .25); }
+
+.user-menu-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  min-width: 210px;
+  overflow: hidden;
+  background: rgba(16, 16, 28, .96);
+  backdrop-filter: blur(18px);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  z-index: 200;
+}
+.user-menu-id {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+}
+.user-menu-name { font-size: 13.5px; font-weight: 600; }
+.user-menu-email {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--faint);
+  word-break: break-all;
+}
+.user-menu-signout {
+  display: block;
+  width: 100%;
+  padding: 11px 14px;
+  background: none;
+  border: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  cursor: pointer;
+}
+.user-menu-signout:hover { background: var(--glass2); color: var(--cyan); }
+
 /* ---- page shell ---- */
 .page-content {
   max-width: 1180px;
@@ -327,6 +410,10 @@ footer a {
 
   .nav-search-btn { display: inline-flex; }
   body.search-open .nav-search-btn { color: var(--ink); }
+
+  /* the account control sits beside the nav pill once search is a dropdown */
+  .nav-signin { padding: 7px 13px; }
+  .user-avatar { width: 28px; height: 28px; }
 
   .page-content { padding: 0 16px; }
 }

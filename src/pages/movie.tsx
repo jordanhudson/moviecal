@@ -7,6 +7,7 @@ import { ScreeningsList } from './screenings-list.js';
 import { movieUrl } from '../utils/movie-url.js';
 import { pacificWallClock } from '../utils/time.js';
 import { venueGroup } from '../venues.js';
+import type { SessionUser } from '../auth/session.js';
 
 export interface MovieDetail {
   id: number;
@@ -29,7 +30,11 @@ export interface ScreeningDetail {
   note: string | null;
 }
 
-export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[]): string {
+export function renderMoviePage(
+  movie: MovieDetail,
+  screenings: ScreeningDetail[],
+  user: SessionUser | null = null,
+): string {
   const now = new Date();
   const futureScreenings = screenings.filter((s) => new Date(s.datetime) >= now);
 
@@ -111,6 +116,7 @@ export function renderMoviePage(movie: MovieDetail, screenings: ScreeningDetail[
   }));
 
   return renderPage({
+    user,
     title: `${movie.title}${movie.year ? ` (${movie.year})` : ''} Showtimes Vancouver — MovieClock`,
     description: movieDesc,
     canonicalPath: movieUrl(movie.id, movie.title),

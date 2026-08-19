@@ -30,9 +30,13 @@ import {
   theatreNamesFor,
 } from './venues.js';
 import { apiRoutes } from './routes/api.js';
+import { authRoutes } from './routes/auth.js';
+import { currentUser, sessionMiddleware, type AuthEnv } from './auth/middleware.js';
+import { avatarImgSrc } from './auth/providers.js';
+import { deleteExpiredSessions } from './auth/session.js';
 import { movieUrl } from './utils/movie-url.js';
 
-const app = new Hono();
+const app = new Hono<AuthEnv>();
 
 // Security headers on every response. Hono's defaults cover X-Content-Type-Options,
 // X-Frame-Options, COOP/CORP, etc. Referrer-Policy is relaxed from the default
@@ -53,7 +57,9 @@ app.use(
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'", 'https://static.cloudflareinsights.com'],
       styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", 'https://image.tmdb.org'],
+      // Plus the avatar host of each configured OAuth provider, so a signed-in
+      // visitor's profile picture loads (see avatarImgSrc in auth/providers.ts).
+      imgSrc: ["'self'", 'https://image.tmdb.org', ...avatarImgSrc()],
       fontSrc: ["'self'"],
       connectSrc: ["'self'", 'https://cloudflareinsights.com'],
       objectSrc: ["'none'"],
@@ -118,6 +124,10 @@ app.use('/favicon.png', cacheControl(CACHE_DAY), serveStatic({ root: './public' 
 app.use('/favicon.svg', cacheControl(CACHE_DAY), serveStatic({ root: './public' }));
 app.use('/og-image.png', cacheControl(CACHE_DAY), serveStatic({ root: './public' }));
 
+// Resolve the session cookie into c.get('user') for everything below. Placed
+// after the static handlers so serving CSS never costs a database round trip.
+app.use('*', sessionMiddleware);
+
 app.notFound(async (c) => {
   if (c.req.path.startsWith('/api/')) {
     return c.json({ error: 'Not found' }, 404);
@@ -126,6 +136,7 @@ app.notFound(async (c) => {
     404,
     'Page not found',
     "That page doesn't exist — maybe the movie left town.",
+    currentUser(c),
   );
   return c.html(html, 404);
 });
@@ -140,6 +151,7 @@ app.onError(async (err, c) => {
       500,
       'Something went wrong',
       'An unexpected error occurred. Please try again in a moment.',
+      currentUser(c),
     );
     return c.html(html, 500);
   } catch {
@@ -179,12 +191,17 @@ function getDayBounds(dateStr?: string) {
 // Admin API routes (TMDB/Letterboxd fix-match)
 app.route('/', apiRoutes);
 
+// Sign-in / sign-out (OAuth only — see src/auth/providers.ts)
+app.route('/', authRoutes);
+
 // robots.txt
 app.get('/robots.txt', (c) => {
   const BASE_URL = process.env.BASE_URL || 'https://movieclock.app';
   const body = `User-agent: *
 Allow: /
 Disallow: /internal
+Disallow: /login
+Disallow: /auth
 
 Sitemap: ${BASE_URL}/sitemap.xml
 `;
@@ -267,7 +284,12 @@ app.get('/movie/:id', async (c) => {
   const movieId = parseInt(c.req.param('id'), 10);
 
   if (isNaN(movieId)) {
-    const html = renderErrorPage(404, 'Movie not found', "We don't have a movie at this address.");
+    const html = renderErrorPage(
+      404,
+      'Movie not found',
+      "We don't have a movie at this address.",
+      currentUser(c),
+    );
     return c.html(html, 404);
   }
 
@@ -290,7 +312,12 @@ app.get('/movie/:id', async (c) => {
     .executeTakeFirst();
 
   if (!movie) {
-    const html = renderErrorPage(404, 'Movie not found', "We don't have a movie at this address.");
+    const html = renderErrorPage(
+      404,
+      'Movie not found',
+      "We don't have a movie at this address.",
+      currentUser(c),
+    );
     return c.html(html, 404);
   }
 
@@ -302,7 +329,7 @@ app.get('/movie/:id', async (c) => {
     .orderBy('datetime', 'asc')
     .execute();
 
-  const html = renderMoviePage(movie, screenings);
+  const html = renderMoviePage(movie, screenings, currentUser(c));
   return c.html(html);
 });
 
@@ -331,7 +358,7 @@ app.get('/theatre/:name', async (c) => {
     .orderBy('screening.datetime', 'asc')
     .execute();
 
-  const html = renderTheatrePage(theatreName, screenings);
+  const html = renderTheatrePage(theatreName, screenings, currentUser(c));
   return c.html(html);
 });
 
@@ -371,7 +398,7 @@ app.get('/internal-movies', async (c) => {
 
   const movies = await query.execute();
 
-  const html = renderAllMoviesPage(movies, sort);
+  const html = renderAllMoviesPage(movies, sort, currentUser(c));
   return c.html(html);
 });
 
@@ -403,7 +430,7 @@ app.get('/internal-tmdb-review', async (c) => {
     }
   }
 
-  return c.html(renderTmdbReviewPage(rows, screeningsByMovie));
+  return c.html(renderTmdbReviewPage(rows, screeningsByMovie, currentUser(c)));
 });
 
 // Movies page (by movie view)
@@ -432,7 +459,7 @@ app.get('/movies', async (c) => {
     .orderBy('screening.datetime', 'asc')
     .execute();
 
-  const html = renderMoviesPage(results);
+  const html = renderMoviesPage(results, currentUser(c));
   return c.html(html);
 });
 
@@ -488,7 +515,7 @@ async function renderHome(c: Context, dateParam?: string) {
   const listingGroups: ListingGroup[] = buildDayListingGroups(theatreMap);
 
   // Render HTML
-  const html = renderIndexPage(date, theatres, listingGroups, dateParam != null);
+  const html = renderIndexPage(date, theatres, listingGroups, dateParam != null, currentUser(c));
   return c.html(html);
 }
 
@@ -520,6 +547,23 @@ cron.schedule(
       console.log('[CRON] Scheduled scrape job completed successfully');
     } catch (error) {
       console.error('[CRON] Scheduled scrape job failed:', error);
+    }
+  },
+  {
+    timezone: 'UTC',
+  },
+);
+
+// Sweep sessions nobody came back for. Expired rows are also deleted as they're
+// encountered, but abandoned ones would otherwise sit in the table forever.
+cron.schedule(
+  '30 4 * * *',
+  async () => {
+    try {
+      const deleted = await deleteExpiredSessions();
+      if (deleted > 0) console.log(`[CRON] Deleted ${deleted} expired session(s)`);
+    } catch (error) {
+      console.error('[CRON] Session sweep failed:', error);
     }
   },
   {
