@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { parseVIFFEvents, VIFFApiEvent } from './viff-scraper.js';
+import { extractRestNonce, parseVIFFEvents, VIFFApiEvent } from './viff-scraper.js';
 import { parseRioEvents, RioApiEvent } from './rio-scraper.js';
 import {
   parseCineplexResponses,
@@ -34,6 +34,13 @@ test('VIFF: parses screenings out of the calendar API HTML payload', () => {
   assert.equal(screenings[2].movie.title, 'Mistura');
   assert.equal(screenings[2].note, null);
   assert.equal(screenings[2].movie.runtime, 97);
+});
+
+test('VIFF: pulls the REST nonce out of the inlined wpApiSettings', () => {
+  const html =
+    '<script>var wpApiSettings = {"root":"https://viff.org/wp-json/","nonce":"54ef619566","versionString":"wp/v2/"};</script>';
+  assert.equal(extractRestNonce(html), '54ef619566');
+  assert.equal(extractRestNonce('<html><body>no settings here</body></html>'), null);
 });
 
 test('Rio: keeps the offset-bearing instant and extracts notes', () => {

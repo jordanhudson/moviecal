@@ -96,10 +96,43 @@ export function parseVIFFEvents(events: VIFFApiEvent[]): Screening[] {
   return screenings;
 }
 
+const CALENDAR_PAGE_URL = 'https://viff.org/whats-on-calendar/';
+const API_URL = 'https://viff.org/wp-json/v1/attendable/calendar/instances';
+
+// Since late Aug 2026 the calendar API rejects requests without a WordPress
+// REST nonce ({"code":"forbidden","message":"Unable to verify request"}).
+// The site's own calendar.js sends `X-WP-Nonce: wpApiSettings.nonce`, and
+// that value is inlined into the calendar page. It's an anonymous nonce (no
+// cookie/session needed) but it rotates every ~12h, so fetch a fresh one
+// per run rather than hardcoding it.
+export function extractRestNonce(html: string): string | null {
+  const settings = html.match(/wpApiSettings\s*=\s*(\{[^}]*\})/);
+  if (!settings) return null;
+  const nonce = settings[1].match(/"nonce"\s*:\s*"([^"]+)"/);
+  return nonce ? nonce[1] : null;
+}
+
+async function fetchRestNonce(): Promise<string> {
+  const response = await fetch(CALENDAR_PAGE_URL, {
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!response.ok) {
+    throw new Error(`Calendar page request failed: ${response.status} ${response.statusText}`);
+  }
+  const nonce = extractRestNonce(await response.text());
+  if (!nonce) {
+    throw new Error('Could not find wpApiSettings.nonce in the calendar page');
+  }
+  return nonce;
+}
+
 export async function scrapeVIFF(): Promise<Screening[]> {
   try {
+    const nonce = await fetchRestNonce();
+
     // Fetch calendar events from VIFF API
-    const response = await fetch('https://viff.org/wp-json/v1/attendable/calendar/instances', {
+    const response = await fetch(API_URL, {
+      headers: { 'X-WP-Nonce': nonce },
       signal: AbortSignal.timeout(30_000),
     });
 
