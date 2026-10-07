@@ -321,6 +321,15 @@ app.get('/movie/:id', async (c) => {
     return c.html(html, 404);
   }
 
+  // A stale or missing slug (the title was re-cleaned or re-matched since the
+  // URL was shared/crawled) 301s to the current one, so Google consolidates on
+  // a single URL instead of filing the old one as an "Alternative page".
+  const canonicalPath = movieUrl(movie.id, movie.title);
+  const reqUrl = new URL(c.req.url);
+  if (reqUrl.pathname !== canonicalPath) {
+    return c.redirect(`${canonicalPath}${reqUrl.search}`, 301);
+  }
+
   // Get all screenings for this movie
   const screenings = await db
     .selectFrom('screening')
@@ -522,8 +531,10 @@ async function renderHome(c: Context, dateParam?: string) {
 app.get('/', (c) => {
   // Back-compat: old bookmarks used `/?date=YYYY-MM-DD`; 301 to the new path form
   const legacyDate = c.req.query('date');
-  if (legacyDate && /^\d{4}-\d{2}-\d{2}$/.test(legacyDate)) {
-    return c.redirect(`/date/${legacyDate}`, 301);
+  if (legacyDate !== undefined) {
+    // Anything else (including an empty `?date=`) is a duplicate of `/`.
+    const valid = /^\d{4}-\d{2}-\d{2}$/.test(legacyDate);
+    return c.redirect(valid ? `/date/${legacyDate}` : '/', 301);
   }
   return renderHome(c);
 });
