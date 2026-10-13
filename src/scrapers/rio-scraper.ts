@@ -1,5 +1,7 @@
 import { Movie, Screening } from '../models.js';
+import * as cheerio from 'cheerio';
 import { cleanMovieTitle } from '../utils/title-cleaner.js';
+import { extractCreditsYear, fetchFilmYears } from './film-years.js';
 
 // Rio Theatre API response types
 export interface RioApiEvent {
@@ -71,7 +73,16 @@ export async function scrapeRio(): Promise<Screening[]> {
     }
 
     const events: RioApiEvent[] = await response.json();
-    return parseRioEvents(events);
+    const screenings = parseRioEvents(events);
+
+    // The API has no release year, but film pages (/movie/…, not the /event/…
+    // live shows) carry a credits line: "(Matt Johnson, 2026 / 106 mins / 14A)"
+    const years = await fetchFilmYears(
+      events.map((e) => e.event.link).filter((link) => link.includes('/movie/')),
+      (html) => extractCreditsYear(cheerio.load(html)('body').text()),
+    );
+    screenings.forEach((s, i) => (s.movie.year = years.get(events[i].event.link) ?? null));
+    return screenings;
   } catch (error) {
     console.error('Error scraping Rio Theatre:', error);
     throw error;

@@ -1,8 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { extractRestNonce, parseVIFFEvents, VIFFApiEvent } from './viff-scraper.js';
+import {
+  extractFilmYear,
+  extractRestNonce,
+  parseVIFFEvents,
+  VIFFApiEvent,
+} from './viff-scraper.js';
 import { parseRioEvents, RioApiEvent } from './rio-scraper.js';
+import { extractCinemathequeYear } from './cinematheque-scraper.js';
+import { extractCreditsYear } from './film-years.js';
 import {
   parseCineplexResponses,
   dedupeScreenings,
@@ -41,6 +48,49 @@ test('VIFF: pulls the REST nonce out of the inlined wpApiSettings', () => {
     '<script>var wpApiSettings = {"root":"https://viff.org/wp-json/","nonce":"54ef619566","versionString":"wp/v2/"};</script>';
   assert.equal(extractRestNonce(html), '54ef619566');
   assert.equal(extractRestNonce('<html><body>no settings here</body></html>'), null);
+});
+
+test('VIFF: reads the release year from a film page details sidebar', () => {
+  // Trimmed from https://viff.org/whats-on/atonement/ (Oct 2026)
+  const html = readFileSync(new URL('./fixtures/viff-film-page.html', import.meta.url), 'utf8');
+  assert.equal(extractFilmYear(html), 2026);
+  assert.equal(extractFilmYear('<html><body>no details</body></html>'), null);
+});
+
+test('Park/Rio: reads the year from a programme credits line', () => {
+  // Real lines from the Park listings and Rio film pages (Oct 2026)
+  assert.equal(
+    extractCreditsYear(
+      'Doors 9:00 pm\n\nTONY (Matt Johnson, 2026 / 106 mins / 14A) A 19-year-old Anthony Bourdain…',
+    ),
+    2026,
+  );
+  // Rating before runtime
+  assert.equal(
+    extractCreditsYear('WICKER  (Alex Huston Fischer & Eleanor Wilson, 2026 / 14A / 105 mins)'),
+    2026,
+  );
+  // Original title in quotes before the parens
+  assert.equal(
+    extractCreditsYear(
+      'THE SAMURAI AND THE PRISONER "Kokurôjô" (Kiyoshi Kurosawa, 2026 / 147 mins / 14A / Japanese w. EST)',
+    ),
+    2026,
+  );
+  assert.equal(extractCreditsYear('THE FLY (David Cronenberg, 1986 / 96 mins / 18A)'), 1986);
+  // Years in prose or event notes aren't a credits line
+  assert.equal(extractCreditsYear('Tuesday, October 13 (OFF-VIFF 2026 World Premiere)'), null);
+  assert.equal(extractCreditsYear('created in 2024 by filmmaker Arran Shearing'), null);
+});
+
+test('Cinematheque: reads the headline film year from a film page', () => {
+  // Trimmed from https://thecinematheque.ca/films/2026/begotten (Oct 2026)
+  const html = readFileSync(
+    new URL('./fixtures/cinematheque-film-page.html', import.meta.url),
+    'utf8',
+  );
+  assert.equal(extractCinemathequeYear(html), 1989);
+  assert.equal(extractCinemathequeYear('<html><body>no details</body></html>'), null);
 });
 
 test('Rio: keeps the offset-bearing instant and extracts notes', () => {

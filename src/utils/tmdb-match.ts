@@ -33,18 +33,31 @@ async function searchTMDB(title: string, year?: number | null): Promise<TMDBSear
   return data.results ?? [];
 }
 
+// How far a venue-listed year may be from TMDB's release year and still match.
+const MAX_YEAR_GAP = 2;
+
 /**
  * Title-gated match: among TMDB search results, keep only those whose title or
  * original title matches the query, drop shorts (< 60 min), then disambiguate
  * same-titled films by release year and finally closest runtime. Returns the
- * chosen movie's full details, or null when nothing matches the title.
+ * chosen movie's full details, or null when nothing matches the title (or,
+ * when a year is given, nothing within MAX_YEAR_GAP of it).
  */
 export async function findGatedTMDBMatch(
   title: string,
   year?: number | null,
   runtime?: number | null,
 ): Promise<TMDBMovieDetails | null> {
-  const results = await searchTMDB(title, year);
+  // TMDB's `year` filter only returns films with a release in exactly that
+  // year, so a listing year that's off by one (festival vs. release) can drop
+  // the right film entirely. With a year, also run the unfiltered search and
+  // merge — the year-filtered one still helps surface obscure same-year films
+  // that page 1 of an unfiltered search would bury.
+  const results = year
+    ? [...(await searchTMDB(title, year)), ...(await searchTMDB(title))].filter(
+        (r, i, all) => all.findIndex((o) => o.id === r.id) === i,
+      )
+    : await searchTMDB(title);
 
   const titleMatches = results.filter(
     (r) =>
@@ -66,10 +79,16 @@ export async function findGatedTMDBMatch(
 
   let pool = candidates;
   if (year) {
-    const sameYear = pool.filter(
-      (r) => r.release_date && parseInt(r.release_date.substring(0, 4), 10) === year,
-    );
-    if (sameYear.length > 0) pool = sameYear;
+    // Keep the films closest to the venue's year, allowing some slack
+    // (festival/production years often differ from TMDB's release date, e.g.
+    // Begotten: 1989 vs. 1991). If no same-titled film is that close, the
+    // right one likely isn't on TMDB — don't fall back to an unrelated
+    // namesake (e.g. 2007's "Atonement" for a 2026 film).
+    const gap = (r: TMDBSearchHit) =>
+      r.release_date ? Math.abs(parseInt(r.release_date.substring(0, 4), 10) - year) : Infinity;
+    const closest = Math.min(...pool.map(gap));
+    if (closest > MAX_YEAR_GAP) return null;
+    pool = pool.filter((r) => gap(r) === closest);
   }
 
   let chosen = pool[0];

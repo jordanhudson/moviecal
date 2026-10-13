@@ -62,7 +62,9 @@ async function rematch() {
 
     if (matches) continue; // not flagged — current match is fine
 
-    const proposed = await findGatedTMDBMatch(movie.title, movie.year, movie.runtime);
+    // No year: a stored year usually came from the very TMDB match we're
+    // questioning, and the matcher treats a year as a hard gate.
+    const proposed = await findGatedTMDBMatch(movie.title, null, movie.runtime);
     await sleep(SLEEP_MS);
 
     if (!proposed || proposed.id === tmdbId) {

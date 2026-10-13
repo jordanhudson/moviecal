@@ -1,6 +1,7 @@
 import { Movie, Screening } from '../models.js';
 import { cleanMovieTitle } from '../utils/title-cleaner.js';
 import { pacificWallClockToInstant } from '../utils/time.js';
+import { fetchFilmYears } from './film-years.js';
 
 // The API gives local times with no offset (e.g. "2026-06-13T13:00:00"), which
 // are Pacific wall-clock — resolve them to the real instant.
@@ -96,6 +97,15 @@ export function parseVIFFEvents(events: VIFFApiEvent[]): Screening[] {
   return screenings;
 }
 
+// The calendar API carries no release year, but each film's "More Info" page
+// (the URL we store as bookingUrl) lists it in the details sidebar.
+export function extractFilmYear(html: string): number | null {
+  const m = html.match(
+    /c-event__details-title">\s*Year\s*<\/div>\s*<div class="c-event__details-details">\s*(?:<p>)?\s*(\d{4})/,
+  );
+  return m ? parseInt(m[1], 10) : null;
+}
+
 const CALENDAR_PAGE_URL = 'https://viff.org/whats-on-calendar/';
 const API_URL = 'https://viff.org/wp-json/v1/attendable/calendar/instances';
 
@@ -141,7 +151,13 @@ export async function scrapeVIFF(): Promise<Screening[]> {
     }
 
     const events: VIFFApiEvent[] = await response.json();
-    return parseVIFFEvents(events);
+    const screenings = parseVIFFEvents(events);
+    const years = await fetchFilmYears(
+      screenings.map((s) => s.bookingUrl),
+      extractFilmYear,
+    );
+    for (const s of screenings) s.movie.year = years.get(s.bookingUrl) ?? null;
+    return screenings;
   } catch (error) {
     console.error('Error scraping VIFF:', error);
     throw error;

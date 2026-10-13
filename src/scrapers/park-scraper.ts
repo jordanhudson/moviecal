@@ -2,12 +2,14 @@ import puppeteer from 'puppeteer';
 import { Movie, Screening } from '../models.js';
 import { cleanMovieTitle } from '../utils/title-cleaner.js';
 import { parseMonthName, parse12HourTime, pacificWallClockToInstant } from '../utils/time.js';
+import { extractCreditsYear } from './film-years.js';
 
 // Park-specific internal models (not exported)
 interface ParkScreening {
   title: string;
   datetime: string; // e.g., "Wed, Mar 18, 6:30 pm" or "6:20pm - Thursday, Jan 8, 2026"
   url: string;
+  description: string; // full text behind "show more", incl. the credits line
 }
 
 export async function scrapePark(): Promise<Screening[]> {
@@ -42,6 +44,11 @@ export async function scrapePark(): Promise<Screening[]> {
         const dateElement = element.querySelector('p.event-date');
         const datetime = dateElement ? dateElement.textContent?.trim() : '';
 
+        // The description (clamped behind "show more", but all in the DOM)
+        // ends with a credits line: "TONY (Matt Johnson, 2026 / 106 mins / 14A)"
+        const descriptionElement = element.querySelector('div.event-description');
+        const description = descriptionElement?.textContent ?? '';
+
         // Find booking URL - it's in a div with class "event-buttons-wrapper" containing an <a> tag
         const buttonWrapper = element.querySelector('div.event-buttons-wrapper');
         const buttonLink = buttonWrapper ? buttonWrapper.querySelector('a') : null;
@@ -64,6 +71,7 @@ export async function scrapePark(): Promise<Screening[]> {
             title: title,
             datetime: datetime,
             url: url,
+            description,
           });
         }
       });
@@ -80,7 +88,7 @@ export async function scrapePark(): Promise<Screening[]> {
       const movie: Movie = {
         id: null,
         title,
-        year: null,
+        year: extractCreditsYear(parkScreening.description),
         director: null,
         runtime: null,
       };

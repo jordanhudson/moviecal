@@ -2,6 +2,7 @@ import puppeteer from 'puppeteer';
 import { Movie, Screening } from '../models.js';
 import { cleanMovieTitle } from '../utils/title-cleaner.js';
 import { parseMonthName, parse12HourTime, pacificWallClockToInstant } from '../utils/time.js';
+import { fetchFilmYears } from './film-years.js';
 
 // Cinematheque-specific internal models (not exported)
 interface CinemathequeScreening {
@@ -137,10 +138,25 @@ export async function scrapeCinematheque(): Promise<Screening[]> {
       screenings.push(screening);
     }
 
+    // The calendar has no release year; each film page (the URL we store as
+    // bookingUrl) does, in its details list.
+    const years = await fetchFilmYears(
+      screenings.map((s) => s.bookingUrl),
+      extractCinemathequeYear,
+    );
+    for (const s of screenings) s.movie.year = years.get(s.bookingUrl) ?? null;
+
     return screenings;
   } finally {
     await browser.close();
   }
+}
+
+// The film page's header `ul#details` holds the headline film's year; on a
+// double bill each later film gets its own block, so take the first one.
+export function extractCinemathequeYear(html: string): number | null {
+  const m = html.match(/<ul id="details">[\s\S]*?class="filmYear">\s*(\d{4})/);
+  return m ? parseInt(m[1], 10) : null;
 }
 
 // Helper function to parse Cinematheque date and time strings into a Date object

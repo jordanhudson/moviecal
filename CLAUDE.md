@@ -423,7 +423,9 @@ This means adding a new pattern to the title cleaner is safe — just add the re
 - TMDB fix-match endpoint in `server.ts`
 - Repair script in `db/repair.ts`
 
-**Search**: `scrape.ts` also has `searchTMDB()` which searches TMDB by title+year, filters out shorts (<60 min), and picks the best runtime match.
+**Search**: `findGatedTMDBMatch()` (`src/utils/tmdb-match.ts`) is the single matcher used by scrape, audit and re-match. It keeps only results whose title matches, drops shorts (<60 min), then — if the scraper supplied a year — keeps the candidates closest to that year within `MAX_YEAR_GAP` (2) and returns **null** if none are that close (rather than an older namesake). Runtime breaks remaining ties. With a year it merges TMDB's year-filtered and unfiltered searches, since `&year=` alone drops films whose TMDB date is a year off the listing.
+
+**Release years**: the year is the main signal for picking between same-titled films, so scrapers should fill `movie.year` when the venue publishes it. Shared helpers live in `src/scrapers/film-years.ts` (`extractCreditsYear` for the "(Director, YEAR / mins / rating)" credits line, `fetchFilmYears` for fetching film pages 5 at a time, best-effort). Current sources: VIFF (film page Year), Park (credits line in the listing description), Rio (credits line on `/movie/` pages; `/event/` pages are live shows), Cinematheque (`ul#details .filmYear` on the film page). Not used: Hollywood (year only in prose) and Cineplex (its `releaseDate` is the Canadian release, so re-releases would carry the re-release year).
 
 **Letterboxd**: `scrape.ts` uses `searchLetterboxdByTmdbId()`, which resolves the canonical film URL via Letterboxd's `/tmdb/{id}/` redirect (Letterboxd sources its catalog from TMDB). Stores the URL or `null` — no sentinel. Only new movies (scrape) and the one-off `backfill-letterboxd.ts` populate it; the regular reclean/repair passes don't retry Letterboxd.
 
@@ -494,6 +496,7 @@ export async function scrapeVenue(): Promise<Screening[]> {
   - WordPress custom endpoint with calendar events
   - Returns HTML in JSON (extract title/URL via regex)
   - Venue mapping: `VENUE_NAMES` lookup with fallback formatter
+  - The API has no release year, so it also fetches each film's "More Info" page (the stored `bookingUrl`) and reads the Year from the details sidebar (`extractFilmYear`) — see Release years below
 
 - **`rio-scraper.ts`** - Rio Theatre
   - API: `https://riotheatre.ca/wp-json/barker/v1/listings`
