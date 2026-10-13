@@ -20,6 +20,7 @@ npm run migrate      # Run database migrations
 npm run repair       # Re-clean titles + backfill missing TMDB data
 npm run audit-tmdb       # Read-only report of likely-wrong TMDB matches
 npm run rematch-tmdb     # Re-match flagged movies (add --apply to write)
+npx tsx src/db/rematch-by-year.ts # Re-check matches against venue-published years (add --apply to write)
 npm run build-tmdb-review # Rebuild the /internal-tmdb-review work list
 npm run clear        # Clear all data from database
 npm run drop         # Drop all tables from database
@@ -344,6 +345,8 @@ secrets are set with `fly secrets set`.
 - `src/db/migrate.ts` - Migration runner. Records applied filenames in a `schema_migrations` table and runs each unapplied `migrations/*.sql` file once, in its own transaction (rollback + abort on failure). Existing DBs bootstrap safely because the migrations are idempotent — the first tracked run re-applies and records them, then they never re-run.
 - `src/db/repair.ts` - Re-cleans existing titles (shared logic with scrape), then backfills missing TMDB data
 - `src/utils/reclean.ts` - Shared re-clean logic used by both scrape and repair
+- `src/db/rematch-tmdb.ts` - Re-matches movies whose stored title no longer matches their TMDB record. Passes **no** year to the matcher (the stored year usually came from the match being questioned). Can't catch a wrong film whose title matches — that's what `rematch-by-year` is for
+- `src/db/rematch-by-year.ts` - Scrapes the year-publishing venues (VIFF, Park, Rio, Cinematheque), links each screening to its DB movie by `booking_url`, and for any movie whose TMDB release year is more than 2 from the venue's year re-matches it (merging via `mergeMovieInto` if the right film already has a row). Films TMDB has under a different title are listed for a manual fix-match; `--clear-unmatched` drops their TMDB data instead. Dry run by default, `--apply` to write. On prod: `fly ssh console -a movieclock -C "node dist/db/rematch-by-year.js"`
 - `src/db/clear.ts` - Deletes all data
 - `src/db/drop.ts` - Drops all tables
 - Migrations stored in `migrations/*.sql` (still use `IF NOT EXISTS`/`IF EXISTS` so the bootstrap re-apply on existing DBs is safe; `migrate.ts` then tracks them so each runs once going forward)
@@ -445,7 +448,8 @@ Scrapers use one of two approaches depending on whether the venue has an API:
 3. **Fetch from API**: Use `fetch()` to call the API endpoint
 4. **Parse response in a separate exported pure function** (e.g. `parseVenueEvents(events): Screening[]`): extract film title, datetime (usually ISO 8601), booking URL, venue. Keeping parse separate from fetch lets it be tested — save a trimmed real API response to `src/scrapers/fixtures/` and add a test in `src/scrapers/parsers.test.ts`
 5. **Clean title**: Use `cleanMovieTitle()` to extract title and note
-6. **Convert to global models**: Map API data to `Screening[]`
+6. **Fill `movie.year` if the venue publishes it** (listing, API, or film detail page) — see Release years under TMDB Integration
+7. **Convert to global models**: Map API data to `Screening[]`
 
 **Example (API-based)**:
 ```typescript
@@ -503,6 +507,7 @@ export async function scrapeVenue(): Promise<Screening[]> {
   - WordPress custom plugin endpoint
   - Clean JSON with `tickets_link` for booking URLs
   - Date range: 1 month back, 2 months forward
+  - The API has no release year, so it also fetches each `/movie/…` page (`event.link`; `/event/…` pages are live shows and are skipped) and reads the year from the credits line, e.g. `(Matt Johnson, 2026 / 106 mins / 14A)`, via `extractCreditsYear`. Screenings map 1:1 to events, so years are applied by index
   - **Note**: `start_time` carries a UTC offset, so `new Date(start_time)` is the correct instant (see Timezone Handling)
 
 - **`cineplex-scraper.ts`** - Cineplex Theatres (Fifth Avenue, International Village, Scotiabank, Langley)
@@ -512,22 +517,26 @@ export async function scrapeVenue(): Promise<Screening[]> {
   - Each session carries `showStartDateTimeUtc` (a UTC instant) — used directly as the screening time
   - Theatre name format: `"{venue} {auditorium}"` e.g. `"Fifth Ave Aud #3"`, `"Intl Village Aud 05"`
   - Uses `deeplinkUrl` for booking URLs
+  - No year: the showtimes API has none, and the detail page's `releaseDate` is the Canadian release (a re-release would carry the re-release year), so it's deliberately not used
   - **To find theatre IDs**: `GET https://apis.cineplex.com/prod/cpx/theatrical/api/v1/theatres?language=en&city=Vancouver&latitude=49.2514&longitude=-123.0972` (same API key header). Returns `theatreId` and `theatreName` for nearby theatres. This is not used by the scraper but is useful for adding new Cineplex locations.
 
 - **`hollywood-scraper.ts`** - Hollywood Theatre
   - Uses cheerio to scrape event pages
   - Crawls individual event detail pages with a delay between requests
+  - No year: it only appears in prose ("John Landis' 1980 comedy classic"), too unreliable to parse
 
 **Puppeteer-Based** (slower, more brittle):
 - **`cinematheque-scraper.ts`** - Cinematheque
   - URL: `https://thecinematheque.ca/films/calendar`
   - Custom PHP application, no API available
   - Scrapes `#eventCalendar` DOM structure
+  - The calendar has no release year, so it fetches each film page (the stored `bookingUrl`; plain `fetch`, no Puppeteer) and reads the first `span.filmYear` inside `ul#details` (`extractCinemathequeYear`) — the headline film on a double bill. The `/films/2026/…` in the URL is the programme year, not the film's
 
 - **`park-scraper.ts`** - Park Theatre
   - URL: `https://tickets.theparktheatre.ca/`
   - Igniter ticketing system, no API available
   - Scrapes event listings from HTML
+  - Year comes from the listing itself: each `div.event-description` (clamped behind "show more", but fully in the DOM) ends with a credits line like `TONY (Matt Johnson, 2026 / 106 mins / 14A)`, parsed with `extractCreditsYear`. No extra requests. Events without a credits line (live shows, fundraisers) get no year
 
 All scrapers run in parallel via `scrape.ts` with error handling (failed scrapers don't break the job).
 
