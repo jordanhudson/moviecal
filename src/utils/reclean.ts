@@ -7,6 +7,7 @@
 //   3. Rename and retry TMDB/Letterboxd lookups for changed titles
 
 import { db } from '../db/connection.js';
+import { mergeMovieInto } from '../db/merge-movie.js';
 import {
   verifyTitleCleaning,
   searchTMDBByTitle,
@@ -62,13 +63,10 @@ export async function recleanExistingTitles() {
     if (duplicate) {
       // Carry the extracted note onto the stale record's screenings before they move
       await applyNoteToScreenings(existing.id, verified.note);
-      // Reassign screenings from the stale record to the existing one, then delete stale
-      await db
-        .updateTable('screening')
-        .set({ movie_id: duplicate.id })
-        .where('movie_id', '=', existing.id)
-        .execute();
-      await db.deleteFrom('movie').where('id', '=', existing.id).execute();
+      // Reassign screenings from the stale record to the existing one, then delete stale.
+      // mergeMovieInto drops stale screenings the existing record already has (same
+      // theatre + time) so the move can't violate idx_screening_identity_unique.
+      await mergeMovieInto(duplicate.id, existing.id);
       console.log(`  → Merged stale movie "${existing.title}" into "${verified.title}"`);
     } else {
       // Rename and retry missing external lookups with the cleaned title

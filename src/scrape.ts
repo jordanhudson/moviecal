@@ -135,7 +135,12 @@ async function runScrapeJobLocked(scraperName?: string) {
 
   // Re-clean existing movie titles in case new patterns were added to the title cleaner.
   // Uses shared re-clean logic with TMDB verification to avoid stripping real title parts.
-  await recleanExistingTitles();
+  // A failure here must not block saving fresh screenings below.
+  try {
+    await recleanExistingTitles();
+  } catch (err) {
+    console.error('Re-clean of existing titles failed (continuing):', err);
+  }
 
   // Extract unique movies (dedupe on title)
   const uniqueMoviesMap = new Map<string, Movie>();
